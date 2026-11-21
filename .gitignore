@@ -1,0 +1,11 @@
+node_modules/
+dist/
+**/dist/
+release/
+.packaging/
+.wrangler/
+worker/wrangler.toml
+.env
+.env.*
+!.env.example
+*.log

@@ -1,0 +1,60 @@
+name: ShiftDex Windows release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: shiftdex-main-release
+  cancel-in-progress: false
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.15.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Assign automatic release version
+        id: version
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $parts = $package.version.Split('.')
+          $parts[2] = [string]([int]$parts[2] + [int]$env:GITHUB_RUN_NUMBER - 1)
+          $version = $parts -join '.'
+          $package.version = $version
+          $package | ConvertTo-Json -Depth 100 | Set-Content package.json -Encoding utf8
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Windows installer
+        run: pnpm dist
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: ShiftDex ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            release/ShiftDex-Setup-*.exe
+            release/latest.yml

@@ -1,0 +1,12 @@
+{
+  "name": "Shift Desk Worker Portal",
+  "short_name": "Shift Desk",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f6f8",
+  "theme_color": "#17232e",
+  "icons": [
+    { "src": "/shift-desk-app-icon.png", "type": "image/png", "sizes": "256x256", "purpose": "any" },
+    { "src": "/shift-desk-mark.png", "type": "image/png", "sizes": "512x512", "purpose": "any" }
+  ]
+}
