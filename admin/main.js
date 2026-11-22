@@ -77,6 +77,7 @@ const ICONS = {
   clock: `<svg class="analog-clock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.4"/><path d="M12 4.2v1M19.8 12h-1M12 19.8v-1M4.2 12h1" opacity=".45"/><line class="clock-hour-hand" x1="12" y1="12" x2="15.2" y2="13.5"/><line class="clock-minute-hand" x1="12" y1="12" x2="12" y2="6.5"/><line class="clock-second-hand" x1="12" y1="13" x2="12" y2="5.2"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>`,
   undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`,
   redo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  spark: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
   settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`
 };
 
@@ -401,6 +402,202 @@ function showConfirmDialog({
     const okBtn = dialog.querySelector('#custom-confirm-ok');
     if (okBtn) okBtn.focus();
   });
+}
+
+function openCopilotModal() {
+  let dialog = document.getElementById('copilot-modal-dialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'copilot-modal-dialog';
+    dialog.className = 'copilot-modal-dialog';
+    document.body.appendChild(dialog);
+  }
+
+  let isSubmitting = false;
+  let lastResult = null;
+
+  function renderCopilotView(promptVal = '') {
+    dialog.innerHTML = `
+      <div class="copilot-container">
+        <div class="copilot-modal-header">
+          <div class="copilot-title-group">
+            <div class="copilot-icon-badge">${ICONS.spark}</div>
+            <div>
+              <span class="shift-edit-eyebrow">CLOUDFLARE WORKERS AI</span>
+              <h3 style="margin:2px 0 0;font-size:18px;font-weight:800;letter-spacing:-0.4px;">ShiftDesk Copilot</h3>
+            </div>
+          </div>
+          <button class="shift-edit-close" id="btn-copilot-close" title="Close dialog">&times;</button>
+        </div>
+
+        <div class="copilot-chips-wrap">
+          <button type="button" class="copilot-chip" data-copilot-prompt="Who is working night shift tonight?">Who is working night shift tonight?</button>
+          <button type="button" class="copilot-chip" data-copilot-prompt="Swap Julius and Bernard on Nov 24">Swap Julius and Bernard on Nov 24</button>
+          <button type="button" class="copilot-chip" data-copilot-prompt="Put Kate on leave on Nov 27">Put Kate on leave on Nov 27</button>
+          <button type="button" class="copilot-chip" data-copilot-prompt="Show duty schedule for today">Duty schedule for today</button>
+        </div>
+
+        <form id="copilot-form" class="copilot-input-row">
+          <input id="copilot-input" class="copilot-input" type="text" placeholder="Ask anything or propose a shift change (e.g. 'Swap Papa Nii and Owusu')..." value="${escapeHtml(promptVal)}" required autocomplete="off" />
+          <button id="copilot-btn-send" class="copilot-btn-submit" type="submit" ${isSubmitting ? 'disabled' : ''}>
+            ${isSubmitting ? '<span class="button-spinner" aria-hidden="true"></span><span>Analyzing…</span>' : '<span>Ask AI</span>'}
+          </button>
+        </form>
+
+        <div id="copilot-result-area">
+          ${renderCopilotResult(lastResult, isSubmitting)}
+        </div>
+      </div>
+    `;
+
+    const closeBtn = dialog.querySelector('#btn-copilot-close');
+    if (closeBtn) closeBtn.onclick = () => dialog.close();
+
+    dialog.querySelectorAll('.copilot-chip').forEach(chip => {
+      chip.onclick = () => {
+        const text = chip.dataset.copilotPrompt;
+        const input = dialog.querySelector('#copilot-input');
+        if (input) {
+          input.value = text;
+          dialog.querySelector('#copilot-form').dispatchEvent(new Event('submit'));
+        }
+      };
+    });
+
+    const form = dialog.querySelector('#copilot-form');
+    if (form) {
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const input = dialog.querySelector('#copilot-input');
+        const text = (input?.value || '').trim();
+        if (!text || isSubmitting) return;
+
+        isSubmitting = true;
+        lastResult = null;
+        renderCopilotView(text);
+
+        const token = sessionStorage.getItem('admin-session') || '';
+        const todayKey = new Date().toISOString().slice(0, 10);
+        const todayMorning = activeStaff().filter(s => cellFor(state, s.id, todayKey) === 'M').map(s => s.displayName || s.name);
+        const todayNight = activeStaff().filter(s => cellFor(state, s.id, todayKey) === 'N').map(s => s.displayName || s.name);
+
+        const scheduleContext = `Today is ${todayKey}. Active month is ${month}. Today Morning Shift (06:00 - 18:00): ${todayMorning.join(', ') || 'None'}. Today Night Shift (18:00 - 06:00): ${todayNight.join(', ') || 'None'}. Rotation: 8-day perpetual cycle (2M -> 2N -> 4 OFF).`;
+
+        try {
+          const res = await fetch(API + '/api/admin/ai/copilot', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+            body: JSON.stringify({
+              prompt: text,
+              month,
+              staff: activeStaff().map(s => ({ id: s.id, name: s.displayName || s.name, role: s.role || 'NSP', podId: s.podId || '' })),
+              scheduleContext
+            })
+          });
+          const data = await res.json();
+          isSubmitting = false;
+          lastResult = data;
+          renderCopilotView(text);
+        } catch (err) {
+          isSubmitting = false;
+          lastResult = {
+            ok: false,
+            summary: `Request failed: ${err.message}. Please check connection.`,
+            type: 'answer',
+            changes: []
+          };
+          renderCopilotView(text);
+        }
+      };
+    }
+
+    const applyBtn = dialog.querySelector('#btn-copilot-apply');
+    if (applyBtn && lastResult?.changes?.length) {
+      applyBtn.onclick = () => {
+        let appliedCount = 0;
+        for (const ch of lastResult.changes) {
+          if (ch.date && ch.staffId && ch.to) {
+            state.assignments[`${ch.date}:${ch.staffId}`] = ch.to;
+            appliedCount++;
+          }
+        }
+        save();
+        render();
+        toast(`Applied ${appliedCount} change${appliedCount > 1 ? 's' : ''} to schedule`);
+        dialog.close();
+      };
+    }
+  }
+
+  function renderCopilotResult(res, loading) {
+    if (loading) {
+      return `
+        <div class="copilot-result-box" style="align-items:center;padding:24px;text-align:center;">
+          <span class="button-spinner" style="width:24px;height:24px;border-width:2.5px;border-color:var(--blue-primary);border-top-color:transparent;" aria-hidden="true"></span>
+          <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-top:10px;">Consulting Cloudflare Workers AI…</div>
+          <div style="font-size:11.5px;color:var(--text-light);margin-top:2px;">Analyzing shift rotation rules, team rosters, and constraints</div>
+        </div>
+      `;
+    }
+    if (!res) return '';
+
+    const hasChanges = Array.isArray(res.changes) && res.changes.length > 0;
+
+    return `
+      <div class="copilot-result-box">
+        <div class="copilot-answer-text">
+          <strong>Assistant:</strong> ${escapeHtml(res.summary || 'Analysis complete.')}
+        </div>
+
+        ${Array.isArray(res.warnings) && res.warnings.length ? `
+          <div class="shift-conflict-preview has-warning" style="margin:0;">
+            <b>Operational Alerts:</b>
+            <ul>
+              ${res.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
+
+        ${hasChanges ? `
+          <div>
+            <div style="font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:6px;">PROPOSED SCHEDULE ADJUSTMENTS:</div>
+            <table class="copilot-diff-table">
+              <thead>
+                <tr>
+                  <th>Member</th>
+                  <th>Date</th>
+                  <th>Shift</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${res.changes.map(ch => `
+                  <tr>
+                    <td><strong>${escapeHtml(ch.staffName || ch.staffId)}</strong></td>
+                    <td style="font-family:var(--font-mono);">${escapeHtml(ch.date)}</td>
+                    <td>
+                      <span style="font-weight:700;">${escapeHtml(ch.from || '–')}</span>
+                      <span class="copilot-diff-arrow">&rarr;</span>
+                      <span style="font-weight:800;color:var(--blue-primary);">${escapeHtml(ch.to)}</span>
+                    </td>
+                    <td style="color:var(--text-light);">${escapeHtml(ch.reason || 'Requested change')}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="copilot-action-footer">
+            <button type="button" class="btn-clean" id="btn-copilot-dismiss" onclick="document.getElementById('copilot-modal-dialog').close()">Dismiss</button>
+            <button type="button" class="btn-clean primary pill" id="btn-copilot-apply">Apply Changes to Calendar</button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  renderCopilotView('');
+  dialog.showModal();
 }
 
 function shiftDateOffset(date, amount) {
@@ -1609,6 +1806,11 @@ function render() {
               <button class="month-nav-btn" id="btn-month-next" title="Next month">${ICONS.chevronRight}</button>
             </div>
 
+            <button class="copilot-trigger-btn" id="btn-top-copilot" title="AI Copilot (Ctrl+K)">
+              <span class="copilot-spark-icon">${ICONS.spark}</span>
+              <span>Copilot</span>
+              <kbd class="copilot-kbd-pill">Ctrl K</kbd>
+            </button>
             <button class="btn-clean" id="btn-top-export">
               <span>Export Excel</span>
             </button>
@@ -4172,6 +4374,10 @@ function bindEvents() {
     };
   }
 
+  // Copilot Assistant
+  const copilotBtn = document.querySelector('#btn-top-copilot');
+  if (copilotBtn) copilotBtn.onclick = openCopilotModal;
+
   // Publish Schedule
   const publishBtn = document.querySelector('#btn-top-publish');
   if (publishBtn) publishBtn.onclick = () => requireCloudflareConnection(publishRoster);
@@ -5008,6 +5214,12 @@ function bindEvents() {
 // Initial Run
 render();
 syncDirectory();
+window.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+    e.preventDefault();
+    openCopilotModal();
+  }
+});
 if (window.shiftDexDesktop?.updates) {
   let pendingStateTimer = null;
   window.shiftDexDesktop.updates.onStatus(state => {

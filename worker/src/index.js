@@ -657,6 +657,114 @@ function renderVerificationHtml({ success, title, message, portalUrl, logoUrl, n
 </html>`;
 }
 
+async function runRosterAi(env, { prompt, month, staff, scheduleContext }) {
+  if (!env.AI) {
+    throw new Error('Cloudflare Workers AI binding is not configured.');
+  }
+
+  const staffNames = (staff || []).map(s => `${s.name || s.fullName} (id: "${s.id}", role: "${s.role || s.roleTag || 'NSP'}", team: "${s.podId || 'support'}")`).join('\n');
+
+  const systemPrompt = `You are ShiftDesk Copilot, an AI operations assistant for a 24/7 mission-critical shift scheduling system.
+Active month: ${month || '2026-11'}.
+Shift codes:
+- "M" = Morning shift (06:00 - 18:00)
+- "N" = Night shift (18:00 - 06:00)
+- "OFF" = Off duty
+- "LEAVE" = Approved leave
+
+Active Staff:
+${staffNames}
+
+Schedule context snippet:
+${scheduleContext || 'Standard 8-day rotation cycle (2M -> 2N -> 4 OFF)'}
+
+Instructions:
+1. Determine the user intent:
+   - Informational question ("Who is on night shift today?", "How many hours did Julius work?", "Explain how the cycle works"):
+     Set "type": "answer", provide a direct and helpful "summary", and set "changes": [].
+   - Schedule modification ("Swap Julius and Bernard on Nov 24", "Put Kate on leave from 2026-11-20 to 2026-11-22 and assign Owusu to cover", "Change Selorm to night shift tomorrow"):
+     Set "type": "mutation", provide a clear "summary" describing the exact changes, and list the exact changes in "changes".
+2. Date format in "changes": ALWAYS use exact ISO "YYYY-MM-DD" (e.g. "${month || '2026-11'}-15").
+3. Shift codes in "to": MUST be one of "M", "N", "OFF", "LEAVE".
+4. Staff IDs in "changes": MUST match the exact id from Active Staff.
+5. In "warnings", highlight any operational risks, like a person working double shifts or back-to-back night to morning.
+6. Return ONLY valid JSON (no markdown fences, no explanatory text outside the JSON object).
+Schema:
+{
+  "summary": "Concise explanation of answer or proposed schedule change",
+  "type": "mutation" or "answer",
+  "changes": [
+    {
+      "date": "YYYY-MM-DD",
+      "staffId": "exact-id",
+      "staffName": "Full Name",
+      "from": "current code if known",
+      "to": "M" | "N" | "OFF" | "LEAVE",
+      "reason": "Brief reason"
+    }
+  ],
+  "warnings": ["operational alert if any"]
+}`;
+
+  const candidateModels = [
+    '@cf/meta/llama-3-8b-instruct',
+    '@cf/meta/llama-3.2-3b-instruct',
+    '@cf/meta/llama-3.2-1b-instruct',
+    '@cf/mistral/mistral-7b-instruct-v0.2'
+  ];
+  let response = null;
+  let lastErr = null;
+  for (const model of candidateModels) {
+    try {
+      response = await env.AI.run(model, {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 1024
+      });
+      if (response) break;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  if (!response) throw lastErr || new Error('No compatible AI model available');
+
+  let raw = '';
+  if (typeof response === 'string') raw = response;
+  else if (typeof response?.response === 'string') raw = response.response;
+  else if (typeof response?.choices?.[0]?.message?.content === 'string') raw = response.choices[0].message.content;
+  else raw = JSON.stringify(response);
+
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    return {
+      summary: raw.trim() || 'Schedule analysis complete.',
+      type: 'answer',
+      changes: [],
+      warnings: []
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      summary: parsed.summary || 'Schedule analysis complete.',
+      type: parsed.type === 'mutation' ? 'mutation' : 'answer',
+      changes: Array.isArray(parsed.changes) ? parsed.changes : [],
+      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : []
+    };
+  } catch (err) {
+    return {
+      summary: raw.replace(/```json|```/g, '').trim(),
+      type: 'answer',
+      changes: [],
+      warnings: []
+    };
+  }
+}
+
 export default {
   async fetch(req, env) {
     const origin = req.headers.get('origin');
@@ -1400,6 +1508,33 @@ export default {
           ORDER BY s.full_name ASC
         `).all();
         return json({ staff: staffList.results });
+      }
+
+      if (url.pathname === '/api/admin/ai/copilot' && req.method === 'POST') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json().catch(() => ({}));
+        const prompt = String(body.prompt || '').trim();
+        if (!prompt) return json({ error: 'Prompt is required' }, 400);
+
+        try {
+          const aiResult = await runRosterAi(env, {
+            prompt,
+            month: body.month,
+            staff: body.staff,
+            scheduleContext: body.scheduleContext
+          });
+          return json({ ok: true, ...aiResult });
+        } catch (err) {
+          console.error('AI copilot error:', err);
+          return json({
+            ok: true,
+            summary: `AI Assistant encountered an issue: ${err.message}. Please try again with a specific prompt.`,
+            type: 'answer',
+            changes: [],
+            warnings: []
+          });
+        }
       }
 
       return json({ error: 'Not found' }, 404);

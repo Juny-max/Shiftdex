@@ -2557,3 +2557,197 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
   .update-settings-card { grid-template-columns: 1fr; }
   .update-actions { justify-content: flex-start; }
 }
+
+/* Copilot AI Assistant */
+.copilot-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-weight: 700;
+  padding: 0 13px;
+  border-radius: 999px;
+  cursor: pointer;
+  height: 38px;
+  transition: all 0.16s ease;
+}
+.copilot-trigger-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+}
+.copilot-spark-icon {
+  color: #2563eb;
+  flex-shrink: 0;
+}
+.copilot-kbd-pill {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+  line-height: 1.2;
+}
+.copilot-modal-dialog {
+  width: min(660px, calc(100vw - 32px));
+  max-width: 660px;
+  padding: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.28);
+  overflow: hidden;
+}
+.copilot-modal-dialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+}
+.copilot-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+}
+.copilot-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.copilot-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.copilot-icon-badge {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.copilot-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.copilot-chip {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.14s ease;
+  text-align: left;
+}
+.copilot-chip:hover {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.copilot-input-row {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+}
+.copilot-input {
+  flex: 1;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.copilot-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.copilot-btn-submit {
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.copilot-btn-submit:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+.copilot-btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.copilot-result-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.copilot-answer-text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #334155;
+}
+.copilot-diff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.copilot-diff-table th {
+  background: #f1f5f9;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 700;
+  color: #475569;
+  font-size: 11px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.copilot-diff-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+.copilot-diff-arrow {
+  color: #64748b;
+  margin: 0 4px;
+}
+.copilot-action-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 6px;
+}
+
