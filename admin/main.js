@@ -304,6 +304,104 @@ function toast(message) {
   setTimeout(() => el.classList.remove('show'), 3800);
 }
 
+function showConfirmDialog({
+  title = 'Are you sure?',
+  eyebrow = 'CONFIRMATION',
+  message = '',
+  details = '',
+  confirmText = 'Confirm',
+  cancelText = 'Cancel',
+  type = 'primary', // 'primary' | 'danger' | 'warning'
+  icon = null
+} = {}) {
+  return new Promise((resolve) => {
+    let dialog = document.getElementById('custom-confirm-dialog');
+    if (!dialog) {
+      dialog = document.createElement('dialog');
+      dialog.id = 'custom-confirm-dialog';
+      dialog.className = 'shift-edit-dialog custom-confirm-dialog';
+      document.body.appendChild(dialog);
+    }
+
+    let iconHtml = '';
+    let themeColor = '#2563eb';
+    let themeBg = '#eff6ff';
+    let themeBorder = '#bfdbfe';
+    let confirmBtnStyle = 'background:var(--blue-primary);color:#ffffff;border-color:transparent;';
+
+    if (type === 'danger') {
+      themeColor = '#dc2626';
+      themeBg = '#fef2f2';
+      themeBorder = '#fecaca';
+      confirmBtnStyle = 'background:#dc2626;color:#ffffff;border-color:#dc2626;';
+      iconHtml = icon || `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`;
+    } else if (type === 'warning') {
+      themeColor = '#d97706';
+      themeBg = '#fffbeb';
+      themeBorder = '#fde68a';
+      confirmBtnStyle = 'background:#d97706;color:#ffffff;border-color:#d97706;';
+      iconHtml = icon || `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`;
+    } else {
+      iconHtml = icon || `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`;
+    }
+
+    dialog.innerHTML = `
+      <div class="custom-confirm-card" style="padding:22px;display:flex;flex-direction:column;gap:15px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:42px;height:42px;border-radius:12px;background:${themeBg};border:1px solid ${themeBorder};color:${themeColor};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              ${iconHtml}
+            </div>
+            <div>
+              <span style="font-family:var(--font-mono);font-size:9.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:${themeColor};display:block;margin-bottom:2px;">${escapeHtml(eyebrow)}</span>
+              <h3 style="margin:0;font-family:var(--font-display);font-size:18px;font-weight:800;letter-spacing:-0.4px;color:var(--text-main);">${escapeHtml(title)}</h3>
+            </div>
+          </div>
+          <button type="button" class="shift-edit-close" id="custom-confirm-close" aria-label="Close" style="width:28px;height:28px;font-size:16px;flex-shrink:0;">&times;</button>
+        </div>
+
+        ${message ? `<p style="margin:0;font-size:13px;color:var(--text-secondary);line-height:1.5;">${escapeHtml(message)}</p>` : ''}
+
+        ${details ? `
+          <div style="background:${themeBg};border:1px solid ${themeBorder};border-radius:10px;padding:11px 13px;font-size:12px;color:${themeColor === '#dc2626' ? '#991b1b' : themeColor === '#d97706' ? '#92400e' : '#1e40af'};line-height:1.45;">
+            ${typeof details === 'string' && details.includes('<') ? details : escapeHtml(details)}
+          </div>
+        ` : ''}
+
+        <div style="display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:2px;padding-top:10px;border-top:1px solid var(--border-subtle, #edf2f7);">
+          <button type="button" class="btn-clean" id="custom-confirm-cancel" style="height:36px;padding:0 15px;font-size:12.5px;font-weight:600;">${escapeHtml(cancelText)}</button>
+          <button type="button" class="btn-clean" id="custom-confirm-ok" style="height:36px;padding:0 17px;font-size:12.5px;font-weight:700;${confirmBtnStyle}">${escapeHtml(confirmText)}</button>
+        </div>
+      </div>
+    `;
+
+    let settled = false;
+    const cleanup = (val) => {
+      if (settled) return;
+      settled = true;
+      dialog.close();
+      resolve(val);
+    };
+
+    dialog.querySelector('#custom-confirm-close').onclick = () => cleanup(false);
+    dialog.querySelector('#custom-confirm-cancel').onclick = () => cleanup(false);
+    dialog.querySelector('#custom-confirm-ok').onclick = () => cleanup(true);
+
+    dialog.oncancel = (e) => {
+      e.preventDefault();
+      cleanup(false);
+    };
+
+    dialog.onclick = (e) => {
+      if (e.target === dialog) cleanup(false);
+    };
+
+    dialog.showModal();
+    const okBtn = dialog.querySelector('#custom-confirm-ok');
+    if (okBtn) okBtn.focus();
+  });
+}
+
 function shiftDateOffset(date, amount) {
   const d = new Date(`${date}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + amount);
@@ -1562,7 +1660,16 @@ function bindUpdateSettings() {
   const uninstall = document.querySelector('#btn-app-uninstall');
   if (uninstall) uninstall.onclick = async () => {
     if (!desktop?.uninstall) { toast('Uninstall is available in the installed Windows app.'); return; }
-    if (!window.confirm('Uninstall ShiftDex and remove its local app data?')) return;
+    const confirmed = await showConfirmDialog({
+      eyebrow: 'UNINSTALL APP',
+      title: 'Uninstall ShiftDex?',
+      message: 'Are you sure you want to uninstall ShiftDex and remove its local app data?',
+      details: 'This will launch the Windows uninstaller for ShiftDex.',
+      confirmText: 'Uninstall ShiftDex',
+      cancelText: 'Cancel',
+      type: 'danger'
+    });
+    if (!confirmed) return;
     uninstall.disabled = true;
     try { await desktop.uninstall(); }
     catch (error) { toast(error.message || 'Could not open the uninstall wizard.'); uninstall.disabled = false; }
@@ -2502,7 +2609,16 @@ function openStaffDetailDrawer(staffId) {
   const cancelBtn = dialog.querySelector('#drawer-cancel-btn');
   if (cancelBtn) {
     cancelBtn.onclick = async () => {
-      if (!confirm(`Cancel invitation for ${person.displayName || person.name}?`)) return;
+      const confirmed = await showConfirmDialog({
+        eyebrow: 'CANCEL INVITATION',
+        title: `Cancel invitation for ${person.displayName || person.name}?`,
+        message: `Are you sure you want to cancel the invitation for ${person.displayName || person.name}?`,
+        details: 'The invitation link and temporary credentials will be revoked immediately.',
+        confirmText: 'Cancel Invitation',
+        cancelText: 'Keep Invite',
+        type: 'danger'
+      });
+      if (!confirmed) return;
       try {
         const token = sessionStorage.getItem('admin-session') || '';
         const res = await fetch(API + '/api/admin/workers/cancel', {
@@ -2532,7 +2648,16 @@ function openStaffDetailDrawer(staffId) {
 async function archiveStaff(staffId) {
   const person = staff.find(p => p.id === staffId);
   if (!person) return;
-  if (!confirm(`Archive ${person.displayName || person.name}?\n\nThey will be removed from active work and schedules and placed in the Archive list. You can restore them anytime or delete them permanently.`)) return;
+  const confirmed = await showConfirmDialog({
+    eyebrow: 'ARCHIVE STAFF',
+    title: `Archive ${person.displayName || person.name}?`,
+    message: `${person.displayName || person.name} will be removed from active work and schedules and placed in the Archive list.`,
+    details: '<strong>Archive Effects:</strong><ul style="margin:4px 0 0 16px;padding:0;"><li>Removed from active duty and future schedule generation.</li><li>Account status set to Inactive.</li><li>Past shifts and records remain preserved.</li><li>You can bring them back anytime or delete them permanently.</li></ul>',
+    confirmText: 'Archive Staff',
+    cancelText: 'Keep Active',
+    type: 'warning'
+  });
+  if (!confirmed) return;
 
   undo.push(JSON.stringify(state));
   redo = [];
@@ -3569,9 +3694,16 @@ function openResolveUnavailabilityDialog(r) {
   document.getElementById('btn-cancel-resolve').onclick = () => dialog.close();
 
   document.getElementById('btn-confirm-resolve').onclick = async () => {
-    if (!confirm(`Apply changes to calendar and approve unavailability for ${r.name}?`)) {
-      return;
-    }
+    const confirmed = await showConfirmDialog({
+      eyebrow: 'CALENDAR UPDATE',
+      title: 'Approve & Apply to Calendar?',
+      message: `Apply changes to calendar and approve unavailability for ${r.name}?`,
+      details: 'This will mark the worker as OFF during the requested period and assign selected stand-in cover.',
+      confirmText: 'Approve & Apply',
+      cancelText: 'Cancel',
+      type: 'primary'
+    });
+    if (!confirmed) return;
 
     // 1. Apply changes to calendar state
     if (r.startDate && r.endDate) {
@@ -4262,10 +4394,19 @@ function bindEvents() {
   const addPersonButton = document.querySelector('#btn-add-person');
   if (addPersonButton) addPersonButton.onclick = openAddPersonDialog;
   document.querySelectorAll('[data-remove-person]').forEach(button => {
-    button.onclick = () => {
+    button.onclick = async () => {
       const id = button.dataset.removePerson;
       const person = staff.find(entry => entry.id === id);
-      if (!person || !confirm(`Remove ${person.name} from the active roster? Past shifts will be kept.`)) return;
+      if (!person) return;
+      const confirmed = await showConfirmDialog({
+        eyebrow: 'REMOVE FROM ROSTER',
+        title: `Remove ${person.name} from active roster?`,
+        message: `Remove ${person.name} from active scheduling? Past shifts will be kept on record.`,
+        confirmText: 'Remove Staff',
+        cancelText: 'Cancel',
+        type: 'warning'
+      });
+      if (!confirmed) return;
       undo.push(JSON.stringify(state));
       redo = [];
       state.inactiveStaffIds ||= [];
@@ -4326,7 +4467,17 @@ function bindEvents() {
     btn.onclick = async () => {
       const id = btn.dataset.cancelInvite;
       const person = staff.find(s => s.id === id);
-      if (!person || !confirm(`Cancel invitation for ${person.displayName || person.name}?`)) return;
+      if (!person) return;
+      const confirmed = await showConfirmDialog({
+        eyebrow: 'CANCEL INVITATION',
+        title: `Cancel invitation for ${person.displayName || person.name}?`,
+        message: `Are you sure you want to cancel the invitation for ${person.displayName || person.name}?`,
+        details: 'The temporary credentials will be deleted and the invitation revoked.',
+        confirmText: 'Cancel Invitation',
+        cancelText: 'Keep Invitation',
+        type: 'danger'
+      });
+      if (!confirmed) return;
       try {
         const token = sessionStorage.getItem('admin-session') || '';
         const res = await fetch(API + '/api/admin/workers/cancel', {
@@ -4514,9 +4665,16 @@ function bindEvents() {
       const id = btn.dataset.rejectUnavailId;
       const r = requests.find(x => x.id === id);
       if (!r) return;
-      if (!confirm(`Are you sure you want to reject the unavailability request from ${r.name} (${r.startDate} to ${r.endDate})?`)) {
-        return;
-      }
+      const confirmed = await showConfirmDialog({
+        eyebrow: 'REJECT REQUEST',
+        title: 'Reject unavailability request?',
+        message: `Are you sure you want to reject the unavailability request from ${r.name} (${r.startDate} to ${r.endDate})?`,
+        details: 'The worker will be notified and current roster assignments will remain unchanged.',
+        confirmText: 'Reject Request',
+        cancelText: 'Cancel',
+        type: 'danger'
+      });
+      if (!confirmed) return;
       try {
         const res = await fetch(API + '/api/admin/requests/' + id, {
           method: 'POST',
@@ -4546,9 +4704,16 @@ function bindEvents() {
         return;
       }
       const matched = availableStaff.find(s => s.id === staffId);
-      if (!confirm(`Approve account registration for ${r.name} (${r.email}) linked to ${matched?.full_name || staffId}?`)) {
-        return;
-      }
+      const confirmed = await showConfirmDialog({
+        eyebrow: 'APPROVE ACCOUNT',
+        title: 'Approve account registration?',
+        message: `Approve account for ${r.name} (${r.email}) linked to ${matched?.full_name || staffId}?`,
+        details: 'This worker will be granted access to the worker portal with these credentials.',
+        confirmText: 'Approve Account',
+        cancelText: 'Cancel',
+        type: 'primary'
+      });
+      if (!confirmed) return;
       try {
         const res = await fetch(API + '/api/admin/accounts/' + id, {
           method: 'POST',
@@ -4571,9 +4736,16 @@ function bindEvents() {
       const id = btn.dataset.rejectAccountId;
       const r = requests.find(x => x.id === id);
       if (!r) return;
-      if (!confirm(`Reject account registration for ${r.name} (${r.email})?`)) {
-        return;
-      }
+      const confirmed = await showConfirmDialog({
+        eyebrow: 'REJECT ACCOUNT',
+        title: 'Reject account registration?',
+        message: `Reject account registration request for ${r.name} (${r.email})?`,
+        details: 'The registration will be declined and no worker account will be created.',
+        confirmText: 'Reject Account',
+        cancelText: 'Cancel',
+        type: 'danger'
+      });
+      if (!confirmed) return;
       try {
         const res = await fetch(API + '/api/admin/accounts/' + id, {
           method: 'POST',

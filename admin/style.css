@@ -1697,6 +1697,9 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
 
 .shift-edit-dialog { width: min(500px, calc(100vw - 32px)); max-width: 500px; padding: 0; border: 1px solid #e3e9f1; border-radius: 18px; color: var(--text-main); background: #fff; box-shadow: 0 24px 80px rgba(19, 35, 59, .24); }
 .shift-edit-dialog::backdrop { background: rgba(20, 31, 49, .42); backdrop-filter: blur(2px); }
+.custom-confirm-dialog { width: min(440px, calc(100vw - 32px)) !important; max-width: 440px !important; border-radius: 18px !important; box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25) !important; border: 1px solid #e2e8f0 !important; overflow: hidden; }
+.custom-confirm-dialog[open] { animation: confirmPop 0.16s cubic-bezier(0.16, 1, 0.3, 1); }
+@keyframes confirmPop { from { opacity: 0; transform: scale(0.96) translateY(-4px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .account-staff-link { min-width: 210px; height: 32px; padding: 0 9px; border: 1px solid #dfe6ef; border-radius: 8px; background: #fff; color: #344256; font-size: 11px; }
 .pod-draggable-row { cursor: grab; }
 .pod-draggable-row:active { cursor: grabbing; }
