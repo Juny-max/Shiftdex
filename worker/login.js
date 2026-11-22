@@ -8,6 +8,23 @@ export function mountLogin(app, api, onLogin) {
   let prefillEmail = '';
   let prefillTempPassword = '';
 
+  const urlParams = new URLSearchParams(window.location.search);
+  const verifyToken = urlParams.get('verify_email') || urlParams.get('verify_token');
+  if (verifyToken && api) {
+    fetch(`${api}/api/verify-email`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+      body: JSON.stringify({ token: verifyToken })
+    }).then(res => res.json()).then(data => {
+      if (data.ok && data.email) {
+        notice = `Email verified! Your account email is now ${data.email}. Please sign in.`;
+        prefillEmail = data.email;
+        window.history.replaceState({}, document.title, window.location.pathname);
+        draw();
+      }
+    }).catch(() => {});
+  }
+
   const draw = () => {
     if (mode === 'change_password') {
       app.innerHTML = `

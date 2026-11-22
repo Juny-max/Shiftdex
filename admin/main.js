@@ -104,12 +104,17 @@ function personFor(s, key) {
 
 function activeStaff() {
   const inactive = new Set(state.inactiveStaffIds || []);
-  return staff.filter(person => !inactive.has(person.id) && person.status !== 'pending');
+  return staff.filter(person => !inactive.has(person.id) && person.status !== 'pending' && person.status !== 'archived' && person.status !== 'inactive');
 }
 
 function pendingStaff() {
   const inactive = new Set(state.inactiveStaffIds || []);
   return staff.filter(person => !inactive.has(person.id) && person.status === 'pending');
+}
+
+function archivedStaff() {
+  const inactive = new Set(state.inactiveStaffIds || []);
+  return staff.filter(person => inactive.has(person.id) || person.status === 'archived' || person.status === 'inactive');
 }
 
 async function syncDirectory() {
@@ -125,8 +130,23 @@ async function syncDirectory() {
     let changed = false;
     for (const item of data.staff) {
       let existing = staff.find(s => s.id === item.id);
-      const isPending = (item.status === 'pending' || item.must_change_password === 1);
-      const resolvedStatus = isPending ? 'pending' : 'active';
+      const isArchived = (item.status === 'archived' || item.status === 'inactive');
+      const isPending = !isArchived && (item.status === 'pending');
+      const resolvedStatus = isArchived ? 'archived' : (isPending ? 'pending' : 'active');
+
+      if (isArchived) {
+        state.inactiveStaffIds ||= [];
+        if (!state.inactiveStaffIds.includes(item.id)) {
+          state.inactiveStaffIds.push(item.id);
+          changed = true;
+        }
+      } else {
+        if (state.inactiveStaffIds?.includes(item.id)) {
+          state.inactiveStaffIds = state.inactiveStaffIds.filter(id => id !== item.id);
+          changed = true;
+        }
+      }
+
       if (!existing) {
         existing = {
           id: item.id,
@@ -137,6 +157,8 @@ async function syncDirectory() {
           phone: item.phone || undefined,
           effectiveFrom: item.effective_from || '2026-11-01',
           email: item.email || undefined,
+          pendingEmail: item.pending_email || undefined,
+          mustChangePassword: item.must_change_password || 0,
           status: resolvedStatus
         };
         staff.push(existing);
@@ -151,10 +173,20 @@ async function syncDirectory() {
           existing.email = item.email;
           changed = true;
         }
+        if (existing.pendingEmail !== (item.pending_email || undefined)) {
+          existing.pendingEmail = item.pending_email || undefined;
+          changed = true;
+        }
+        if (existing.mustChangePassword !== item.must_change_password) {
+          existing.mustChangePassword = item.must_change_password;
+          changed = true;
+        }
         const customItem = state.customStaff.find(s => s.id === item.id);
         if (customItem) {
           customItem.status = resolvedStatus;
           if (item.email) customItem.email = item.email;
+          customItem.pendingEmail = item.pending_email || undefined;
+          customItem.mustChangePassword = item.must_change_password;
         }
       }
     }
@@ -1927,21 +1959,26 @@ function renderHubstaffRow(s, startDay, daysInMonth, todayStr, yy, mm) {
 function renderPeopleView() {
   const allStaff = orderedPeople(month);
   const allPending = pendingStaff();
+  const allArchived = archivedStaff();
   let filtered = allStaff;
   let filteredPending = allPending;
+  let filteredArchived = allArchived;
 
   if (peopleFilter === 'core') {
     filtered = filtered.filter(s => s.podId);
     filteredPending = filteredPending.filter(s => s.podId);
+    filteredArchived = filteredArchived.filter(s => s.podId);
   } else if (peopleFilter === 'support') {
     filtered = filtered.filter(s => !s.podId);
     filteredPending = filteredPending.filter(s => !s.podId);
+    filteredArchived = filteredArchived.filter(s => !s.podId);
   }
 
   if (peopleSearch.trim()) {
     const q = peopleSearch.toLowerCase();
     filtered = filtered.filter(s => (s.displayName || s.name || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
     filteredPending = filteredPending.filter(s => (s.displayName || s.name || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
+    filteredArchived = filteredArchived.filter(s => (s.displayName || s.name || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
   }
 
   const [yy, mm] = month.split('-').map(Number);
@@ -1949,7 +1986,8 @@ function renderPeopleView() {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   const showPending = (peopleFilter === 'all' || peopleFilter === 'pending') && filteredPending.length > 0;
-  const showActive = peopleFilter !== 'pending';
+  const showActive = peopleFilter !== 'pending' && peopleFilter !== 'archived';
+  const showArchived = (peopleFilter === 'archived');
 
   return `
     <div class="people-section-wrapper">
@@ -1972,6 +2010,7 @@ function renderPeopleView() {
         <button class="clean-filter-pill ${peopleFilter === 'core' ? 'active' : ''}" data-people-filter="core">Shift Crew (${allStaff.filter(s => s.podId).length})</button>
         <button class="clean-filter-pill ${peopleFilter === 'support' ? 'active' : ''}" data-people-filter="support">Day Support (${allStaff.filter(s => !s.podId).length})</button>
         <button class="clean-filter-pill ${peopleFilter === 'pending' ? 'active' : ''}" data-people-filter="pending" style="${allPending.length ? 'color:#b45309;font-weight:700;' : ''}">Pending Invites (${allPending.length})</button>
+        <button class="clean-filter-pill ${peopleFilter === 'archived' ? 'active' : ''}" data-people-filter="archived" style="${allArchived.length ? 'color:#64748b;font-weight:700;' : ''}">Archive (${allArchived.length})</button>
       </div>
 
       ${showPending ? `
@@ -2018,6 +2057,74 @@ function renderPeopleView() {
               `;
             }).join('')}
           </div>
+        </div>
+      ` : ''}
+
+      ${showArchived ? `
+        <!-- Minimalist Archived Staff Table -->
+        <div class="people-table-card">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;background:#f8fafc;">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:var(--text-main);">Archived Staff Directory (${filteredArchived.length})</div>
+              <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">These team members are inactive and removed from active work and schedules. You can restore them to active duty or delete them permanently.</p>
+            </div>
+          </div>
+          <table class="people-table">
+            <thead>
+              <tr>
+                <th>Member</th>
+                <th>Role</th>
+                <th>Previous Team</th>
+                <th>Status</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredArchived.length ? filteredArchived.map(s => {
+                const initials = (s.displayName || s.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                const pObj = pods.find(p => p.id === s.podId);
+                const podName = pObj?.name || (s.podId ? s.podId : s.group || 'Day Support');
+                return `
+                  <tr class="people-table-row" data-view-staff="${s.id}">
+                    <td>
+                      <div class="table-member-cell">
+                        <div class="table-avatar" style="border-color:#cbd5e1;background:#f1f5f9;color:#64748b;">${initials}</div>
+                        <div class="table-member-info">
+                          <span class="table-member-name">${escapeHtml(s.displayName || s.name)}</span>
+                          <span class="table-member-sub">${escapeHtml(s.email || s.id)}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="table-role-tag">${escapeHtml(s.role)}</span>
+                    </td>
+                    <td>
+                      <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(podName)}</span>
+                    </td>
+                    <td>
+                      <span class="table-status-pill off" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;">
+                        Archived / Inactive
+                      </span>
+                    </td>
+                    <td style="text-align:right;" onclick="event.stopPropagation();">
+                      <div style="display:inline-flex;align-items:center;gap:6px;">
+                        <button type="button" class="btn-clean primary" style="font-size:12px;padding:5px 12px;" data-restore-staff="${s.id}">Bring back</button>
+                        <button type="button" class="btn-clean" style="font-size:12px;padding:5px 10px;color:#dc2626;border-color:#fecaca;" data-delete-permanent="${s.id}">Delete</button>
+                        <button type="button" class="table-view-btn" data-view-staff="${s.id}">Info &rarr;</button>
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join('') : `
+                <tr>
+                  <td colspan="5" style="padding:48px 20px;text-align:center;color:var(--text-muted);">
+                    <div style="font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:4px;">No archived staff</div>
+                    <p style="font-size:12px;margin:0;">There are currently no staff members in the archive.</p>
+                  </td>
+                </tr>
+              `}
+            </tbody>
+          </table>
         </div>
       ` : ''}
 
@@ -2111,7 +2218,8 @@ function openStaffDetailDrawer(staffId) {
   const [yy, mm] = month.split('-').map(Number);
   const daysInMonth = new Date(yy, mm, 0).getDate();
   const todayStr = new Date().toISOString().slice(0, 10);
-  const isPending = (person.status === 'pending');
+  const isArchived = (state.inactiveStaffIds?.includes(person.id) || person.status === 'archived' || person.status === 'inactive');
+  const isPending = !isArchived && (person.status === 'pending');
 
   let mCount = 0, nCount = 0;
   for (let d = 1; d <= daysInMonth; d++) {
@@ -2124,8 +2232,11 @@ function openStaffDetailDrawer(staffId) {
   const pObj = pods.find(p => p.id === person.podId);
   const podName = pObj?.name || (person.podId ? person.podId : person.group || 'Day Support');
   const podCol = pObj?.color || '#64748b';
-  const shiftStatusClass = todayVal === 'M' ? 'morning' : todayVal === 'N' ? 'night' : 'off';
-  const shiftStatusText = todayVal === 'M' ? 'Morning Shift (06:00 – 18:00)' : todayVal === 'N' ? 'Night Shift (18:00 – 06:00)' : 'Off Duty';
+  const shiftStatusClass = isArchived ? 'off' : (todayVal === 'M' ? 'morning' : todayVal === 'N' ? 'night' : 'off');
+  const shiftStatusText = isArchived ? 'Archived from duty' : (todayVal === 'M' ? 'Morning Shift (06:00 – 18:00)' : todayVal === 'N' ? 'Night Shift (18:00 – 06:00)' : 'Off Duty');
+  const statusBadge = isArchived
+    ? '<span class="table-status-pill off" style="background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0;">Archived</span>'
+    : (isPending ? '<span class="table-status-pill morning">Pending Acceptance</span>' : '<span class="table-status-pill off">Active Crew</span>');
 
   dialog.innerHTML = `
     <div class="drawer-inner">
@@ -2147,7 +2258,7 @@ function openStaffDetailDrawer(staffId) {
             <div class="drawer-tags-row">
               <span class="table-role-tag">${escapeHtml(person.role)}</span>
               <span class="table-pod-badge" style="--pod-col:${podCol};"><span class="table-pod-dot"></span>${escapeHtml(podName)}</span>
-              <span class="table-status-pill ${isPending ? 'morning' : 'off'}">${isPending ? 'Pending Acceptance' : 'Active Crew'}</span>
+              ${statusBadge}
             </div>
           </div>
         </div>
@@ -2160,8 +2271,25 @@ function openStaffDetailDrawer(staffId) {
             <div style="display:flex;align-items:center;gap:6px;">
               <strong style="font-family:var(--font-mono);font-size:12.5px;color:var(--text-main);">${escapeHtml(person.email || 'None')}</strong>
               ${person.email ? `<button type="button" id="btn-drawer-copy-email" style="border:none;background:none;color:var(--blue-primary);cursor:pointer;padding:2px;" title="Copy email">${ICONS.copy}</button>` : ''}
+              ${!isArchived ? `<button type="button" class="btn-clean" id="btn-drawer-change-email" style="font-size:11px;padding:2px 8px;margin-left:4px;">Change Email</button>` : ''}
             </div>
           </div>
+          ${person.pendingEmail ? `
+            <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin:8px 0 12px;">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
+                <span style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;">Pending Verification</span>
+                <span style="font-size:11px;color:#92400e;">48h expiry</span>
+              </div>
+              <div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:#92400e;margin-bottom:6px;word-break:break-all;">${escapeHtml(person.pendingEmail)}</div>
+              <div style="font-size:11.5px;color:#78350f;line-height:1.4;margin-bottom:8px;">
+                Verification link sent. Active sign-in email remains <strong>${escapeHtml(person.email)}</strong> until confirmed.
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button type="button" class="btn-clean" id="btn-drawer-resend-email-verify" style="font-size:11.5px;padding:4px 10px;">Resend Link</button>
+                <button type="button" class="btn-clean" id="btn-drawer-cancel-email-verify" style="font-size:11.5px;padding:4px 10px;color:#dc2626;">Cancel</button>
+              </div>
+            </div>
+          ` : ''}
           <div class="drawer-breakdown-row">
             <span style="color:var(--text-light);">Phone Number</span>
             <span style="color:var(--text-main);font-weight:500;">${escapeHtml(person.phone || 'Not provided')}</span>
@@ -2182,46 +2310,58 @@ function openStaffDetailDrawer(staffId) {
           ` : ''}
         </div>
 
-        <!-- Monthly Shift Load Breakdown (Zendenta Itemized Box style) -->
-        <div class="drawer-breakdown-box">
-          <div class="drawer-box-heading">Monthly Shift Load · ${formatMonth(month)}</div>
-          <div class="drawer-breakdown-row">
-            <span style="display:flex;align-items:center;gap:8px;">
-              <span style="width:8px;height:8px;border-radius:2px;background:#d97706;"></span>
-              Morning Shifts (06:00 – 18:00)
-            </span>
-            <strong style="color:var(--text-main);">${mCount} shifts (${mCount * 12}h)</strong>
+        ${isArchived ? `
+          <div class="drawer-breakdown-box">
+            <div class="drawer-box-heading">Monthly Shift Load · ${formatMonth(month)}</div>
+            <div style="padding:8px 0;font-size:12.5px;color:var(--text-muted);line-height:1.5;">
+              This team member is archived and removed from active schedule generation. Bring them back to active staff to assign a pod or standard shift schedule.
+            </div>
           </div>
-          <div class="drawer-breakdown-row">
-            <span style="display:flex;align-items:center;gap:8px;">
-              <span style="width:8px;height:8px;border-radius:2px;background:#2563eb;"></span>
-              Night Shifts (18:00 – 06:00)
-            </span>
-            <strong style="color:var(--text-main);">${nCount} shifts (${nCount * 12}h)</strong>
+        ` : `
+          <!-- Monthly Shift Load Breakdown (Zendenta Itemized Box style) -->
+          <div class="drawer-breakdown-box">
+            <div class="drawer-box-heading">Monthly Shift Load · ${formatMonth(month)}</div>
+            <div class="drawer-breakdown-row">
+              <span style="display:flex;align-items:center;gap:8px;">
+                <span style="width:8px;height:8px;border-radius:2px;background:#d97706;"></span>
+                Morning Shifts (06:00 – 18:00)
+              </span>
+              <strong style="color:var(--text-main);">${mCount} shifts (${mCount * 12}h)</strong>
+            </div>
+            <div class="drawer-breakdown-row">
+              <span style="display:flex;align-items:center;gap:8px;">
+                <span style="width:8px;height:8px;border-radius:2px;background:#2563eb;"></span>
+                Night Shifts (18:00 – 06:00)
+              </span>
+              <strong style="color:var(--text-main);">${nCount} shifts (${nCount * 12}h)</strong>
+            </div>
+            <div class="drawer-breakdown-row">
+              <span style="display:flex;align-items:center;gap:8px;">
+                <span style="width:8px;height:8px;border-radius:2px;background:#94a3b8;"></span>
+                Off / Rest Days
+              </span>
+              <strong style="color:var(--text-main);">${daysInMonth - mCount - nCount} days</strong>
+            </div>
+            <div class="drawer-breakdown-row total-row">
+              <span>Total Duty Load</span>
+              <span style="color:var(--blue-primary);">${mCount + nCount} shifts · ${(mCount + nCount) * 12} hrs</span>
+            </div>
           </div>
-          <div class="drawer-breakdown-row">
-            <span style="display:flex;align-items:center;gap:8px;">
-              <span style="width:8px;height:8px;border-radius:2px;background:#94a3b8;"></span>
-              Off / Rest Days
-            </span>
-            <strong style="color:var(--text-main);">${daysInMonth - mCount - nCount} days</strong>
-          </div>
-          <div class="drawer-breakdown-row total-row">
-            <span>Total Duty Load</span>
-            <span style="color:var(--blue-primary);">${mCount + nCount} shifts · ${(mCount + nCount) * 12} hrs</span>
-          </div>
-        </div>
+        `}
       </div>
 
       <!-- Drawer Actions Footer -->
       <div class="drawer-footer">
-        ${isPending ? `
+        ${isArchived ? `
+          <button type="button" class="btn-clean primary" id="drawer-restore-btn" style="width:100%;">Bring Back to Active Staff</button>
+          <button type="button" class="btn-clean" id="drawer-delete-permanent-btn" style="width:100%;color:#dc2626;border-color:#fecaca;">Delete Permanently</button>
+        ` : (isPending ? `
           <button type="button" class="btn-clean primary" id="drawer-resend-btn" style="width:100%;">Resend Invitation Email</button>
           <button type="button" class="btn-clean" id="drawer-cancel-btn" style="width:100%;color:#dc2626;">Cancel Invitation</button>
         ` : `
-          <button type="button" class="btn-clean primary" id="drawer-invite-btn" style="width:100%;">Send Credentials Email</button>
-          <button type="button" class="btn-clean" id="drawer-remove-btn" style="width:100%;color:#dc2626;">Remove from Active Roster</button>
-        `}
+          ${person.email ? `<button type="button" class="btn-clean primary" id="drawer-reset-pw-btn" style="width:100%;">Reset Password</button>` : `<button type="button" class="btn-clean primary" id="drawer-invite-btn" style="width:100%;">Send Credentials Email</button>`}
+          <button type="button" class="btn-clean" id="drawer-archive-btn" style="width:100%;color:#64748b;">Archive Staff</button>
+        `)}
       </div>
     </div>
   `;
@@ -2234,6 +2374,56 @@ function openStaffDetailDrawer(staffId) {
     copyEmailBtn.onclick = () => {
       navigator.clipboard.writeText(person.email);
       toast(`Copied ${person.email} to clipboard!`);
+    };
+  }
+
+  const changeEmailBtn = dialog.querySelector('#btn-drawer-change-email');
+  if (changeEmailBtn) {
+    changeEmailBtn.onclick = () => {
+      dialog.close();
+      openChangeEmailDialog(person.id);
+    };
+  }
+
+  const resendVerifyBtn = dialog.querySelector('#btn-drawer-resend-email-verify');
+  if (resendVerifyBtn) {
+    resendVerifyBtn.onclick = () => resendEmailChange(person.id);
+  }
+
+  const cancelVerifyBtn = dialog.querySelector('#btn-drawer-cancel-email-verify');
+  if (cancelVerifyBtn) {
+    cancelVerifyBtn.onclick = () => cancelEmailChange(person.id);
+  }
+
+  const resetPwBtn = dialog.querySelector('#drawer-reset-pw-btn');
+  if (resetPwBtn) {
+    resetPwBtn.onclick = () => {
+      dialog.close();
+      openResetPasswordDialog(person.id);
+    };
+  }
+
+  const archiveBtn = dialog.querySelector('#drawer-archive-btn');
+  if (archiveBtn) {
+    archiveBtn.onclick = () => {
+      dialog.close();
+      archiveStaff(person.id);
+    };
+  }
+
+  const restoreBtn = dialog.querySelector('#drawer-restore-btn');
+  if (restoreBtn) {
+    restoreBtn.onclick = () => {
+      dialog.close();
+      openRestoreStaffDialog(person.id);
+    };
+  }
+
+  const deletePermanentBtn = dialog.querySelector('#drawer-delete-permanent-btn');
+  if (deletePermanentBtn) {
+    deletePermanentBtn.onclick = () => {
+      dialog.close();
+      openPermanentDeleteDialog(person.id);
     };
   }
 
@@ -2278,20 +2468,6 @@ function openStaffDetailDrawer(staffId) {
     };
   }
 
-  const removeBtn = dialog.querySelector('#drawer-remove-btn');
-  if (removeBtn) {
-    removeBtn.onclick = () => {
-      if (!confirm(`Remove ${person.name} from the active roster? Past shifts will be kept.`)) return;
-      dialog.close();
-      undo.push(JSON.stringify(state));
-      redo = [];
-      state.inactiveStaffIds ||= [];
-      if (!state.inactiveStaffIds.includes(person.id)) state.inactiveStaffIds.push(person.id);
-      save();
-      toast(`${person.name} removed from active roster.`);
-    };
-  }
-
   const cancelBtn = dialog.querySelector('#drawer-cancel-btn');
   if (cancelBtn) {
     cancelBtn.onclick = async () => {
@@ -2320,6 +2496,470 @@ function openStaffDetailDrawer(staffId) {
   }
 
   dialog.showModal();
+}
+
+async function archiveStaff(staffId) {
+  const person = staff.find(p => p.id === staffId);
+  if (!person) return;
+  if (!confirm(`Archive ${person.displayName || person.name}?\n\nThey will be removed from active work and schedules and placed in the Archive list. You can restore them anytime or delete them permanently.`)) return;
+
+  undo.push(JSON.stringify(state));
+  redo = [];
+  state.inactiveStaffIds ||= [];
+  if (!state.inactiveStaffIds.includes(person.id)) state.inactiveStaffIds.push(person.id);
+  person.status = 'archived';
+  person.podId = undefined;
+  const customItem = state.customStaff.find(s => s.id === person.id);
+  if (customItem) {
+    customItem.status = 'archived';
+    customItem.podId = undefined;
+  }
+
+  for (const [key, cover] of Object.entries(state.coverAssignments || {})) {
+    const date = key.slice(0, 10), requesterId = key.slice(11);
+    if (requesterId !== person.id && cover.coverWorkerId !== person.id) continue;
+    if (requesterId === person.id) setCell(state, cover.coverWorkerId, date, 'OFF');
+    else setCell(state, requesterId, date, cover.shiftCode);
+    if (cover.id) state.coverTombstones.push({ id: cover.id, date });
+    delete state.coverAssignments[key];
+  }
+
+  save();
+  render();
+  toast(`${person.displayName || person.name} moved to archive.`);
+
+  try {
+    const token = sessionStorage.getItem('admin-session') || '';
+    if (token) {
+      await fetch(API + '/api/admin/workers/archive', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ staffId: person.id })
+      });
+    }
+  } catch (err) {
+    console.warn('Backend archive sync error:', err);
+  }
+}
+
+function openRestoreStaffDialog(staffId) {
+  const person = staff.find(p => p.id === staffId);
+  if (!person) return;
+  const dialog = document.querySelector('#add-person-dialog');
+  if (!dialog) return;
+
+  dialog.innerHTML = `
+    <form method="dialog" class="shift-edit-form" id="form-restore-staff">
+      <div class="shift-edit-head">
+        <div>
+          <span class="shift-edit-eyebrow" style="color:#2563eb;">RESTORE TO ACTIVE</span>
+          <h2>Restore ${escapeHtml(person.displayName || person.name)}</h2>
+          <p>Bring this team member back to active duty and assign their shift schedule.</p>
+        </div>
+        <button type="button" class="shift-edit-close" id="restore-close" aria-label="Close">×</button>
+      </div>
+
+      <div class="shift-edit-field">
+        <label style="font-weight:600;margin-bottom:8px;display:block;">Schedule &amp; Shift Assignment</label>
+        
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;background:#f8fafc;" class="assignment-choice-card">
+            <input type="radio" name="restore-assignment-type" value="support" checked style="margin-top:3px;" />
+            <div>
+              <div style="font-weight:600;font-size:13.5px;color:var(--text-main);">Day Support (Normal 8:00 AM – 5:00 PM)</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Standard weekday shift hours, unattached to 24/7 rotational pods.</div>
+            </div>
+          </label>
+
+          <label style="display:flex;align-items:flex-start;gap:10px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;background:#f8fafc;" class="assignment-choice-card">
+            <input type="radio" name="restore-assignment-type" value="crew" style="margin-top:3px;" />
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:13.5px;color:var(--text-main);">Shift Crew (24/7 Rotational Pod)</div>
+              <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Active member of a 12-hour 2-Day / 2-Night rotational shift team.</div>
+              
+              <div id="restore-pod-select-wrap" style="display:none;margin-top:10px;">
+                <label style="font-size:12px;font-weight:600;color:var(--text-main);margin-bottom:4px;display:block;">Select Team Pod</label>
+                <select id="restore-pod-id" style="width:100%;padding:8px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;font-size:13px;">
+                  ${pods.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <label class="shift-edit-field">
+        Role Tag
+        <input id="restore-role" type="text" maxlength="60" value="${escapeHtml(person.role || 'Support')}" required />
+      </label>
+
+      <div class="shift-edit-actions">
+        <button type="button" class="btn-clean" id="restore-cancel">Cancel</button>
+        <button type="submit" class="btn-clean primary" id="restore-submit-btn">Restore to Active</button>
+      </div>
+    </form>
+  `;
+
+  dialog.querySelector('#restore-close').onclick = () => dialog.close();
+  dialog.querySelector('#restore-cancel').onclick = () => dialog.close();
+
+  const form = dialog.querySelector('#form-restore-staff');
+  const typeRadios = form.querySelectorAll('input[name="restore-assignment-type"]');
+  const podSelectWrap = form.querySelector('#restore-pod-select-wrap');
+
+  typeRadios.forEach(radio => {
+    radio.onchange = () => {
+      podSelectWrap.style.display = radio.value === 'crew' && radio.checked ? 'block' : 'none';
+    };
+  });
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('#restore-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Restoring…';
+
+    const isCrew = form.querySelector('input[name="restore-assignment-type"]:checked').value === 'crew';
+    const chosenPod = isCrew ? form.querySelector('#restore-pod-id').value : null;
+    const roleTag = form.querySelector('#restore-role').value.trim() || 'Support';
+
+    try {
+      const token = sessionStorage.getItem('admin-session') || '';
+      if (token) {
+        const res = await fetch(API + '/api/admin/workers/restore', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+          body: JSON.stringify({ staffId: person.id, podId: chosenPod, roleTag })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Failed to restore staff.');
+      }
+
+      state.inactiveStaffIds = (state.inactiveStaffIds || []).filter(id => id !== person.id);
+      person.status = 'active';
+      person.podId = chosenPod || undefined;
+      person.role = roleTag;
+      const customItem = state.customStaff.find(s => s.id === person.id);
+      if (customItem) {
+        customItem.status = 'active';
+        customItem.podId = chosenPod || undefined;
+        customItem.role = roleTag;
+      }
+      save();
+      dialog.close();
+      render();
+      toast(`${person.displayName || person.name} restored to active staff!`);
+    } catch (err) {
+      toast('Error: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = 'Restore to Active';
+    }
+  };
+
+  dialog.showModal();
+}
+
+function openPermanentDeleteDialog(staffId) {
+  const person = staff.find(p => p.id === staffId);
+  if (!person) return;
+  const dialog = document.querySelector('#add-person-dialog');
+  if (!dialog) return;
+
+  dialog.innerHTML = `
+    <form method="dialog" class="shift-edit-form" id="form-delete-permanent">
+      <div class="shift-edit-head">
+        <div>
+          <span class="shift-edit-eyebrow" style="color:#dc2626;">PERMANENT DELETION</span>
+          <h2>Delete ${escapeHtml(person.displayName || person.name)}?</h2>
+          <p>This action is completely permanent and cannot be undone.</p>
+        </div>
+        <button type="button" class="shift-edit-close" id="delete-close" aria-label="Close">×</button>
+      </div>
+
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px;color:#991b1b;font-size:12.5px;line-height:1.5;">
+        <strong>Warning:</strong> You are about to permanently delete <strong>${escapeHtml(person.displayName || person.name)}</strong>.
+        <ul style="margin:8px 0 0 16px;padding:0;">
+          <li>All staff records and profiles will be erased.</li>
+          <li>Linked worker login account and credentials will be deleted.</li>
+          <li>All shift assignments, swap records, and unavailabilities will be deleted.</li>
+        </ul>
+      </div>
+
+      <div class="shift-edit-actions">
+        <button type="button" class="btn-clean" id="delete-cancel">Cancel</button>
+        <button type="submit" class="btn-clean" id="delete-submit-btn" style="background:#dc2626;color:#fff;border-color:#dc2626;">Delete Permanently</button>
+      </div>
+    </form>
+  `;
+
+  dialog.querySelector('#delete-close').onclick = () => dialog.close();
+  dialog.querySelector('#delete-cancel').onclick = () => dialog.close();
+
+  const form = dialog.querySelector('#form-delete-permanent');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('#delete-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Deleting…';
+
+    try {
+      const token = sessionStorage.getItem('admin-session') || '';
+      if (token) {
+        const res = await fetch(API + '/api/admin/workers/delete', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+          body: JSON.stringify({ staffId: person.id })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || 'Failed to delete staff member.');
+      }
+
+      state.inactiveStaffIds = (state.inactiveStaffIds || []).filter(id => id !== person.id);
+      const staffIdx = staff.findIndex(s => s.id === person.id);
+      if (staffIdx !== -1) staff.splice(staffIdx, 1);
+      const customIdx = state.customStaff.findIndex(s => s.id === person.id);
+      if (customIdx !== -1) state.customStaff.splice(customIdx, 1);
+
+      for (const [key, cover] of Object.entries(state.coverAssignments || {})) {
+        const requesterId = key.slice(11);
+        if (requesterId === person.id || cover.coverWorkerId === person.id) {
+          delete state.coverAssignments[key];
+        }
+      }
+      for (const key of Object.keys(state.assignments || {})) {
+        if (key.endsWith(':' + person.id)) delete state.assignments[key];
+      }
+
+      save();
+      dialog.close();
+      render();
+      toast(`${person.displayName || person.name} was permanently deleted.`);
+    } catch (err) {
+      toast('Error: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = 'Delete Permanently';
+    }
+  };
+
+  dialog.showModal();
+}
+
+function openResetPasswordDialog(staffId) {
+  const person = staff.find(p => p.id === staffId);
+  if (!person) return;
+  const dialog = document.querySelector('#add-person-dialog');
+  if (!dialog) return;
+
+  dialog.innerHTML = `
+    <form method="dialog" class="shift-edit-form" id="form-reset-password">
+      <div class="shift-edit-head">
+        <div>
+          <span class="shift-edit-eyebrow" style="color:#2563eb;">SECURITY &amp; ACCESS</span>
+          <h2>Reset Password</h2>
+          <p>Generate a new temporary password for ${escapeHtml(person.displayName || person.name)}.</p>
+        </div>
+        <button type="button" class="shift-edit-close" id="reset-pw-close" aria-label="Close">×</button>
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;font-size:13px;color:var(--text-main);line-height:1.5;">
+        <div><strong>Worker:</strong> ${escapeHtml(person.displayName || person.name)}</div>
+        <div style="margin-top:4px;"><strong>Account Email:</strong> <code style="font-family:var(--font-mono);">${escapeHtml(person.email || 'None')}</code></div>
+      </div>
+
+      <div style="font-size:12px;color:var(--text-light);background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;line-height:1.4;">
+        Resetting will invalidate all current active sessions. A new secure temporary password will be generated and emailed to the user, and they will be required to set a new permanent password on next sign-in.
+      </div>
+
+      <div class="shift-edit-actions">
+        <button type="button" class="btn-clean" id="reset-pw-cancel">Cancel</button>
+        <button type="submit" class="btn-clean primary" id="reset-pw-submit-btn">Reset Password Now</button>
+      </div>
+    </form>
+  `;
+
+  dialog.querySelector('#reset-pw-close').onclick = () => dialog.close();
+  dialog.querySelector('#reset-pw-cancel').onclick = () => dialog.close();
+
+  const form = dialog.querySelector('#form-reset-password');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('#reset-pw-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Resetting…';
+
+    try {
+      const token = sessionStorage.getItem('admin-session') || '';
+      const res = await fetch(API + '/api/admin/workers/reset-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ staffId: person.id })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to reset password.');
+
+      dialog.innerHTML = `
+        <div class="shift-edit-form">
+          <div class="shift-edit-head">
+            <div>
+              <span class="shift-edit-eyebrow" style="color:#059669;">PASSWORD RESET</span>
+              <h2>New Password Generated</h2>
+              <p>Credentials updated for <strong>${escapeHtml(person.displayName || person.name)}</strong>.</p>
+            </div>
+            <button type="button" class="shift-edit-close" id="reset-done-close" aria-label="Close">×</button>
+          </div>
+
+          <div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:14px;">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Temporary Password</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;">
+              <code style="font-family:var(--font-mono);font-size:16px;font-weight:700;letter-spacing:1px;color:#0f172a;">${escapeHtml(result.tempPassword)}</code>
+              <button type="button" class="btn-clean" id="btn-copy-temp-pw" style="font-size:12px;padding:4px 10px;">Copy</button>
+            </div>
+          </div>
+
+          <div style="font-size:12px;color:${result.emailSent ? '#166534' : '#92400e'};background:${result.emailSent ? '#f0fdf4' : '#fef3c7'};border:1px solid ${result.emailSent ? '#bbf7d0' : '#fde68a'};border-radius:8px;padding:10px 12px;line-height:1.4;">
+            ${result.emailSent ? `Email with these credentials has been sent to <strong>${escapeHtml(result.email)}</strong>.` : `Notice: Email delivery unavailable (${escapeHtml(result.emailError || 'Manual delivery required')}). Please share the temporary password with the user directly.`}
+          </div>
+
+          <div class="shift-edit-actions">
+            <button type="button" class="btn-clean primary" id="reset-done-btn">Done</button>
+          </div>
+        </div>
+      `;
+
+      dialog.querySelector('#reset-done-close').onclick = () => dialog.close();
+      dialog.querySelector('#reset-done-btn').onclick = () => dialog.close();
+      dialog.querySelector('#btn-copy-temp-pw').onclick = () => {
+        navigator.clipboard.writeText(result.tempPassword);
+        toast('Temporary password copied to clipboard!');
+      };
+      toast('Password reset successfully.');
+    } catch (err) {
+      toast('Error: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = 'Reset Password Now';
+    }
+  };
+
+  dialog.showModal();
+}
+
+function openChangeEmailDialog(staffId) {
+  const person = staff.find(p => p.id === staffId);
+  if (!person) return;
+  const dialog = document.querySelector('#add-person-dialog');
+  if (!dialog) return;
+
+  dialog.innerHTML = `
+    <form method="dialog" class="shift-edit-form" id="form-change-email">
+      <div class="shift-edit-head">
+        <div>
+          <span class="shift-edit-eyebrow" style="color:#2563eb;">ACCOUNT EMAIL</span>
+          <h2>Change Email Address</h2>
+          <p>Update login email for ${escapeHtml(person.displayName || person.name)}.</p>
+        </div>
+        <button type="button" class="shift-edit-close" id="change-email-close" aria-label="Close">×</button>
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--text-main);line-height:1.5;">
+        <span style="color:var(--text-muted);display:block;font-size:11px;text-transform:uppercase;font-weight:700;margin-bottom:2px;">Current Active Email</span>
+        <code style="font-family:var(--font-mono);font-size:13.5px;font-weight:600;">${escapeHtml(person.email || 'None')}</code>
+      </div>
+
+      <label class="shift-edit-field">
+        New Email Address
+        <input id="input-new-email" type="email" maxlength="254" placeholder="new.email@company.com" required />
+      </label>
+
+      <div style="font-size:12px;color:#78350f;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;line-height:1.4;">
+        <strong>Mandatory Verification:</strong> A confirmation link will be sent to the new email address. Until verified, the current email remains active for sign-in. The change only takes effect once the worker verifies the new email.
+      </div>
+
+      <div class="shift-edit-actions">
+        <button type="button" class="btn-clean" id="change-email-cancel">Cancel</button>
+        <button type="submit" class="btn-clean primary" id="change-email-submit-btn">Send Verification Link</button>
+      </div>
+    </form>
+  `;
+
+  dialog.querySelector('#change-email-close').onclick = () => dialog.close();
+  dialog.querySelector('#change-email-cancel').onclick = () => dialog.close();
+
+  const form = dialog.querySelector('#form-change-email');
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const newEmail = form.querySelector('#input-new-email').value.trim().toLowerCase();
+    const btn = form.querySelector('#change-email-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'Sending link…';
+
+    try {
+      const token = sessionStorage.getItem('admin-session') || '';
+      const res = await fetch(API + '/api/admin/workers/change-email', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ staffId: person.id, newEmail })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to request email change.');
+
+      person.pendingEmail = newEmail;
+      const customItem = state.customStaff.find(s => s.id === person.id);
+      if (customItem) customItem.pendingEmail = newEmail;
+      save();
+      dialog.close();
+      openStaffDetailDrawer(person.id);
+      toast(`Verification link sent to ${newEmail}!`);
+    } catch (err) {
+      toast('Error: ' + err.message);
+      btn.disabled = false;
+      btn.textContent = 'Send Verification Link';
+    }
+  };
+
+  dialog.showModal();
+}
+
+async function cancelEmailChange(staffId) {
+  const person = staff.find(p => p.id === staffId);
+  if (!person) return;
+  try {
+    const token = sessionStorage.getItem('admin-session') || '';
+    if (token) {
+      await fetch(API + '/api/admin/workers/cancel-email-change', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ staffId: person.id })
+      });
+    }
+    person.pendingEmail = undefined;
+    const customItem = state.customStaff.find(s => s.id === person.id);
+    if (customItem) customItem.pendingEmail = undefined;
+    save();
+    openStaffDetailDrawer(person.id);
+    toast('Email change cancelled.');
+  } catch (err) {
+    toast('Error: ' + err.message);
+  }
+}
+
+async function resendEmailChange(staffId) {
+  const person = staff.find(p => p.id === staffId);
+  if (!person || !person.pendingEmail) return;
+  try {
+    const token = sessionStorage.getItem('admin-session') || '';
+    if (token) {
+      const res = await fetch(API + '/api/admin/workers/resend-email-change', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ staffId: person.id })
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || 'Failed to resend link');
+    }
+    toast(`Verification link resent to ${person.pendingEmail}!`);
+  } catch (err) {
+    toast('Error: ' + err.message);
+  }
 }
 
 function openInvitePersonDialog(staffId) {
@@ -3609,6 +4249,20 @@ function bindEvents() {
     btn.onclick = () => {
       peopleFilter = btn.dataset.peopleFilter;
       render();
+    };
+  });
+
+  document.querySelectorAll('[data-restore-staff]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      openRestoreStaffDialog(btn.dataset.restoreStaff);
+    };
+  });
+
+  document.querySelectorAll('[data-delete-permanent]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      openPermanentDeleteDialog(btn.dataset.deletePermanent);
     };
   });
 

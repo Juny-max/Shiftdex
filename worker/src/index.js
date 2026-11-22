@@ -101,7 +101,7 @@ async function createAdminSession(db, adminId) {
   return { token, expiresAt: expires };
 }
 
-async function sendBrevoEmail(env, { email, fullName, tempPassword }) {
+async function sendRawBrevo(env, { toEmail, toName, subject, htmlContent, textContent }) {
   if (!env.BREVO_API_KEY) {
     console.warn('BREVO_API_KEY is not configured in environment.');
     return { success: false, error: 'BREVO_API_KEY is missing' };
@@ -114,11 +114,42 @@ async function sendBrevoEmail(env, { email, fullName, tempPassword }) {
       error: "Invalid Brevo Key: You entered an SMTP key ('xsmtpsib-...'). Brevo's REST API requires an API key starting with 'xkeysib-'. Please create an API Key under Brevo Settings > SMTP & API > API Keys tab."
     };
   }
-  const portalUrl = env.PORTAL_URL || 'https://shiftdex-workers.pages.dev';
-  const logoUrl = 'https://shiftdex-workers.pages.dev/shift-desk-mark.png';
   const senderEmail = env.BREVO_SENDER_EMAIL;
   if (!senderEmail) return { success: false, error: 'BREVO_SENDER_EMAIL is not configured' };
   const senderName = env.BREVO_SENDER_NAME || 'Shift Desk';
+
+  try {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': env.BREVO_API_KEY,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: toEmail, name: toName || toEmail }],
+        subject,
+        htmlContent,
+        textContent,
+      }),
+    });
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { success: true, messageId: data.messageId };
+    }
+    const errText = await res.text();
+    console.error('Brevo error:', res.status, errText);
+    return { success: false, status: res.status, error: errText };
+  } catch (error) {
+    console.error('Brevo delivery failed:', error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+async function sendBrevoEmail(env, { email, fullName, tempPassword }) {
+  const portalUrl = env.PORTAL_URL || 'https://shiftdex-workers.pages.dev';
+  const logoUrl = 'https://shiftdex-workers.pages.dev/shift-desk-mark.png';
   const esc = s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const htmlContent = `<!DOCTYPE html>
@@ -256,33 +287,374 @@ async function sendBrevoEmail(env, { email, fullName, tempPassword }) {
 
   const textContent = `Welcome to Shift Desk, ${fullName}!\n\nAn operations administrator has added you to the company shift roster.\n\nPortal: ${portalUrl}\nLogin Email: ${email}\nTemporary Password: ${tempPassword}\n\nPlease visit the portal to set your new permanent password and access your schedule.\n\nShift Desk Operations Hub`;
 
-  try {
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'api-key': env.BREVO_API_KEY,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-      body: JSON.stringify({
-        sender: { name: senderName, email: senderEmail },
-        to: [{ email, name: fullName }],
-        subject: 'Welcome to Shift Desk — Your Account Details',
-        htmlContent,
-        textContent,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json().catch(() => ({}));
-      return { success: true, messageId: data.messageId };
+  return sendRawBrevo(env, {
+    toEmail: email,
+    toName: fullName,
+    subject: 'Welcome to Shift Desk — Your Account Details',
+    htmlContent,
+    textContent
+  });
+}
+
+async function sendPasswordResetEmail(env, { email, fullName, tempPassword }) {
+  const portalUrl = env.PORTAL_URL || 'https://shiftdex-workers.pages.dev';
+  const logoUrl = 'https://shiftdex-workers.pages.dev/shift-desk-mark.png';
+  const esc = s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shift Desk Password Reset</title>
+</head>
+<body style="margin: 0; padding: 32px 16px; background-color: #f6f8fb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; color: #111827;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #ffffff; border-radius: 18px; border: 1px solid #e5e7eb; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04); overflow: hidden;">
+          <tr>
+            <td style="padding: 36px 36px 20px;">
+              <table border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="vertical-align: middle; padding-right: 14px;">
+                    <img src="${logoUrl}" width="44" height="44" alt="Shift Desk" style="display: block; width: 44px; height: 44px; border-radius: 11px; border: 1px solid rgba(0, 0, 0, 0.06); object-fit: contain;">
+                  </td>
+                  <td style="vertical-align: middle;">
+                    <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; line-height: 1.1;">
+                      shift desk<span style="color: #2563eb;">.</span>
+                    </div>
+                    <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: #2563eb; text-transform: uppercase; margin-top: 3px;">
+                      24/7 Operations Hub
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 0 36px 36px;">
+              <h1 style="margin: 0 0 12px; font-size: 23px; font-weight: 700; letter-spacing: -0.5px; color: #0f172a; line-height: 1.3;">
+                Password Reset for ${esc(fullName)}
+              </h1>
+              <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: #4b5563;">
+                An operations administrator has reset the password for your <strong>Shift Desk</strong> account. Use the temporary credentials below to sign in.
+              </p>
+
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; margin-bottom: 26px;">
+                <tr>
+                  <td style="padding: 22px 24px;">
+                    <div style="margin-bottom: 14px;">
+                      <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">Account Email</div>
+                      <div style="font-size: 15px; font-weight: 600; color: #0f172a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;">${esc(email)}</div>
+                    </div>
+
+                    <div style="height: 1px; background-color: #e2e8f0; margin: 0 0 16px;"></div>
+
+                    <div style="margin-bottom: 14px;">
+                      <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px;">New Temporary Password</div>
+                      <table border="0" cellspacing="0" cellpadding="0">
+                        <tr>
+                          <td style="background-color: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 8px 16px; box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);">
+                            <span style="font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 19px; font-weight: 700; letter-spacing: 1.8px; color: #0f172a;">${esc(tempPassword)}</span>
+                          </td>
+                        </tr>
+                      </table>
+                    </div>
+
+                    <div style="font-size: 12px; color: #64748b; line-height: 1.5; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px;">
+                      <strong style="color: #334155;">Account Security:</strong> You will be required to set a new private permanent password immediately upon signing in.
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 26px;">
+                <tr>
+                  <td align="center">
+                    <table border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="center" style="border-radius: 10px; background-color: #2563eb; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);">
+                          <a href="${portalUrl}" target="_blank" style="display: inline-block; padding: 14px 34px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none; letter-spacing: -0.2px; border-radius: 10px;">
+                            Sign In to Shift Desk &rarr;
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 12px; color: #94a3b8; line-height: 1.6; text-align: center;">
+                <strong>Shift Desk</strong> · 24/7 Operations Hub<br>
+                Automated security notification sent to ${esc(email)}.<br>
+                If you did not expect this password reset, please contact your shift supervisor immediately.
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const textContent = `Shift Desk Password Reset\n\nHello ${fullName},\n\nAn operations administrator has reset your password for Shift Desk.\n\nPortal: ${portalUrl}\nAccount Email: ${email}\nTemporary Password: ${tempPassword}\n\nPlease sign in with this temporary password to create your new permanent password.\n\nShift Desk Operations Hub`;
+
+  return sendRawBrevo(env, {
+    toEmail: email,
+    toName: fullName,
+    subject: 'Shift Desk — Your Password Has Been Reset',
+    htmlContent,
+    textContent
+  });
+}
+
+async function sendEmailVerificationEmail(env, { newEmail, currentEmail, fullName, verifyUrl }) {
+  const logoUrl = 'https://shiftdex-workers.pages.dev/shift-desk-mark.png';
+  const esc = s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Your New Email Address</title>
+</head>
+<body style="margin: 0; padding: 32px 16px; background-color: #f6f8fb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; color: #111827;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center">
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 540px; background-color: #ffffff; border-radius: 18px; border: 1px solid #e5e7eb; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04); overflow: hidden;">
+          <tr>
+            <td style="padding: 36px 36px 20px;">
+              <table border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td style="vertical-align: middle; padding-right: 14px;">
+                    <img src="${logoUrl}" width="44" height="44" alt="Shift Desk" style="display: block; width: 44px; height: 44px; border-radius: 11px; border: 1px solid rgba(0, 0, 0, 0.06); object-fit: contain;">
+                  </td>
+                  <td style="vertical-align: middle;">
+                    <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; line-height: 1.1;">
+                      shift desk<span style="color: #2563eb;">.</span>
+                    </div>
+                    <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: #2563eb; text-transform: uppercase; margin-top: 3px;">
+                      24/7 Operations Hub
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding: 0 36px 36px;">
+              <h1 style="margin: 0 0 12px; font-size: 23px; font-weight: 700; letter-spacing: -0.5px; color: #0f172a; line-height: 1.3;">
+                Confirm Your New Email Address
+              </h1>
+              <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #4b5563;">
+                Hello <strong>${esc(fullName)}</strong>, an operations administrator has requested to update your Shift Desk login email address to:
+              </p>
+
+              <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
+                <div style="font-size: 11px; font-weight: 700; color: #166534; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">Requested New Email</div>
+                <div style="font-size: 16px; font-weight: 700; color: #15803d; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;">${esc(newEmail)}</div>
+              </div>
+
+              <p style="margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: #64748b;">
+                To activate this email address for your Shift Desk account and start using it to sign in, please confirm your email address by clicking the button below:
+              </p>
+
+              <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 26px;">
+                <tr>
+                  <td align="center">
+                    <table border="0" cellspacing="0" cellpadding="0">
+                      <tr>
+                        <td align="center" style="border-radius: 10px; background-color: #2563eb; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);">
+                          <a href="${verifyUrl}" target="_blank" style="display: inline-block; padding: 14px 34px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none; letter-spacing: -0.2px; border-radius: 10px;">
+                            Confirm &amp; Verify Email Address &rarr;
+                          </a>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <div style="font-size: 12px; color: #64748b; line-height: 1.6; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 20px;">
+                <strong style="color: #334155;">Security Notice:</strong> Until you verify this new address, your current email (<strong>${esc(currentEmail)}</strong>) remains active for signing in. This link is valid for 48 hours. If you did not request this update, please inform your operations administrator.
+              </div>
+
+              <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 12px; color: #94a3b8; line-height: 1.6; text-align: center;">
+                <strong>Shift Desk</strong> · 24/7 Operations Hub<br>
+                Automated security verification sent to ${esc(newEmail)}.<br>
+                Direct link: <a href="${verifyUrl}" style="color: #2563eb; word-break: break-all;">${verifyUrl}</a>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const textContent = `Confirm Your New Email Address — Shift Desk\n\nHello ${fullName},\n\nAn operations administrator has requested to update your Shift Desk email to: ${newEmail}.\n\nUntil you verify this new email, your current email (${currentEmail}) remains active for signing in.\n\nTo verify, open this link:\n${verifyUrl}\n\nThis link is valid for 48 hours.\n\nShift Desk Operations Hub`;
+
+  return sendRawBrevo(env, {
+    toEmail: newEmail,
+    toName: fullName,
+    subject: 'Confirm Your New Email Address — Shift Desk',
+    htmlContent,
+    textContent
+  });
+}
+
+function renderVerificationHtml({ success, title, message, portalUrl, logoUrl, newEmail }) {
+  const esc = s => String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${esc(title)} — Shift Desk</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #f6f8fb;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      color: #0f172a;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
     }
-    const errText = await res.text();
-    console.error('Brevo error:', res.status, errText);
-    return { success: false, status: res.status, error: errText };
-  } catch (error) {
-    console.error('Brevo delivery failed:', error.message);
-    return { success: false, error: error.message };
-  }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+      max-width: 480px;
+      width: 100%;
+      padding: 40px 36px;
+      text-align: center;
+    }
+    .logo-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .logo-img {
+      width: 38px;
+      height: 38px;
+      border-radius: 9px;
+      border: 1px solid rgba(0,0,0,0.06);
+    }
+    .logo-text {
+      font-size: 19px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: #0f172a;
+    }
+    .logo-dot { color: #2563eb; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      margin: 0 auto 20px;
+    }
+    .badge-success {
+      background: #ecfdf5;
+      color: #059669;
+      border: 1px solid #a7f3d0;
+    }
+    .badge-error {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+    }
+    .title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      color: #0f172a;
+      margin-bottom: 12px;
+    }
+    .desc {
+      font-size: 14.5px;
+      line-height: 1.6;
+      color: #4b5563;
+      margin-bottom: 28px;
+    }
+    .email-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 14px 18px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 15px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 28px;
+      word-break: break-all;
+    }
+    .cta-btn {
+      display: inline-block;
+      width: 100%;
+      padding: 14px 20px;
+      background: #2563eb;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 12px;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+      transition: background 0.15s ease;
+    }
+    .cta-btn:hover {
+      background: #1d4ed8;
+    }
+    .footer-note {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 24px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo-row">
+      <img src="${logoUrl}" alt="Shift Desk" class="logo-img" />
+      <div class="logo-text">shift desk<span class="logo-dot">.</span></div>
+    </div>
+
+    <div class="badge ${success ? 'badge-success' : 'badge-error'}">
+      ${success
+        ? '<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>'
+        : '<svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>'
+      }
+    </div>
+
+    <h1 class="title">${esc(title)}</h1>
+    <div class="desc">${message}</div>
+
+    ${newEmail ? `<div class="email-box">${esc(newEmail)}</div>` : ''}
+
+    <a href="${portalUrl}" class="cta-btn">Proceed to Shift Desk Portal &rarr;</a>
+
+    <div class="footer-note">
+      Shift Desk · 24/7 Operations Hub<br>
+      Automated account security verification
+    </div>
+  </div>
+</body>
+</html>`;
 }
 
 export default {
@@ -699,12 +1071,302 @@ export default {
         return json({ ok: true, staffId });
       }
 
+      if (url.pathname === '/api/verify-email' && (req.method === 'GET' || req.method === 'POST')) {
+        let token = url.searchParams.get('token');
+        if (!token && req.method === 'POST') {
+          const body = await req.json().catch(() => ({}));
+          token = body.token;
+        }
+        token = String(token || '').trim();
+        const wantsJson = (req.headers.get('accept') || '').includes('application/json') || req.method === 'POST';
+        const portalUrl = env.PORTAL_URL || 'https://shiftdex-workers.pages.dev';
+        const logoUrl = 'https://shiftdex-workers.pages.dev/shift-desk-mark.png';
+
+        if (!token) {
+          if (wantsJson) return json({ error: 'Verification token is required.' }, 400);
+          return new Response(renderVerificationHtml({ success: false, title: 'Invalid Verification Link', message: 'The verification link is missing a valid token. Please contact your operations administrator for a new link.', portalUrl, logoUrl }), {
+            status: 400,
+            headers: { 'content-type': 'text/html; charset=utf-8' }
+          });
+        }
+
+        const nowIso = new Date().toISOString();
+        const account = await db.prepare("SELECT id, email, pending_email, full_name, email_verify_expires, staff_id FROM worker_accounts WHERE email_verify_token=?").bind(token).first();
+
+        if (!account) {
+          if (wantsJson) return json({ error: 'This verification link is invalid or has already been used.' }, 404);
+          return new Response(renderVerificationHtml({ success: false, title: 'Link Invalid or Already Used', message: 'This verification link is no longer valid or has already been used. If your email was not updated, ask your administrator to resend the verification link.', portalUrl, logoUrl }), {
+            status: 404,
+            headers: { 'content-type': 'text/html; charset=utf-8' }
+          });
+        }
+
+        if (account.email_verify_expires && account.email_verify_expires < nowIso) {
+          if (wantsJson) return json({ error: 'This verification link has expired. Please ask your administrator to send a new one.' }, 410);
+          return new Response(renderVerificationHtml({ success: false, title: 'Verification Link Expired', message: 'This email verification link expired. For your security, links are valid for 48 hours. Please ask your operations administrator to request the email change again.', portalUrl, logoUrl }), {
+            status: 410,
+            headers: { 'content-type': 'text/html; charset=utf-8' }
+          });
+        }
+
+        const oldEmail = account.email;
+        const newEmail = account.pending_email;
+        if (!newEmail) {
+          if (wantsJson) return json({ error: 'No pending email found for this token.' }, 400);
+          return new Response(renderVerificationHtml({ success: false, title: 'No Pending Email', message: 'There is no pending email change associated with this account.', portalUrl, logoUrl }), {
+            status: 400,
+            headers: { 'content-type': 'text/html; charset=utf-8' }
+          });
+        }
+
+        // Apply email update
+        await db.prepare("UPDATE worker_accounts SET email=?, pending_email=NULL, email_verify_token=NULL, email_verify_expires=NULL, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(newEmail, account.id).run();
+
+        // Invalidate active worker sessions so user logs in cleanly with new credentials
+        await db.prepare("DELETE FROM worker_sessions WHERE account_id=?").bind(account.id).run();
+
+        await audit(db, account.id, 'verify_email_change', 'worker_account', account.id, { oldEmail, newEmail, staffId: account.staff_id });
+
+        if (wantsJson) {
+          return json({ ok: true, email: newEmail, previousEmail: oldEmail });
+        }
+
+        return new Response(renderVerificationHtml({
+          success: true,
+          title: 'Email Address Verified!',
+          message: `Your Shift Desk account email has been successfully updated to <strong>${newEmail}</strong>. You can now use this email to sign in to your schedule and operational hub.`,
+          portalUrl,
+          logoUrl,
+          newEmail
+        }), {
+          status: 200,
+          headers: { 'content-type': 'text/html; charset=utf-8' }
+        });
+      }
+
+      if (url.pathname === '/api/admin/workers/archive' && req.method === 'POST') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json();
+        const staffId = body.staffId;
+        if (!staffId) return json({ error: 'staffId required' }, 400);
+
+        const person = await db.prepare("SELECT id, status, full_name FROM staff WHERE id=?").bind(staffId).first();
+        if (!person) return json({ error: 'Staff member not found' }, 404);
+
+        // Mark staff as archived and clear active pod assignment
+        await db.prepare("UPDATE staff SET status='archived', pod_id=NULL WHERE id=?").bind(staffId).run();
+        await db.prepare("DELETE FROM staff_pod_assignments WHERE staff_id=?").bind(staffId).run();
+
+        // Invalidate active sessions for linked worker account
+        const acc = await db.prepare("SELECT id FROM worker_accounts WHERE staff_id=?").bind(staffId).first();
+        if (acc) {
+          await db.prepare("DELETE FROM worker_sessions WHERE account_id=?").bind(acc.id).run();
+        }
+
+        await audit(db, actor.id, 'archive_staff', 'staff', staffId, { name: person.full_name });
+        return json({ ok: true, staffId, status: 'archived' });
+      }
+
+      if (url.pathname === '/api/admin/workers/restore' && req.method === 'POST') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json();
+        const staffId = body.staffId;
+        const podId = body.podId && ['orange', 'green', 'blue', 'red'].includes(body.podId) ? body.podId : null;
+        const roleTag = body.roleTag ? String(body.roleTag).trim() : null;
+        if (!staffId) return json({ error: 'staffId required' }, 400);
+
+        const person = await db.prepare("SELECT id, status, full_name, role_tag FROM staff WHERE id=?").bind(staffId).first();
+        if (!person) return json({ error: 'Staff member not found' }, 404);
+
+        await db.prepare("UPDATE staff SET status='active', pod_id=?, role_tag=COALESCE(?, role_tag) WHERE id=?")
+          .bind(podId, roleTag, staffId).run();
+
+        const acc = await db.prepare("SELECT id FROM worker_accounts WHERE staff_id=?").bind(staffId).first();
+        if (acc) {
+          await db.prepare("UPDATE worker_accounts SET status='active', updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(acc.id).run();
+        }
+
+        await audit(db, actor.id, 'restore_staff', 'staff', staffId, { name: person.full_name, podId, roleTag: roleTag || person.role_tag });
+        return json({ ok: true, staffId, status: 'active', podId, roleTag: roleTag || person.role_tag });
+      }
+
+      if ((url.pathname === '/api/admin/workers/delete' || url.pathname === '/api/admin/workers/permanent') && req.method === 'POST') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json();
+        const staffId = body.staffId;
+        if (!staffId) return json({ error: 'staffId required' }, 400);
+
+        const person = await db.prepare("SELECT id, full_name FROM staff WHERE id=?").bind(staffId).first();
+        if (!person) return json({ error: 'Staff member not found' }, 404);
+
+        const acc = await db.prepare("SELECT id FROM worker_accounts WHERE staff_id=?").bind(staffId).first();
+        if (acc) {
+          await db.prepare("DELETE FROM worker_sessions WHERE account_id=?").bind(acc.id).run();
+          await db.prepare("DELETE FROM worker_accounts WHERE id=?").bind(acc.id).run();
+        }
+        await db.prepare("DELETE FROM staff_pod_assignments WHERE staff_id=?").bind(staffId).run();
+        await db.prepare("DELETE FROM shift_assignments WHERE staff_id=?").bind(staffId).run();
+        await db.prepare("DELETE FROM shift_covers WHERE requester_id=? OR cover_worker_id=?").bind(staffId, staffId).run();
+        await db.prepare("DELETE FROM unavailability_flags WHERE staff_id=?").bind(staffId).run();
+        await db.prepare("DELETE FROM staff WHERE id=?").bind(staffId).run();
+
+        await audit(db, actor.id, 'delete_staff_permanent', 'staff', staffId, { name: person.full_name });
+        return json({ ok: true, staffId });
+      }
+
+      if (url.pathname === '/api/admin/workers/reset-password' && req.method === 'POST') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json();
+        const staffId = body.staffId;
+        if (!staffId) return json({ error: 'staffId required' }, 400);
+
+        const account = await db.prepare("SELECT a.id, a.email, a.full_name, a.staff_id, s.status staff_status FROM worker_accounts a JOIN staff s ON s.id=a.staff_id WHERE a.staff_id=?").bind(staffId).first();
+        if (!account) return json({ error: 'Linked worker account not found for this staff member.' }, 404);
+
+        const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
+        const randomBytes = crypto.getRandomValues(new Uint8Array(12));
+        let code = '';
+        for (let i = 0; i < 12; i++) code += chars[randomBytes[i] % chars.length];
+        const tempPassword = `Shift-${code}`;
+
+        const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+        const digest = await passwordDigest(tempPassword, salt, CURRENT_PASSWORD_ITERATIONS);
+
+        await db.prepare("UPDATE worker_accounts SET password_salt=?, password_hash=?, password_iterations=?, must_change_password=1, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(salt, digest, CURRENT_PASSWORD_ITERATIONS, account.id).run();
+        await db.prepare('DELETE FROM worker_sessions WHERE account_id=?').bind(account.id).run();
+
+        const emailResult = await sendPasswordResetEmail(env, { email: account.email, fullName: account.full_name, tempPassword });
+        await audit(db, actor.id, 'reset_worker_password', 'worker_account', account.id, { email: account.email, staffId: account.staff_id, emailSent: emailResult.success });
+
+        return json({
+          ok: true,
+          staffId: account.staff_id,
+          email: account.email,
+          fullName: account.full_name,
+          tempPassword,
+          emailSent: emailResult.success,
+          emailError: emailResult.error || undefined
+        });
+      }
+
+      if (url.pathname === '/api/admin/workers/change-email' && req.method === 'POST') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json();
+        const staffId = body.staffId;
+        const newEmail = String(body.newEmail || '').trim().toLowerCase();
+        if (!staffId) return json({ error: 'staffId required' }, 400);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail) || newEmail.length > 254) {
+          return json({ error: 'Enter a valid new email address.' }, 400);
+        }
+
+        const account = await db.prepare("SELECT a.id, a.email, a.full_name, a.staff_id FROM worker_accounts a WHERE a.staff_id=?").bind(staffId).first();
+        if (!account) return json({ error: 'Worker account not found.' }, 404);
+
+        if (account.email.toLowerCase() === newEmail) {
+          return json({ error: 'The new email is the same as the current email.' }, 400);
+        }
+
+        const existingOther = await db.prepare("SELECT id FROM worker_accounts WHERE email=? AND id!=?").bind(newEmail, account.id).first();
+        if (existingOther) {
+          return json({ error: 'This email address is already in use by another account.' }, 409);
+        }
+
+        const verifyToken = tokenString(crypto.getRandomValues(new Uint8Array(32)));
+        const verifyExpires = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+
+        await db.prepare("UPDATE worker_accounts SET pending_email=?, email_verify_token=?, email_verify_expires=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(newEmail, verifyToken, verifyExpires, account.id).run();
+
+        const apiBase = new URL(req.url).origin;
+        const verifyUrl = `${apiBase}/api/verify-email?token=${encodeURIComponent(verifyToken)}`;
+
+        const emailResult = await sendEmailVerificationEmail(env, {
+          newEmail,
+          currentEmail: account.email,
+          fullName: account.full_name,
+          verifyUrl
+        });
+
+        await audit(db, actor.id, 'request_email_change', 'worker_account', account.id, {
+          staffId,
+          currentEmail: account.email,
+          newEmail,
+          emailSent: emailResult.success
+        });
+
+        return json({
+          ok: true,
+          staffId,
+          currentEmail: account.email,
+          pendingEmail: newEmail,
+          verifyExpires,
+          emailSent: emailResult.success,
+          emailError: emailResult.error || undefined
+        });
+      }
+
+      if (url.pathname === '/api/admin/workers/cancel-email-change' && req.method === 'POST') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json();
+        const staffId = body.staffId;
+        if (!staffId) return json({ error: 'staffId required' }, 400);
+
+        await db.prepare("UPDATE worker_accounts SET pending_email=NULL, email_verify_token=NULL, email_verify_expires=NULL, updated_at=CURRENT_TIMESTAMP WHERE staff_id=?")
+          .bind(staffId).run();
+
+        await audit(db, actor.id, 'cancel_email_change', 'worker_account', staffId);
+        return json({ ok: true, staffId });
+      }
+
+      if (url.pathname === '/api/admin/workers/resend-email-change' && req.method === 'POST') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json();
+        const staffId = body.staffId;
+        if (!staffId) return json({ error: 'staffId required' }, 400);
+
+        const account = await db.prepare("SELECT id, email, pending_email, full_name, staff_id FROM worker_accounts WHERE staff_id=?").bind(staffId).first();
+        if (!account || !account.pending_email) return json({ error: 'No pending email change found.' }, 404);
+
+        const verifyToken = tokenString(crypto.getRandomValues(new Uint8Array(32)));
+        const verifyExpires = new Date(Date.now() + 48 * 3600 * 1000).toISOString();
+
+        await db.prepare("UPDATE worker_accounts SET email_verify_token=?, email_verify_expires=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(verifyToken, verifyExpires, account.id).run();
+
+        const apiBase = new URL(req.url).origin;
+        const verifyUrl = `${apiBase}/api/verify-email?token=${encodeURIComponent(verifyToken)}`;
+
+        const emailResult = await sendEmailVerificationEmail(env, {
+          newEmail: account.pending_email,
+          currentEmail: account.email,
+          fullName: account.full_name,
+          verifyUrl
+        });
+
+        return json({
+          ok: true,
+          staffId,
+          pendingEmail: account.pending_email,
+          emailSent: emailResult.success,
+          emailError: emailResult.error || undefined
+        });
+      }
+
       if (url.pathname === '/api/admin/directory' && req.method === 'GET') {
         const actor = await auth(req, env, db, true);
         if (!actor) return json({ error: 'Admin token required' }, 401);
         const staffList = await db.prepare(`
           SELECT s.id, s.full_name, s.role_tag, s.pod_id, s.phone, s.status, s.effective_from,
-                 a.id account_id, a.email, a.must_change_password
+                 a.id account_id, a.email, a.must_change_password, a.pending_email, a.email_verify_expires
           FROM staff s
           LEFT JOIN worker_accounts a ON a.staff_id=s.id
           WHERE s.is_admin=0
