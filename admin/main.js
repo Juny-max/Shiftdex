@@ -2049,6 +2049,7 @@ function renderPeopleView() {
                   </div>
 
                   <div class="pending-minimal-actions" onclick="event.stopPropagation();">
+                    <button type="button" class="btn-pending-resend" data-change-pw="${p.id}" title="Change password">Change Password</button>
                     <button type="button" class="btn-pending-resend" data-resend-invite="${p.id}" title="Resend credentials email">Resend</button>
                     <button type="button" class="btn-pending-cancel" data-cancel-invite="${p.id}" title="Cancel invitation">Cancel</button>
                     <button type="button" class="table-view-btn" data-view-staff="${p.id}">View info &rarr;</button>
@@ -2187,8 +2188,11 @@ function renderPeopleView() {
                       <span class="table-load-text">${mCount + nCount} shifts</span>
                       <span class="table-load-sub">${(mCount + nCount) * 12}h · ${mCount}M / ${nCount}N</span>
                     </td>
-                    <td style="text-align:right;">
-                      <button type="button" class="table-view-btn" data-view-staff="${s.id}">View info &rarr;</button>
+                    <td style="text-align:right;" onclick="event.stopPropagation();">
+                      <div style="display:inline-flex;align-items:center;gap:6px;">
+                        <button type="button" class="btn-clean" style="font-size:11.5px;padding:4px 9px;" data-change-pw="${s.id}">Change Password</button>
+                        <button type="button" class="table-view-btn" data-view-staff="${s.id}">View info &rarr;</button>
+                      </div>
                     </td>
                   </tr>
                 `;
@@ -2274,6 +2278,15 @@ function openStaffDetailDrawer(staffId) {
               ${!isArchived ? `<button type="button" class="btn-clean" id="btn-drawer-change-email" style="font-size:11px;padding:2px 8px;margin-left:4px;">Change Email</button>` : ''}
             </div>
           </div>
+          ${!isArchived ? `
+            <div class="drawer-breakdown-row" style="align-items:center;">
+              <span style="color:var(--text-light);">Account Password</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px;letter-spacing:1.5px;">••••••••••••</span>
+                <button type="button" class="btn-clean primary" id="btn-drawer-change-pw-row" style="font-size:11px;padding:3px 9px;font-weight:700;">Change Password</button>
+              </div>
+            </div>
+          ` : ''}
           ${person.pendingEmail ? `
             <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin:8px 0 12px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
@@ -2356,10 +2369,12 @@ function openStaffDetailDrawer(staffId) {
           <button type="button" class="btn-clean primary" id="drawer-restore-btn" style="width:100%;">Bring Back to Active Staff</button>
           <button type="button" class="btn-clean" id="drawer-delete-permanent-btn" style="width:100%;color:#dc2626;border-color:#fecaca;">Delete Permanently</button>
         ` : (isPending ? `
-          <button type="button" class="btn-clean primary" id="drawer-resend-btn" style="width:100%;">Resend Invitation Email</button>
+          <button type="button" class="btn-clean primary" id="drawer-change-pw-btn" style="width:100%;font-weight:700;">Change Password</button>
+          <button type="button" class="btn-clean" id="drawer-resend-btn" style="width:100%;">Resend Invitation Email</button>
           <button type="button" class="btn-clean" id="drawer-cancel-btn" style="width:100%;color:#dc2626;">Cancel Invitation</button>
         ` : `
-          ${person.email ? `<button type="button" class="btn-clean primary" id="drawer-reset-pw-btn" style="width:100%;">Reset Password</button>` : `<button type="button" class="btn-clean primary" id="drawer-invite-btn" style="width:100%;">Send Credentials Email</button>`}
+          <button type="button" class="btn-clean primary" id="drawer-change-pw-btn" style="width:100%;font-weight:700;">Change Password</button>
+          ${!person.email ? `<button type="button" class="btn-clean" id="drawer-invite-btn" style="width:100%;">Send Credentials Email</button>` : ''}
           <button type="button" class="btn-clean" id="drawer-archive-btn" style="width:100%;color:#64748b;">Archive Staff</button>
         `)}
       </div>
@@ -2368,6 +2383,22 @@ function openStaffDetailDrawer(staffId) {
 
   dialog.querySelector('#drawer-close-btn').onclick = () => dialog.close();
   dialog.onclick = e => { if (e.target === dialog) dialog.close(); };
+
+  const changePwRowBtn = dialog.querySelector('#btn-drawer-change-pw-row');
+  if (changePwRowBtn) {
+    changePwRowBtn.onclick = () => {
+      dialog.close();
+      openChangePasswordDialog(person.id);
+    };
+  }
+
+  const changePwDrawerBtn = dialog.querySelector('#drawer-change-pw-btn');
+  if (changePwDrawerBtn) {
+    changePwDrawerBtn.onclick = () => {
+      dialog.close();
+      openChangePasswordDialog(person.id);
+    };
+  }
 
   const copyEmailBtn = dialog.querySelector('#btn-drawer-copy-email');
   if (copyEmailBtn && person.email) {
@@ -2744,103 +2775,176 @@ function openPermanentDeleteDialog(staffId) {
   dialog.showModal();
 }
 
-function openResetPasswordDialog(staffId) {
+function generateStrongPassword() {
+  const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
+  let pass = 'Shift-';
+  for (let i = 0; i < 9; i++) pass += chars[Math.floor(Math.random() * chars.length)];
+  return pass;
+}
+
+function openChangePasswordDialog(staffId) {
   const person = staff.find(p => p.id === staffId);
   if (!person) return;
   const dialog = document.querySelector('#add-person-dialog');
   if (!dialog) return;
 
   dialog.innerHTML = `
-    <form method="dialog" class="shift-edit-form" id="form-reset-password">
+    <form method="dialog" class="shift-edit-form" id="form-change-password">
       <div class="shift-edit-head">
         <div>
           <span class="shift-edit-eyebrow" style="color:#2563eb;">SECURITY &amp; ACCESS</span>
-          <h2>Reset Password</h2>
-          <p>Generate a new temporary password for ${escapeHtml(person.displayName || person.name)}.</p>
+          <h2>Change Password</h2>
+          <p>Update or reset credentials for <strong>${escapeHtml(person.displayName || person.name)}</strong>.</p>
         </div>
-        <button type="button" class="shift-edit-close" id="reset-pw-close" aria-label="Close">×</button>
+        <button type="button" class="shift-edit-close" id="change-pw-close" aria-label="Close">×</button>
       </div>
 
-      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;font-size:13px;color:var(--text-main);line-height:1.5;">
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;font-size:13px;color:var(--text-main);line-height:1.5;">
         <div><strong>Worker:</strong> ${escapeHtml(person.displayName || person.name)}</div>
         <div style="margin-top:4px;"><strong>Account Email:</strong> <code style="font-family:var(--font-mono);">${escapeHtml(person.email || 'None')}</code></div>
+        ${person.tempPassword ? `<div style="margin-top:4px;font-size:12px;color:#92400e;"><strong>Current Temp Password:</strong> <code style="font-family:var(--font-mono);">${escapeHtml(person.tempPassword)}</code></div>` : ''}
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;margin:6px 0;">
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;">
+          <input type="radio" name="pw_method" value="custom" checked style="margin-top:3px;">
+          <div>
+            <strong style="color:var(--text-main);">Type custom password</strong>
+            <div style="color:var(--text-light);font-size:12px;">Directly assign a new password (min 8 characters).</div>
+          </div>
+        </label>
+
+        <div id="custom-pw-box" style="padding-left:24px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="text" id="input-custom-pw" placeholder="Enter new password" minlength="8" style="flex:1;height:40px;padding:0 12px;border:1px solid #cbd5e1;border-radius:8px;font-family:var(--font-mono);font-size:13.5px;" value="${generateStrongPassword()}" required>
+            <button type="button" class="btn-clean" id="btn-regen-pw" style="font-size:12px;padding:0 12px;height:40px;white-space:nowrap;">Regenerate</button>
+          </div>
+        </div>
+
+        <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;">
+          <input type="radio" name="pw_method" value="auto" style="margin-top:3px;">
+          <div>
+            <strong style="color:var(--text-main);">Auto-generate temporary password</strong>
+            <div style="color:var(--text-light);font-size:12px;">Generates a new temporary code and sends credentials via email.</div>
+          </div>
+        </label>
       </div>
 
       <div style="font-size:12px;color:var(--text-light);background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 12px;line-height:1.4;">
-        Resetting will invalidate all current active sessions. A new secure temporary password will be generated and emailed to the user, and they will be required to set a new permanent password on next sign-in.
+        Updating password invalidates any active sessions on this account across all devices immediately.
       </div>
 
       <div class="shift-edit-actions">
-        <button type="button" class="btn-clean" id="reset-pw-cancel">Cancel</button>
-        <button type="submit" class="btn-clean primary" id="reset-pw-submit-btn">Reset Password Now</button>
+        <button type="button" class="btn-clean" id="change-pw-cancel">Cancel</button>
+        <button type="submit" class="btn-clean primary" id="change-pw-submit-btn">Save New Password</button>
       </div>
     </form>
   `;
 
-  dialog.querySelector('#reset-pw-close').onclick = () => dialog.close();
-  dialog.querySelector('#reset-pw-cancel').onclick = () => dialog.close();
+  const customBox = dialog.querySelector('#custom-pw-box');
+  const customInput = dialog.querySelector('#input-custom-pw');
+  const radioCustom = dialog.querySelector('input[value="custom"]');
+  const radioAuto = dialog.querySelector('input[value="auto"]');
+  const regenBtn = dialog.querySelector('#btn-regen-pw');
 
-  const form = dialog.querySelector('#form-reset-password');
+  radioCustom.onchange = () => {
+    customBox.style.display = 'block';
+    customInput.required = true;
+  };
+  radioAuto.onchange = () => {
+    customBox.style.display = 'none';
+    customInput.required = false;
+  };
+
+  regenBtn.onclick = () => {
+    customInput.value = generateStrongPassword();
+  };
+
+  dialog.querySelector('#change-pw-close').onclick = () => dialog.close();
+  dialog.querySelector('#change-pw-cancel').onclick = () => dialog.close();
+
+  const form = dialog.querySelector('#form-change-password');
   form.onsubmit = async (e) => {
     e.preventDefault();
-    const btn = form.querySelector('#reset-pw-submit-btn');
+    const btn = form.querySelector('#change-pw-submit-btn');
     btn.disabled = true;
-    btn.textContent = 'Resetting…';
+    btn.textContent = 'Saving…';
+
+    const isCustom = radioCustom.checked;
+    const newPassword = isCustom ? customInput.value.trim() : '';
+
+    if (isCustom && newPassword.length < 8) {
+      toast('Password must be at least 8 characters.');
+      btn.disabled = false;
+      btn.textContent = 'Save New Password';
+      return;
+    }
 
     try {
       const token = sessionStorage.getItem('admin-session') || '';
-      const res = await fetch(API + '/api/admin/workers/reset-password', {
+      const res = await fetch(API + '/api/admin/workers/change-password', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
-        body: JSON.stringify({ staffId: person.id })
+        body: JSON.stringify({ staffId: person.id, newPassword })
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Failed to reset password.');
+      if (!res.ok) throw new Error(result.error || 'Failed to update password.');
+
+      const savedPw = result.tempPassword || newPassword;
+      person.tempPassword = savedPw;
+      const customItem = state.customStaff.find(s => s.id === person.id);
+      if (customItem) customItem.tempPassword = savedPw;
+      save();
+      render();
 
       dialog.innerHTML = `
         <div class="shift-edit-form">
           <div class="shift-edit-head">
             <div>
-              <span class="shift-edit-eyebrow" style="color:#059669;">PASSWORD RESET</span>
-              <h2>New Password Generated</h2>
+              <span class="shift-edit-eyebrow" style="color:#059669;">PASSWORD UPDATED</span>
+              <h2>Password Changed Successfully</h2>
               <p>Credentials updated for <strong>${escapeHtml(person.displayName || person.name)}</strong>.</p>
             </div>
-            <button type="button" class="shift-edit-close" id="reset-done-close" aria-label="Close">×</button>
+            <button type="button" class="shift-edit-close" id="pw-done-close" aria-label="Close">×</button>
           </div>
 
           <div style="background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:12px;padding:16px;margin-bottom:14px;">
-            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Temporary Password</div>
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px;">Active Password</div>
             <div style="display:flex;align-items:center;justify-content:space-between;background:#fff;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;">
-              <code style="font-family:var(--font-mono);font-size:16px;font-weight:700;letter-spacing:1px;color:#0f172a;">${escapeHtml(result.tempPassword)}</code>
-              <button type="button" class="btn-clean" id="btn-copy-temp-pw" style="font-size:12px;padding:4px 10px;">Copy</button>
+              <code style="font-family:var(--font-mono);font-size:16px;font-weight:700;letter-spacing:0.5px;color:#0f172a;">${escapeHtml(savedPw)}</code>
+              <button type="button" class="btn-clean" id="btn-copy-saved-pw" style="font-size:12px;padding:4px 10px;">Copy</button>
             </div>
           </div>
 
           <div style="font-size:12px;color:${result.emailSent ? '#166534' : '#92400e'};background:${result.emailSent ? '#f0fdf4' : '#fef3c7'};border:1px solid ${result.emailSent ? '#bbf7d0' : '#fde68a'};border-radius:8px;padding:10px 12px;line-height:1.4;">
-            ${result.emailSent ? `Email with these credentials has been sent to <strong>${escapeHtml(result.email)}</strong>.` : `Notice: Email delivery unavailable (${escapeHtml(result.emailError || 'Manual delivery required')}). Please share the temporary password with the user directly.`}
+            ${result.emailSent ? `Email notification sent to <strong>${escapeHtml(result.email)}</strong>.` : `Notice: Email delivery unavailable (${escapeHtml(result.emailError || 'Manual delivery required')}). Please share the new password with the user directly.`}
           </div>
 
           <div class="shift-edit-actions">
-            <button type="button" class="btn-clean primary" id="reset-done-btn">Done</button>
+            <button type="button" class="btn-clean primary" id="pw-done-btn">Done</button>
           </div>
         </div>
       `;
 
-      dialog.querySelector('#reset-done-close').onclick = () => dialog.close();
-      dialog.querySelector('#reset-done-btn').onclick = () => dialog.close();
-      dialog.querySelector('#btn-copy-temp-pw').onclick = () => {
-        navigator.clipboard.writeText(result.tempPassword);
-        toast('Temporary password copied to clipboard!');
+      dialog.querySelector('#pw-done-close').onclick = () => dialog.close();
+      dialog.querySelector('#pw-done-btn').onclick = () => dialog.close();
+      dialog.querySelector('#btn-copy-saved-pw').onclick = () => {
+        navigator.clipboard.writeText(savedPw);
+        toast('Password copied to clipboard!');
       };
-      toast('Password reset successfully.');
+      toast('Password changed successfully.');
     } catch (err) {
       toast('Error: ' + err.message);
       btn.disabled = false;
-      btn.textContent = 'Reset Password Now';
+      btn.textContent = 'Save New Password';
     }
   };
 
   dialog.showModal();
+}
+
+function openResetPasswordDialog(staffId) {
+  return openChangePasswordDialog(staffId);
 }
 
 function openChangeEmailDialog(staffId) {
@@ -4263,6 +4367,13 @@ function bindEvents() {
     btn.onclick = (e) => {
       e.stopPropagation();
       openPermanentDeleteDialog(btn.dataset.deletePermanent);
+    };
+  });
+
+  document.querySelectorAll('[data-change-pw]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      openChangePasswordDialog(btn.dataset.changePw);
     };
   });
 

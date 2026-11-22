@@ -1218,7 +1218,29 @@ export default {
         return json({ ok: true, staffId });
       }
 
-      if (url.pathname === '/api/admin/workers/reset-password' && req.method === 'POST') {
+      if (url.pathname === '/api/worker/change-password' && req.method === 'POST') {
+        const actor = await auth(req, env, db);
+        if (!actor) return json({ error: 'Sign in required.' }, 401);
+        const body = await req.json();
+        const currentPassword = String(body.currentPassword || '');
+        const newPassword = String(body.newPassword || '');
+        if (!currentPassword || !newPassword || newPassword.length < 8) {
+          return json({ error: 'New password must be at least 8 characters.' }, 400);
+        }
+        const account = await db.prepare("SELECT id, password_salt, password_hash, password_iterations FROM worker_accounts WHERE id=?").bind(actor.accountId).first();
+        if (!account) return json({ error: 'Account not found.' }, 404);
+        const digest = await passwordDigest(currentPassword, account.password_salt, safePasswordIterations(account.password_iterations));
+        if (!sameHash(digest, account.password_hash)) {
+          return json({ error: 'Current password is incorrect.' }, 401);
+        }
+        const newSalt = hex(crypto.getRandomValues(new Uint8Array(16)));
+        const newDigest = await passwordDigest(newPassword, newSalt, CURRENT_PASSWORD_ITERATIONS);
+        await db.prepare("UPDATE worker_accounts SET password_salt=?, password_hash=?, password_iterations=?, must_change_password=0, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(newSalt, newDigest, CURRENT_PASSWORD_ITERATIONS, account.id).run();
+        return json({ ok: true });
+      }
+
+      if ((url.pathname === '/api/admin/workers/reset-password' || url.pathname === '/api/admin/workers/change-password') && req.method === 'POST') {
         const actor = await auth(req, env, db, true);
         if (!actor) return json({ error: 'Admin token required' }, 401);
         const body = await req.json();
@@ -1228,28 +1250,33 @@ export default {
         const account = await db.prepare("SELECT a.id, a.email, a.full_name, a.staff_id, s.status staff_status FROM worker_accounts a JOIN staff s ON s.id=a.staff_id WHERE a.staff_id=?").bind(staffId).first();
         if (!account) return json({ error: 'Linked worker account not found for this staff member.' }, 404);
 
-        const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
-        const randomBytes = crypto.getRandomValues(new Uint8Array(12));
-        let code = '';
-        for (let i = 0; i < 12; i++) code += chars[randomBytes[i] % chars.length];
-        const tempPassword = `Shift-${code}`;
+        let finalPassword = body.newPassword ? String(body.newPassword).trim() : '';
+        let mustChange = 0;
+        if (!finalPassword) {
+          const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
+          const randomBytes = crypto.getRandomValues(new Uint8Array(12));
+          let code = '';
+          for (let i = 0; i < 12; i++) code += chars[randomBytes[i] % chars.length];
+          finalPassword = `Shift-${code}`;
+          mustChange = 1;
+        }
 
         const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
-        const digest = await passwordDigest(tempPassword, salt, CURRENT_PASSWORD_ITERATIONS);
+        const digest = await passwordDigest(finalPassword, salt, CURRENT_PASSWORD_ITERATIONS);
 
-        await db.prepare("UPDATE worker_accounts SET password_salt=?, password_hash=?, password_iterations=?, must_change_password=1, updated_at=CURRENT_TIMESTAMP WHERE id=?")
-          .bind(salt, digest, CURRENT_PASSWORD_ITERATIONS, account.id).run();
+        await db.prepare("UPDATE worker_accounts SET password_salt=?, password_hash=?, password_iterations=?, must_change_password=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+          .bind(salt, digest, CURRENT_PASSWORD_ITERATIONS, mustChange, account.id).run();
         await db.prepare('DELETE FROM worker_sessions WHERE account_id=?').bind(account.id).run();
 
-        const emailResult = await sendPasswordResetEmail(env, { email: account.email, fullName: account.full_name, tempPassword });
-        await audit(db, actor.id, 'reset_worker_password', 'worker_account', account.id, { email: account.email, staffId: account.staff_id, emailSent: emailResult.success });
+        const emailResult = await sendPasswordResetEmail(env, { email: account.email, fullName: account.full_name, tempPassword: finalPassword });
+        await audit(db, actor.id, 'change_worker_password', 'worker_account', account.id, { email: account.email, staffId: account.staff_id, emailSent: emailResult.success });
 
         return json({
           ok: true,
           staffId: account.staff_id,
           email: account.email,
           fullName: account.full_name,
-          tempPassword,
+          tempPassword: finalPassword,
           emailSent: emailResult.success,
           emailError: emailResult.error || undefined
         });

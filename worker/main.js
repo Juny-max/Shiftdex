@@ -305,6 +305,7 @@ function renderDashboard() {
           <span class="user-badge-name">${escapeHtml(me.name)}</span>
           <span class="user-team-chip" style="border-color:${teamColor};">${escapeHtml(teamName)}</span>
         </div>
+        <button class="btn-signout" id="btn-worker-change-pw" type="button" style="border-color:var(--border-card);color:var(--text-main);background:#ffffff;">Change password</button>
         <button class="btn-signout" id="logout" type="button">Sign out</button>
       </div>
 
@@ -336,7 +337,8 @@ function renderDashboard() {
           </div>
         </div>
       </div>
-      <div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn-signout" id="drawer-worker-change-pw" type="button" style="width:100%;height:42px;border-color:var(--border-card);color:var(--text-main);background:#ffffff;">Change password</button>
         <button class="btn-signout" id="drawer-logout" type="button" style="width:100%;height:42px;">Sign out</button>
       </div>
     </div>
@@ -767,6 +769,106 @@ function renderDashboard() {
   if (logoutBtn) logoutBtn.onclick = handleLogout;
   const drawerLogoutBtn = document.querySelector('#drawer-logout');
   if (drawerLogoutBtn) drawerLogoutBtn.onclick = handleLogout;
+
+  const workerChangePwBtn = document.querySelector('#btn-worker-change-pw');
+  if (workerChangePwBtn) workerChangePwBtn.onclick = openWorkerChangePasswordModal;
+  const drawerWorkerChangePwBtn = document.querySelector('#drawer-worker-change-pw');
+  if (drawerWorkerChangePwBtn) {
+    drawerWorkerChangePwBtn.onclick = () => {
+      isMobileNavOpen = false;
+      renderDashboard();
+      openWorkerChangePasswordModal();
+    };
+  }
+}
+
+function openWorkerChangePasswordModal() {
+  let modalWrap = document.querySelector('#worker-pw-modal-wrap');
+  if (!modalWrap) {
+    modalWrap = document.createElement('div');
+    modalWrap.id = 'worker-pw-modal-wrap';
+    document.body.appendChild(modalWrap);
+  }
+
+  modalWrap.innerHTML = `
+    <div class="day-modal-backdrop" id="worker-pw-modal-backdrop">
+      <div class="day-modal-card" style="max-width:390px;animation:modalPop 0.18s cubic-bezier(0.16,1,0.3,1);">
+        <div class="day-modal-header">
+          <div>
+            <div style="font-size:11px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;color:var(--blue-primary);margin-bottom:2px;">SECURITY</div>
+            <h3 style="margin:0;">Change password</h3>
+          </div>
+          <button type="button" class="day-modal-close-btn" id="btn-close-worker-pw-modal">&times;</button>
+        </div>
+        <form id="worker-change-pw-form" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+          <div id="worker-pw-error" style="display:none;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:12.5px;font-weight:600;line-height:1.4;"></div>
+          <div class="action-field">
+            <label for="worker-cur-pw">Current Password</label>
+            <input id="worker-cur-pw" name="currentPassword" type="password" required autocomplete="current-password" placeholder="Enter current password">
+          </div>
+          <div class="action-field">
+            <label for="worker-new-pw">New Password</label>
+            <input id="worker-new-pw" name="newPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters">
+          </div>
+          <div class="action-field">
+            <label for="worker-conf-pw">Confirm New Password</label>
+            <input id="worker-conf-pw" name="confirmPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="Repeat new password">
+          </div>
+          <div style="display:flex;gap:10px;margin-top:6px;">
+            <button type="button" class="btn-signout" id="btn-cancel-worker-pw" style="flex:1;height:42px;border-color:var(--border-card);color:var(--text-main);background:#fff;">Cancel</button>
+            <button type="submit" class="btn-primary-action" id="btn-save-worker-pw" style="flex:1;height:42px;">Save Password</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  const close = () => { modalWrap.innerHTML = ''; };
+  modalWrap.querySelector('#btn-close-worker-pw-modal').onclick = close;
+  modalWrap.querySelector('#btn-cancel-worker-pw').onclick = close;
+  modalWrap.querySelector('#worker-pw-modal-backdrop').onclick = (e) => {
+    if (e.target.id === 'worker-pw-modal-backdrop') close();
+  };
+
+  const form = modalWrap.querySelector('#worker-change-pw-form');
+  const errorBox = modalWrap.querySelector('#worker-pw-error');
+  const submitBtn = modalWrap.querySelector('#btn-save-worker-pw');
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    errorBox.style.display = 'none';
+    const curPw = form.currentPassword.value;
+    const newPw = form.newPassword.value;
+    const confPw = form.confirmPassword.value;
+
+    if (newPw.length < 8) {
+      errorBox.textContent = 'New password must be at least 8 characters.';
+      errorBox.style.display = 'block';
+      return;
+    }
+    if (newPw !== confPw) {
+      errorBox.textContent = 'New passwords do not match.';
+      errorBox.style.display = 'block';
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+
+    try {
+      await apiRequest('/api/worker/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword: curPw, newPassword: newPw })
+      });
+      close();
+      showMessage('Password updated successfully!');
+    } catch (err) {
+      errorBox.textContent = err.message || 'Could not update password.';
+      errorBox.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save Password';
+    }
+  };
 }
 
 async function boot() {
