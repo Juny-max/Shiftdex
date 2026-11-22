@@ -254,8 +254,8 @@ function renderDashboard() {
     const dayNumStr = d.getDate();
     const monthShort = d.toLocaleDateString('en-US', { month: 'short' });
 
-    const shiftTitle = code === 'M' ? 'Day Shift Â· 06:00 - 18:00'
-      : code === 'N' ? 'Night Shift Â· 18:00 - 06:00'
+    const shiftTitle = code === 'M' ? 'Day Shift · 06:00 - 18:00'
+      : code === 'N' ? 'Night Shift · 18:00 - 06:00'
       : code === 'LEAVE' ? 'Approved Annual Leave'
       : 'Rest Day (OFF)';
 
@@ -286,7 +286,7 @@ function renderDashboard() {
     const date = `${currentMonth}-${String(d).padStart(2, '0')}`;
     const code = shiftFor(staffId, date);
     const marker = code === 'M' ? 'Morning shift' : code === 'N' ? 'Night shift' : code === 'LEAVE' ? 'Leave' : 'Rest day';
-    homeMonthDays.push(`<button class="home-month-day ${date === todayIso ? 'today' : ''} ${code.toLowerCase()}" data-date="${date}" type="button" aria-label="${fullDate(date)} Â· ${marker}"><span>${d}</span>${['M', 'N'].includes(code) ? `<i class="${code.toLowerCase()}" aria-hidden="true"></i>` : code === 'LEAVE' ? '<i class="leave" aria-hidden="true"></i>' : ''}</button>`);
+    homeMonthDays.push(`<button class="home-month-day ${date === todayIso ? 'today' : ''} ${code.toLowerCase()}" data-date="${date}" type="button" aria-label="${fullDate(date)} · ${marker}"><span>${d}</span>${['M', 'N'].includes(code) ? `<i class="${code.toLowerCase()}" aria-hidden="true"></i>` : code === 'LEAVE' ? '<i class="leave" aria-hidden="true"></i>' : ''}</button>`);
   }
   while (homeMonthDays.length % 7) homeMonthDays.push('<span class="home-month-day empty" aria-hidden="true"></span>');
 
@@ -508,7 +508,7 @@ function renderDashboard() {
                     </div>
                     <div>
                       <span class="req-status-pill ${isPending ? 'pending' : isApproved ? 'approved' : 'rejected'}">
-                        ${isPending ? 'Pending Operations Review' : isApproved ? 'Approved Â· Off Scheduled' : 'Rejected'}
+                        ${isPending ? 'Pending Operations Review' : isApproved ? 'Approved · Off Scheduled' : 'Rejected'}
                       </span>
                     </div>
                   </div>
@@ -711,7 +711,7 @@ function renderDashboard() {
     }
 
     btnEl.disabled = true;
-    btnEl.textContent = 'Submittingâ€¦';
+    btnEl.textContent = 'Submitting…';
 
     try {
       const res = await apiRequest('/api/unavailability', {
