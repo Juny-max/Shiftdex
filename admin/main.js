@@ -2,6 +2,8 @@ import XLSX from 'xlsx-js-style';
 import { initialState, staff, pods, cellFor, setCell, monthName, roleFor, cycle } from '../shared/roster.js';
 import seedRoster from '../shared/seed-roster.json';
 import shiftDeskMark from '../assets/shift-desk-mark.svg';
+import lottie from 'lottie-web/build/player/lottie_light.js';
+import loadingLottieData from '../assets/loading-lottie.json';
 import './style.css';
 import './polish.css';
 import './pages.css';
@@ -404,200 +406,359 @@ function showConfirmDialog({
   });
 }
 
-function openCopilotModal() {
-  let dialog = document.getElementById('copilot-modal-dialog');
-  if (!dialog) {
-    dialog = document.createElement('dialog');
-    dialog.id = 'copilot-modal-dialog';
-    dialog.className = 'copilot-modal-dialog';
-    document.body.appendChild(dialog);
+let copilotMessages = [];
+let copilotLottieInstance = null;
+let isCopilotOpen = false;
+let isCopilotAnalyzing = false;
+
+function getDynamicCopilotSuggestions() {
+  const active = activeStaff();
+  if (active.length >= 2) {
+    const p1 = active[0].displayName || active[0].name;
+    const p2 = active[1].displayName || active[1].name;
+    return {
+      chips: [
+        "Who is on night shift tonight?",
+        `Swap ${p1} and ${p2} this week`,
+        `Put ${p1} on leave for 2 days`,
+        "Duty schedule for today"
+      ],
+      placeholder: `Ask AI or e.g. "Swap ${p1} and ${p2} on Friday"…`
+    };
+  } else if (active.length === 1) {
+    const p1 = active[0].displayName || active[0].name;
+    return {
+      chips: [
+        `What shifts does ${p1} have this week?`,
+        `Put ${p1} on leave tomorrow`,
+        "Explain the 24/7 rotation cycle",
+        "Show today's coverage"
+      ],
+      placeholder: `Ask AI or e.g. "What shifts does ${p1} have?"…`
+    };
+  } else {
+    return {
+      chips: [
+        "Explain the 24/7 8-day rotation cycle",
+        "How do Morning (M) and Night (N) shifts work?",
+        "What are the 4 team color codes?",
+        "How to import management Excel roster"
+      ],
+      placeholder: "Ask anything about shift rotations, hours, or roster rules…"
+    };
   }
+}
 
-  let isSubmitting = false;
-  let lastResult = null;
+function toggleCopilot() {
+  const widget = document.getElementById('copilot-floating-widget');
+  if (widget && widget.style.display !== 'none') {
+    closeCopilot();
+  } else {
+    openCopilot();
+  }
+}
 
-  function renderCopilotView(promptVal = '') {
-    dialog.innerHTML = `
-      <div class="copilot-container">
-        <div class="copilot-modal-header">
-          <div class="copilot-title-group">
-            <div class="copilot-icon-badge">${ICONS.spark}</div>
-            <div>
-              <span class="shift-edit-eyebrow">CLOUDFLARE WORKERS AI</span>
-              <h3 style="margin:2px 0 0;font-size:18px;font-weight:800;letter-spacing:-0.4px;">ShiftDesk Copilot</h3>
-            </div>
+function closeCopilot() {
+  const widget = document.getElementById('copilot-floating-widget');
+  if (widget) {
+    widget.style.display = 'none';
+    isCopilotOpen = false;
+  }
+  destroyCopilotLottie();
+}
+
+function openCopilot() {
+  let widget = document.getElementById('copilot-floating-widget');
+  if (!widget) {
+    widget = document.createElement('aside');
+    widget.id = 'copilot-floating-widget';
+    widget.className = 'copilot-floating-widget';
+    widget.setAttribute('role', 'complementary');
+    widget.setAttribute('aria-label', 'ShiftDesk AI Assistant');
+    document.body.appendChild(widget);
+  }
+  widget.style.display = 'flex';
+  isCopilotOpen = true;
+  renderCopilotWidget();
+  const input = widget.querySelector('#copilot-text-input');
+  if (input) input.focus();
+}
+
+function renderCopilotWidget() {
+  const widget = document.getElementById('copilot-floating-widget');
+  if (!widget) return;
+
+  const { chips, placeholder } = getDynamicCopilotSuggestions();
+
+  widget.innerHTML = `
+    <div class="copilot-widget-header">
+      <div class="copilot-widget-title-area">
+        <div class="copilot-avatar-badge">${ICONS.spark}</div>
+        <div class="copilot-widget-heading">
+          <div class="copilot-widget-name">ShiftDesk AI</div>
+          <div class="copilot-status-indicator">
+            <span class="copilot-status-dot"></span>
+            <span>Cloudflare Workers AI</span>
           </div>
-          <button class="shift-edit-close" id="btn-copilot-close" title="Close dialog">&times;</button>
-        </div>
-
-        <div class="copilot-chips-wrap">
-          <button type="button" class="copilot-chip" data-copilot-prompt="Who is working night shift tonight?">Who is working night shift tonight?</button>
-          <button type="button" class="copilot-chip" data-copilot-prompt="Swap Julius and Bernard on Nov 24">Swap Julius and Bernard on Nov 24</button>
-          <button type="button" class="copilot-chip" data-copilot-prompt="Put Kate on leave on Nov 27">Put Kate on leave on Nov 27</button>
-          <button type="button" class="copilot-chip" data-copilot-prompt="Show duty schedule for today">Duty schedule for today</button>
-        </div>
-
-        <form id="copilot-form" class="copilot-input-row">
-          <input id="copilot-input" class="copilot-input" type="text" placeholder="Ask anything or propose a shift change (e.g. 'Swap Papa Nii and Owusu')..." value="${escapeHtml(promptVal)}" required autocomplete="off" />
-          <button id="copilot-btn-send" class="copilot-btn-submit" type="submit" ${isSubmitting ? 'disabled' : ''}>
-            ${isSubmitting ? '<span class="button-spinner" aria-hidden="true"></span><span>Analyzing…</span>' : '<span>Ask AI</span>'}
-          </button>
-        </form>
-
-        <div id="copilot-result-area">
-          ${renderCopilotResult(lastResult, isSubmitting)}
         </div>
       </div>
-    `;
+      <div class="copilot-widget-actions">
+        <button type="button" class="copilot-btn-icon" id="btn-copilot-clear" title="Clear conversation">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        </button>
+        <button type="button" class="copilot-btn-icon" id="btn-copilot-close" title="Close AI Assistant">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
 
-    const closeBtn = dialog.querySelector('#btn-copilot-close');
-    if (closeBtn) closeBtn.onclick = () => dialog.close();
+    <div class="copilot-messages-body" id="copilot-messages-body">
+      ${copilotMessages.length === 0 ? `
+        <div class="copilot-welcome-card">
+          <div class="copilot-welcome-title">ShiftDesk Copilot</div>
+          <div class="copilot-welcome-desc">Ask questions about shift rotations, coverage, or instruct natural language schedule swaps and leave allocations.</div>
+          <div class="copilot-chips-label">Suggested Prompts</div>
+          <div class="copilot-chips-wrap">
+            ${chips.map(chip => `<button type="button" class="copilot-chip" data-copilot-prompt="${escapeHtml(chip)}">${escapeHtml(chip)}</button>`).join('')}
+          </div>
+        </div>
+      ` : ''}
 
-    dialog.querySelectorAll('.copilot-chip').forEach(chip => {
-      chip.onclick = () => {
-        const text = chip.dataset.copilotPrompt;
-        const input = dialog.querySelector('#copilot-input');
-        if (input) {
-          input.value = text;
-          dialog.querySelector('#copilot-form').dispatchEvent(new Event('submit'));
-        }
-      };
-    });
+      ${copilotMessages.map((msg, index) => renderCopilotMessage(msg, index)).join('')}
 
-    const form = dialog.querySelector('#copilot-form');
-    if (form) {
-      form.onsubmit = async (e) => {
-        e.preventDefault();
-        const input = dialog.querySelector('#copilot-input');
-        const text = (input?.value || '').trim();
-        if (!text || isSubmitting) return;
+      ${isCopilotAnalyzing ? `
+        <div class="copilot-msg-row">
+          <div class="copilot-msg-bubble assistant">
+            <div class="copilot-lottie-wrap">
+              <div id="copilot-lottie-container" class="copilot-lottie-container"></div>
+              <div class="copilot-loading-text">ShiftDesk AI is analyzing roster…</div>
+              <div class="copilot-loading-sub">Checking shift rotation rules &amp; constraints</div>
+            </div>
+          </div>
+        </div>
+      ` : ''}
+    </div>
 
-        isSubmitting = true;
-        lastResult = null;
-        renderCopilotView(text);
+    <form class="copilot-footer-form" id="copilot-footer-form">
+      <div class="copilot-input-container">
+        <input type="text" id="copilot-text-input" class="copilot-text-input" placeholder="${escapeHtml(placeholder)}" autocomplete="off" required ${isCopilotAnalyzing ? 'disabled' : ''} />
+        <button type="submit" id="copilot-submit-btn" class="copilot-send-btn" title="Send message" ${isCopilotAnalyzing ? 'disabled' : ''}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+      <div class="copilot-input-hint">Powered by Cloudflare Workers AI • Enter to send • Esc to close</div>
+    </form>
+  `;
 
-        const token = sessionStorage.getItem('admin-session') || '';
-        const todayKey = new Date().toISOString().slice(0, 10);
-        const todayMorning = activeStaff().filter(s => cellFor(state, s.id, todayKey) === 'M').map(s => s.displayName || s.name);
-        const todayNight = activeStaff().filter(s => cellFor(state, s.id, todayKey) === 'N').map(s => s.displayName || s.name);
+  // Bind close and clear
+  const closeBtn = widget.querySelector('#btn-copilot-close');
+  if (closeBtn) closeBtn.onclick = closeCopilot;
 
-        const scheduleContext = `Today is ${todayKey}. Active month is ${month}. Today Morning Shift (06:00 - 18:00): ${todayMorning.join(', ') || 'None'}. Today Night Shift (18:00 - 06:00): ${todayNight.join(', ') || 'None'}. Rotation: 8-day perpetual cycle (2M -> 2N -> 4 OFF).`;
-
-        try {
-          const res = await fetch(API + '/api/admin/ai/copilot', {
-            method: 'POST',
-            headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
-            body: JSON.stringify({
-              prompt: text,
-              month,
-              staff: activeStaff().map(s => ({ id: s.id, name: s.displayName || s.name, role: s.role || 'NSP', podId: s.podId || '' })),
-              scheduleContext
-            })
-          });
-          const data = await res.json();
-          isSubmitting = false;
-          lastResult = data;
-          renderCopilotView(text);
-        } catch (err) {
-          isSubmitting = false;
-          lastResult = {
-            ok: false,
-            summary: `Request failed: ${err.message}. Please check connection.`,
-            type: 'answer',
-            changes: []
-          };
-          renderCopilotView(text);
-        }
-      };
-    }
-
-    const applyBtn = dialog.querySelector('#btn-copilot-apply');
-    if (applyBtn && lastResult?.changes?.length) {
-      applyBtn.onclick = () => {
-        let appliedCount = 0;
-        for (const ch of lastResult.changes) {
-          if (ch.date && ch.staffId && ch.to) {
-            state.assignments[`${ch.date}:${ch.staffId}`] = ch.to;
-            appliedCount++;
-          }
-        }
-        save();
-        render();
-        toast(`Applied ${appliedCount} change${appliedCount > 1 ? 's' : ''} to schedule`);
-        dialog.close();
-      };
-    }
+  const clearBtn = widget.querySelector('#btn-copilot-clear');
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      copilotMessages = [];
+      renderCopilotWidget();
+    };
   }
 
-  function renderCopilotResult(res, loading) {
-    if (loading) {
-      return `
-        <div class="copilot-result-box" style="align-items:center;padding:24px;text-align:center;">
-          <span class="button-spinner" style="width:24px;height:24px;border-width:2.5px;border-color:var(--blue-primary);border-top-color:transparent;" aria-hidden="true"></span>
-          <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-top:10px;">Consulting Cloudflare Workers AI…</div>
-          <div style="font-size:11.5px;color:var(--text-light);margin-top:2px;">Analyzing shift rotation rules, team rosters, and constraints</div>
-        </div>
-      `;
+  // Bind suggestion chips
+  widget.querySelectorAll('.copilot-chip').forEach(btn => {
+    btn.onclick = () => {
+      const text = btn.dataset.copilotPrompt;
+      const input = widget.querySelector('#copilot-text-input');
+      if (input) {
+        input.value = text;
+        widget.querySelector('#copilot-footer-form').dispatchEvent(new Event('submit'));
+      }
+    };
+  });
+
+  // Bind apply and dismiss buttons on proposal cards
+  widget.querySelectorAll('[data-copilot-apply-idx]').forEach(applyBtn => {
+    applyBtn.onclick = () => {
+      const idx = Number(applyBtn.dataset.copilotApplyIdx);
+      const msg = copilotMessages[idx];
+      if (!msg || !Array.isArray(msg.changes) || msg.applied) return;
+
+      let count = 0;
+      for (const ch of msg.changes) {
+        if (ch.date && ch.staffId && ch.to) {
+          state.assignments[`${ch.date}:${ch.staffId}`] = ch.to;
+          count++;
+        }
+      }
+      msg.applied = true;
+      save();
+      render();
+      toast(`Applied ${count} shift change${count > 1 ? 's' : ''} to calendar`);
+      renderCopilotWidget();
+    };
+  });
+
+  widget.querySelectorAll('[data-copilot-dismiss-idx]').forEach(dismissBtn => {
+    dismissBtn.onclick = () => {
+      const idx = Number(dismissBtn.dataset.copilotDismissIdx);
+      const msg = copilotMessages[idx];
+      if (msg) {
+        msg.dismissed = true;
+        renderCopilotWidget();
+      }
+    };
+  });
+
+  // Handle form submission
+  const form = widget.querySelector('#copilot-footer-form');
+  if (form) {
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const input = widget.querySelector('#copilot-text-input');
+      const text = (input?.value || '').trim();
+      if (!text || isCopilotAnalyzing) return;
+
+      copilotMessages.push({ role: 'user', text });
+      isCopilotAnalyzing = true;
+      renderCopilotWidget();
+
+      // Scroll to bottom
+      const scrollBody = widget.querySelector('#copilot-messages-body');
+      if (scrollBody) scrollBody.scrollTop = scrollBody.scrollHeight;
+
+      // Mount Lottie Sand Timer animation
+      mountCopilotLottie();
+
+      const token = sessionStorage.getItem('admin-session') || '';
+      const todayKey = new Date().toISOString().slice(0, 10);
+      const todayMorning = activeStaff().filter(s => cellFor(state, s.id, todayKey) === 'M').map(s => s.displayName || s.name);
+      const todayNight = activeStaff().filter(s => cellFor(state, s.id, todayKey) === 'N').map(s => s.displayName || s.name);
+      const scheduleContext = `Today is ${todayKey}. Active month is ${month}. Today Morning Shift (06:00 - 18:00): ${todayMorning.join(', ') || 'None'}. Today Night Shift (18:00 - 06:00): ${todayNight.join(', ') || 'None'}. Rotation: 8-day perpetual cycle (2M -> 2N -> 4 OFF).`;
+
+      try {
+        const res = await fetch(API + '/api/admin/ai/copilot', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+          body: JSON.stringify({
+            prompt: text,
+            month,
+            staff: activeStaff().map(s => ({ id: s.id, name: s.displayName || s.name, role: s.role || 'NSP', podId: s.podId || '' })),
+            scheduleContext
+          })
+        });
+        const data = await res.json();
+        isCopilotAnalyzing = false;
+        destroyCopilotLottie();
+        copilotMessages.push({
+          role: 'assistant',
+          text: data.summary || 'Schedule analysis complete.',
+          changes: Array.isArray(data.changes) ? data.changes : [],
+          warnings: Array.isArray(data.warnings) ? data.warnings : []
+        });
+        renderCopilotWidget();
+      } catch (err) {
+        isCopilotAnalyzing = false;
+        destroyCopilotLottie();
+        copilotMessages.push({
+          role: 'assistant',
+          text: `Request failed: ${err.message}. Please check connection or try again.`,
+          changes: [],
+          warnings: []
+        });
+        renderCopilotWidget();
+      }
+
+      const postScroll = widget.querySelector('#copilot-messages-body');
+      if (postScroll) postScroll.scrollTop = postScroll.scrollHeight;
+    };
+  }
+
+  // Scroll to bottom
+  const messagesBody = widget.querySelector('#copilot-messages-body');
+  if (messagesBody) messagesBody.scrollTop = messagesBody.scrollHeight;
+}
+
+function mountCopilotLottie() {
+  destroyCopilotLottie();
+  const container = document.getElementById('copilot-lottie-container');
+  if (container && lottie && loadingLottieData) {
+    try {
+      copilotLottieInstance = lottie.loadAnimation({
+        container,
+        renderer: 'svg',
+        loop: true,
+        autoplay: true,
+        animationData: loadingLottieData
+      });
+    } catch (err) {
+      console.warn('Lottie mount error:', err);
     }
-    if (!res) return '';
+  }
+}
 
-    const hasChanges = Array.isArray(res.changes) && res.changes.length > 0;
+function destroyCopilotLottie() {
+  if (copilotLottieInstance) {
+    try {
+      copilotLottieInstance.destroy();
+    } catch {}
+    copilotLottieInstance = null;
+  }
+}
 
+function renderCopilotMessage(msg, index) {
+  if (msg.role === 'user') {
     return `
-      <div class="copilot-result-box">
-        <div class="copilot-answer-text">
-          <strong>Assistant:</strong> ${escapeHtml(res.summary || 'Analysis complete.')}
-        </div>
+      <div class="copilot-msg-row">
+        <div class="copilot-msg-bubble user">${escapeHtml(msg.text)}</div>
+      </div>
+    `;
+  }
 
-        ${Array.isArray(res.warnings) && res.warnings.length ? `
-          <div class="shift-conflict-preview has-warning" style="margin:0;">
+  const hasChanges = Array.isArray(msg.changes) && msg.changes.length > 0;
+  const shiftBadgeClass = code => code === 'M' ? 'shift-m' : code === 'N' ? 'shift-n' : code === 'LEAVE' ? 'shift-leave' : 'shift-off';
+
+  return `
+    <div class="copilot-msg-row">
+      <div class="copilot-msg-bubble assistant">
+        <div>${escapeHtml(msg.text)}</div>
+
+        ${Array.isArray(msg.warnings) && msg.warnings.length ? `
+          <div class="shift-conflict-preview has-warning" style="margin:4px 0 0;">
             <b>Operational Alerts:</b>
-            <ul>
-              ${res.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+            <ul style="margin:4px 0 0;padding-left:16px;">
+              ${msg.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
             </ul>
           </div>
         ` : ''}
 
-        ${hasChanges ? `
-          <div>
-            <div style="font-size:11.5px;font-weight:700;color:var(--text-main);margin-bottom:6px;">PROPOSED SCHEDULE ADJUSTMENTS:</div>
-            <table class="copilot-diff-table">
-              <thead>
-                <tr>
-                  <th>Member</th>
-                  <th>Date</th>
-                  <th>Shift</th>
-                  <th>Reason</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${res.changes.map(ch => `
-                  <tr>
-                    <td><strong>${escapeHtml(ch.staffName || ch.staffId)}</strong></td>
-                    <td style="font-family:var(--font-mono);">${escapeHtml(ch.date)}</td>
-                    <td>
-                      <span style="font-weight:700;">${escapeHtml(ch.from || '–')}</span>
-                      <span class="copilot-diff-arrow">&rarr;</span>
-                      <span style="font-weight:800;color:var(--blue-primary);">${escapeHtml(ch.to)}</span>
-                    </td>
-                    <td style="color:var(--text-light);">${escapeHtml(ch.reason || 'Requested change')}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
+        ${hasChanges && !msg.dismissed ? `
+          <div class="copilot-proposal-card">
+            <div class="copilot-proposal-head">Proposed Schedule Adjustments</div>
+            ${msg.changes.map(ch => `
+              <div class="copilot-proposal-row">
+                <div>
+                  <strong>${escapeHtml(ch.staffName || ch.staffId)}</strong>
+                  <div style="font-size:10px;color:var(--text-light);font-family:var(--font-mono);">${escapeHtml(ch.date)}</div>
+                </div>
+                <div class="copilot-shift-flow">
+                  <span class="copilot-badge ${shiftBadgeClass(ch.from)}">${escapeHtml(ch.from || '–')}</span>
+                  <span class="copilot-diff-arrow">&rarr;</span>
+                  <span class="copilot-badge ${shiftBadgeClass(ch.to)}">${escapeHtml(ch.to)}</span>
+                </div>
+              </div>
+            `).join('')}
 
-          <div class="copilot-action-footer">
-            <button type="button" class="btn-clean" id="btn-copilot-dismiss" onclick="document.getElementById('copilot-modal-dialog').close()">Dismiss</button>
-            <button type="button" class="btn-clean primary pill" id="btn-copilot-apply">Apply Changes to Calendar</button>
+            <div class="copilot-actions-bar">
+              ${msg.applied ? `
+                <button type="button" class="copilot-btn-action applied" disabled>✓ Applied to calendar</button>
+              ` : `
+                <button type="button" class="copilot-btn-action dismiss" data-copilot-dismiss-idx="${index}">Dismiss</button>
+                <button type="button" class="copilot-btn-action apply" data-copilot-apply-idx="${index}">Apply to Calendar</button>
+              `}
+            </div>
           </div>
-        ` : ''}
+        ` : (msg.dismissed ? `<div style="font-size:11px;color:var(--text-light);font-style:italic;">Schedule adjustments dismissed.</div>` : '')}
       </div>
-    `;
-  }
-
-  renderCopilotView('');
-  dialog.showModal();
+    </div>
+  `;
 }
 
 function shiftDateOffset(date, amount) {
@@ -4376,7 +4537,7 @@ function bindEvents() {
 
   // Copilot Assistant
   const copilotBtn = document.querySelector('#btn-top-copilot');
-  if (copilotBtn) copilotBtn.onclick = openCopilotModal;
+  if (copilotBtn) copilotBtn.onclick = toggleCopilot;
 
   // Publish Schedule
   const publishBtn = document.querySelector('#btn-top-publish');
@@ -5215,9 +5376,11 @@ function bindEvents() {
 render();
 syncDirectory();
 window.addEventListener('keydown', (e) => {
-  if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+  if (e.key === 'Escape' && isCopilotOpen) {
+    closeCopilot();
+  } else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
     e.preventDefault();
-    openCopilotModal();
+    toggleCopilot();
   }
 });
 if (window.shiftDexDesktop?.updates) {
