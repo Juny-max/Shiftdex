@@ -2156,7 +2156,6 @@ function renderPeopleView() {
                   </div>
 
                   <div class="pending-minimal-actions" onclick="event.stopPropagation();">
-                    <button type="button" class="btn-pending-resend" data-change-pw="${p.id}" title="Change password">Change Password</button>
                     <button type="button" class="btn-pending-resend" data-resend-invite="${p.id}" title="Resend credentials email">Resend</button>
                     <button type="button" class="btn-pending-cancel" data-cancel-invite="${p.id}" title="Cancel invitation">Cancel</button>
                     <button type="button" class="table-view-btn" data-view-staff="${p.id}">View info &rarr;</button>
@@ -2385,15 +2384,6 @@ function openStaffDetailDrawer(staffId) {
               ${!isArchived ? `<button type="button" class="btn-clean" id="btn-drawer-change-email" style="font-size:11px;padding:2px 8px;margin-left:4px;">Change Email</button>` : ''}
             </div>
           </div>
-          ${!isArchived ? `
-            <div class="drawer-breakdown-row" style="align-items:center;">
-              <span style="color:var(--text-light);">Account Password</span>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <span style="color:var(--text-muted);font-family:var(--font-mono);font-size:12px;letter-spacing:1.5px;">••••••••••••</span>
-                <button type="button" class="btn-clean primary" id="btn-drawer-change-pw-row" style="font-size:11px;padding:3px 9px;font-weight:700;">Change Password</button>
-              </div>
-            </div>
-          ` : ''}
           ${person.pendingEmail ? `
             <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:12px 14px;margin:8px 0 12px;">
               <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;">
@@ -2476,12 +2466,10 @@ function openStaffDetailDrawer(staffId) {
           <button type="button" class="btn-clean primary" id="drawer-restore-btn" style="width:100%;">Bring Back to Active Staff</button>
           <button type="button" class="btn-clean" id="drawer-delete-permanent-btn" style="width:100%;color:#dc2626;border-color:#fecaca;">Delete Permanently</button>
         ` : (isPending ? `
-          <button type="button" class="btn-clean primary" id="drawer-change-pw-btn" style="width:100%;font-weight:700;">Change Password</button>
-          <button type="button" class="btn-clean" id="drawer-resend-btn" style="width:100%;">Resend Invitation Email</button>
+          <button type="button" class="btn-clean primary" id="drawer-resend-btn" style="width:100%;">Resend Invitation Email</button>
           <button type="button" class="btn-clean" id="drawer-cancel-btn" style="width:100%;color:#dc2626;">Cancel Invitation</button>
         ` : `
-          <button type="button" class="btn-clean primary" id="drawer-change-pw-btn" style="width:100%;font-weight:700;">Change Password</button>
-          ${!person.email ? `<button type="button" class="btn-clean" id="drawer-invite-btn" style="width:100%;">Send Credentials Email</button>` : ''}
+          ${!person.email ? `<button type="button" class="btn-clean primary" id="drawer-invite-btn" style="width:100%;">Send Credentials Email</button>` : ''}
           <button type="button" class="btn-clean" id="drawer-archive-btn" style="width:100%;color:#64748b;">Archive Staff</button>
         `)}
       </div>
@@ -2490,22 +2478,6 @@ function openStaffDetailDrawer(staffId) {
 
   dialog.querySelector('#drawer-close-btn').onclick = () => dialog.close();
   dialog.onclick = e => { if (e.target === dialog) dialog.close(); };
-
-  const changePwRowBtn = dialog.querySelector('#btn-drawer-change-pw-row');
-  if (changePwRowBtn) {
-    changePwRowBtn.onclick = () => {
-      dialog.close();
-      openChangePasswordDialog(person.id);
-    };
-  }
-
-  const changePwDrawerBtn = dialog.querySelector('#drawer-change-pw-btn');
-  if (changePwDrawerBtn) {
-    changePwDrawerBtn.onclick = () => {
-      dialog.close();
-      openChangePasswordDialog(person.id);
-    };
-  }
 
   const copyEmailBtn = dialog.querySelector('#btn-drawer-copy-email');
   if (copyEmailBtn && person.email) {
