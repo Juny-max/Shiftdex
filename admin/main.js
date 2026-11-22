@@ -1408,8 +1408,7 @@ function render() {
         <!-- Payday Style Header -->
         <header class="topbar-header">
           <div class="topbar-greeting">
-            <div class="topbar-greeting-icon" role="img" aria-label="Ghana local time">${ICONS.clock}</div>
-            <span>${admin.loggedIn ? `Hello, welcome back ${escapeHtml(admin.name)} .` : 'Welcome to Shift Desk'}</span>
+            <span>${admin.loggedIn ? `Hello, welcome back, ${escapeHtml(admin.name)}` : 'Welcome to Shift Desk'}</span>
           </div>
 
           <div class="topbar-controls">
@@ -3850,7 +3849,6 @@ function bindEvents() {
 
 // Initial Run
 render();
-setInterval(updateGhanaClock, 1000);
 syncDirectory();
 if (window.shiftDexDesktop?.updates) {
   let pendingStateTimer = null;

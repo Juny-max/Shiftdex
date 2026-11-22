@@ -324,30 +324,6 @@ button, input, select {
   letter-spacing: -0.3px;
 }
 
-.topbar-greeting-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  background-color: var(--blue-soft);
-  color: var(--blue-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.topbar-greeting-icon svg {
-  width: 19px;
-  height: 19px;
-}
-
-.analog-clock-icon .clock-minute-hand,
-.analog-clock-icon .clock-hour-hand { transition: transform .8s linear; }
-.analog-clock-icon .clock-second-hand {
-  stroke: #ef6a5b;
-  stroke-width: 1;
-  transition: transform .12s linear;
-}
-
 .topbar-controls {
   display: flex;
   align-items: center;
