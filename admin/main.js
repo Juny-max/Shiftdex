@@ -220,6 +220,7 @@ function validateMonth(st, m) {
   const [y, mo] = m.split('-').map(Number);
   const n = new Date(y, mo, 0).getDate();
   const people = activeStaff().map(s => personFor(s, m)).filter(s => s.podId);
+  if (!people.length) return [];
   const issues = [];
   for (let d = 1; d <= n; d++) {
     const dKey = `${m}-${String(d).padStart(2, '0')}`;
@@ -498,7 +499,7 @@ function renderCopilotWidget() {
           <div class="copilot-widget-name">ShiftDesk AI</div>
           <div class="copilot-status-indicator">
             <span class="copilot-status-dot"></span>
-            <span>Cloudflare Workers AI</span>
+            <span>Online</span>
           </div>
         </div>
       </div>
@@ -546,7 +547,6 @@ function renderCopilotWidget() {
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
         </button>
       </div>
-      <div class="copilot-input-hint">Powered by Cloudflare Workers AI • Enter to send • Esc to close</div>
     </form>
   `;
 
@@ -2366,8 +2366,8 @@ function renderRosterView() {
           <span style="font-weight:700;font-size:14px;color:var(--text-main);letter-spacing:-0.2px;">
             ${isCurrentMonth ? `Active: Today (${formatMonth(month)} ${todayDay})` : `${formatMonth(month)} Schedule`}
           </span>
-          <span class="acme-status-pill ${issues.length ? 'warning' : 'success'}">
-            ${issues.length ? `${issues.length} Conflicts` : 'All Clear · 100% Coverage'}
+          <span class="acme-status-pill ${!coreStaff.length ? 'neutral' : issues.length ? 'warning' : 'success'}">
+            ${!coreStaff.length ? 'Awaiting Roster' : issues.length ? `${issues.length} Conflicts` : 'All Clear · 100% Coverage'}
           </span>
           ${hasPastDays ? `
             <button type="button" class="btn-clean small" id="btn-toggle-past-days" style="margin-left:4px;font-size:11.5px;color:var(--text-light);" title="${rosterShowPast ? 'Hide past days' : 'Show past days of this month'}">
