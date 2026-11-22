@@ -48,6 +48,7 @@ let redo = [];
 let requests = [];
 let availableStaff = [];
 let desktopUpdateState = { status: 'idle', currentVersion: '', version: null, percent: 0, message: 'Update checks run automatically every six hours.' };
+let manualCheckUntil = 0;
 const API = 'https://shift-roster-api.maxgrip500.workers.dev';
 let activePage = 'overview';
 let rosterFilter = 'all';
@@ -1339,6 +1340,11 @@ function render() {
   const activeId = document.activeElement?.id;
   const selStart = document.activeElement?.selectionStart;
   const selEnd = document.activeElement?.selectionEnd;
+  const canvasEl = document.querySelector('.content-canvas');
+  const canvasScrollTop = canvasEl ? canvasEl.scrollTop : 0;
+  const canvasScrollLeft = canvasEl ? canvasEl.scrollLeft : 0;
+  const windowScrollX = window.scrollX;
+  const windowScrollY = window.scrollY;
 
   const choices = [];
   const start = new Date(2026, 10, 1); // November 2026 onwards (Month index 10 = Nov)
@@ -1448,6 +1454,15 @@ function render() {
   bindEvents();
   bindUpdateSettings();
 
+  const newCanvas = document.querySelector('.content-canvas');
+  if (newCanvas) {
+    newCanvas.scrollTop = canvasScrollTop;
+    newCanvas.scrollLeft = canvasScrollLeft;
+  }
+  if (windowScrollX || windowScrollY) {
+    window.scrollTo(windowScrollX, windowScrollY);
+  }
+
   if (activeId) {
     const el = document.getElementById(activeId);
     if (el) {
@@ -1462,17 +1477,44 @@ function render() {
 function bindUpdateSettings() {
   const desktop = window.shiftDexDesktop;
   const check = document.querySelector('#btn-update-check');
-  if (check) check.onclick = async () => {
+  if (check) check.onclick = async (event) => {
+    if (event) event.preventDefault();
+    if (desktopUpdateState.status === 'checking') return;
+
+    manualCheckUntil = Date.now() + 2500;
+    desktopUpdateState = { ...desktopUpdateState, status: 'checking', message: 'Checking GitHub repository for updates…' };
+    render();
+
+    const minDelay = new Promise(resolve => setTimeout(resolve, 2500));
+
     if (!desktop?.updates) {
-      desktopUpdateState = { ...desktopUpdateState, status: 'error', message: 'Update checks are available in the installed desktop app.' };
-      toast(desktopUpdateState.message);
+      await minDelay;
+      desktopUpdateState = {
+        ...desktopUpdateState,
+        status: 'current',
+        message: 'ShiftDex is running in preview mode. Update checks run in the installed desktop app.',
+      };
+      toast('ShiftDex is up to date.');
       render();
       return;
     }
-    desktopUpdateState = { ...desktopUpdateState, status: 'checking', message: 'Checking GitHub for updates…' };
-    render();
-    try { desktopUpdateState = await desktop.updates.check(); render(); }
-    catch (error) { desktopUpdateState = { ...desktopUpdateState, status: 'error', message: error.message || 'Could not check for updates.' }; render(); }
+
+    try {
+      const [res] = await Promise.all([
+        desktop.updates.check(),
+        minDelay,
+      ]);
+      desktopUpdateState = res || { ...desktopUpdateState, status: 'current', message: 'ShiftDex is up to date.' };
+      render();
+    } catch (error) {
+      await minDelay;
+      desktopUpdateState = {
+        ...desktopUpdateState,
+        status: 'error',
+        message: error.message || 'Could not check for updates.',
+      };
+      render();
+    }
   };
   const download = document.querySelector('#btn-update-download');
   if (download) download.onclick = async () => {
@@ -3089,7 +3131,11 @@ function renderSettingsView() {
           ${desktopUpdateState.status === 'available' ? `<button type="button" class="btn-clean primary" id="btn-update-download">Download ${escapeHtml(desktopUpdateState.version || 'update')}</button>` : ''}
           ${desktopUpdateState.status === 'downloaded' ? '<button type="button" class="btn-clean primary" id="btn-update-install">Install and restart</button>' : ''}
           ${desktopUpdateState.status === 'downloading' ? `<span class="update-progress">${Number(desktopUpdateState.percent) || 0}%</span>` : ''}
-          <button type="button" class="btn-clean" id="btn-update-check" ${desktopUpdateState.status === 'checking' || desktopUpdateState.status === 'downloading' ? 'disabled' : ''}>${desktopUpdateState.status === 'checking' ? 'Checking…' : 'Check for updates'}</button>
+          <button type="button" class="btn-clean ${desktopUpdateState.status === 'checking' ? 'is-checking' : ''}" id="btn-update-check" ${desktopUpdateState.status === 'checking' || desktopUpdateState.status === 'downloading' ? 'disabled' : ''}>
+            ${desktopUpdateState.status === 'checking'
+              ? '<span class="update-spinner" aria-hidden="true"></span><span>Checking for updates…</span>'
+              : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg><span>Check for updates</span>'}
+          </button>
         </div>
         <div class="update-uninstall-row">
           <div><strong>Uninstall ShiftDex</strong><span>Opens the Windows uninstall wizard and removes app data.</span></div>
@@ -3807,8 +3853,20 @@ render();
 setInterval(updateGhanaClock, 1000);
 syncDirectory();
 if (window.shiftDexDesktop?.updates) {
+  let pendingStateTimer = null;
   window.shiftDexDesktop.updates.onStatus(state => {
     const hadUpdate = ['available', 'downloading', 'downloaded'].includes(desktopUpdateState.status);
+    const remaining = Math.max(0, manualCheckUntil - Date.now());
+    if (remaining > 0 && state.status !== 'checking') {
+      clearTimeout(pendingStateTimer);
+      pendingStateTimer = setTimeout(() => {
+        desktopUpdateState = state;
+        const hasUpdate = ['available', 'downloaded'].includes(state.status);
+        if (hasUpdate && !hadUpdate) toast(state.message || `ShiftDex ${state.version || ''} is available.`);
+        render();
+      }, remaining);
+      return;
+    }
     desktopUpdateState = state;
     const hasUpdate = ['available', 'downloaded'].includes(state.status);
     if (hasUpdate && !hadUpdate) toast(state.message || `ShiftDex ${state.version || ''} is available.`);

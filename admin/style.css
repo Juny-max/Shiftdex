@@ -2522,6 +2522,43 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
 .update-state-line { margin: 8px 0 0; color: var(--text-body); font-size: 12px; }
 .update-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .update-progress { color: var(--blue-primary); font-variant-numeric: tabular-nums; font-size: 13px; font-weight: 700; }
+
+@keyframes update-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.update-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(40, 94, 232, 0.25);
+  border-top-color: var(--blue-primary, #285ee8);
+  border-radius: 50%;
+  animation: update-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+#btn-update-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 154px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#btn-update-check svg {
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+#btn-update-check.is-checking {
+  background: var(--blue-soft, #edf3ff);
+  border-color: var(--blue-border, #d6e2fb);
+  color: var(--blue-primary, #285ee8);
+  cursor: wait;
+}
 .update-uninstall-row { grid-column: 1 / -1; border-top: 1px solid var(--border-card); padding-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 14px; }
 .update-uninstall-row div { display: flex; flex-direction: column; gap: 3px; }
 .update-uninstall-row strong { font-size: 12px; }
