@@ -2963,7 +2963,7 @@ function openStaffDetailDrawer(staffId) {
             <div style="display:flex;align-items:center;gap:6px;">
               <strong style="font-family:var(--font-mono);font-size:12.5px;color:var(--text-main);">${escapeHtml(person.email || 'None')}</strong>
               ${person.email ? `<button type="button" id="btn-drawer-copy-email" style="border:none;background:none;color:var(--blue-primary);cursor:pointer;padding:2px;" title="Copy email">${ICONS.copy}</button>` : ''}
-              ${!isArchived ? `<button type="button" class="btn-clean" id="btn-drawer-change-email" style="font-size:11px;padding:2px 8px;margin-left:4px;">Change Email</button>` : ''}
+              ${!isArchived ? `<button type="button" class="btn-clean" id="btn-drawer-change-email" style="font-size:11px;padding:2px 8px;margin-left:4px;">${person.email ? 'Change Email' : 'Add Email'}</button>` : ''}
             </div>
           </div>
           ${person.pendingEmail ? `
@@ -3632,34 +3632,42 @@ function openChangeEmailDialog(staffId) {
   const dialog = document.querySelector('#add-person-dialog');
   if (!dialog) return;
 
+  const isAdding = !person.email;
+
   dialog.innerHTML = `
     <form method="dialog" class="shift-edit-form" id="form-change-email">
       <div class="shift-edit-head">
         <div>
           <span class="shift-edit-eyebrow" style="color:#2563eb;">ACCOUNT EMAIL</span>
-          <h2>Change Email Address</h2>
-          <p>Update login email for ${escapeHtml(person.displayName || person.name)}.</p>
+          <h2>${isAdding ? 'Add Email Address' : 'Change Email Address'}</h2>
+          <p>${isAdding ? `Add login email and activate worker account for ${escapeHtml(person.displayName || person.name)}.` : `Update login email for ${escapeHtml(person.displayName || person.name)}.`}</p>
         </div>
         <button type="button" class="shift-edit-close" id="change-email-close" aria-label="Close">×</button>
       </div>
 
       <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--text-main);line-height:1.5;">
         <span style="color:var(--text-muted);display:block;font-size:11px;text-transform:uppercase;font-weight:700;margin-bottom:2px;">Current Active Email</span>
-        <code style="font-family:var(--font-mono);font-size:13.5px;font-weight:600;">${escapeHtml(person.email || 'None')}</code>
+        <code style="font-family:var(--font-mono);font-size:13.5px;font-weight:600;">${escapeHtml(person.email || 'None (No account created yet)')}</code>
       </div>
 
       <label class="shift-edit-field">
-        New Email Address
-        <input id="input-new-email" type="email" maxlength="254" placeholder="new.email@company.com" required />
+        ${isAdding ? 'Worker Email Address' : 'New Email Address'}
+        <input id="input-new-email" type="email" maxlength="254" placeholder="worker.email@company.com" required />
       </label>
 
-      <div style="font-size:12px;color:#78350f;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;line-height:1.4;">
-        <strong>Mandatory Verification:</strong> A confirmation link will be sent to the new email address. Until verified, the current email remains active for sign-in. The change only takes effect once the worker verifies the new email.
-      </div>
+      ${isAdding ? `
+        <div style="font-size:12px;color:#166534;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px 12px;line-height:1.4;">
+          <strong>Instant Account Activation:</strong> Setting an email will create this worker's login account, generate a secure temporary password, and email their portal credentials immediately.
+        </div>
+      ` : `
+        <div style="font-size:12px;color:#78350f;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 12px;line-height:1.4;">
+          <strong>Mandatory Verification:</strong> A confirmation link will be sent to the new email address. Until verified, the current email remains active for sign-in.
+        </div>
+      `}
 
       <div class="shift-edit-actions">
         <button type="button" class="btn-clean" id="change-email-cancel">Cancel</button>
-        <button type="submit" class="btn-clean primary" id="change-email-submit-btn">Send Verification Link</button>
+        <button type="submit" class="btn-clean primary" id="change-email-submit-btn">${isAdding ? 'Save Email & Send Invite' : 'Send Verification Link'}</button>
       </div>
     </form>
   `;
@@ -3673,29 +3681,57 @@ function openChangeEmailDialog(staffId) {
     const newEmail = form.querySelector('#input-new-email').value.trim().toLowerCase();
     const btn = form.querySelector('#change-email-submit-btn');
     btn.disabled = true;
-    btn.textContent = 'Sending link…';
+    btn.textContent = isAdding ? 'Setting up account…' : 'Sending link…';
 
     try {
       const token = sessionStorage.getItem('admin-session') || '';
       const res = await fetch(API + '/api/admin/workers/change-email', {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
-        body: JSON.stringify({ staffId: person.id, newEmail })
+        body: JSON.stringify({
+          staffId: person.id,
+          fullName: person.displayName || person.name,
+          roleTag: person.role,
+          podId: person.podId || null,
+          phone: person.phone || null,
+          effectiveFrom: person.effectiveFrom || '2026-11-01',
+          newEmail
+        })
       });
       const result = await res.json();
-      if (!res.ok) throw new Error(result.error || 'Failed to request email change.');
+      if (!res.ok) throw new Error(result.error || 'Failed to update email.');
 
-      person.pendingEmail = newEmail;
-      const customItem = state.customStaff.find(s => s.id === person.id);
-      if (customItem) customItem.pendingEmail = newEmail;
-      save();
-      dialog.close();
-      openStaffDetailDrawer(person.id);
-      toast(`Verification link sent to ${newEmail}!`);
+      if (result.isNewAccount || isAdding) {
+        person.email = newEmail;
+        if (result.tempPassword) person.tempPassword = result.tempPassword;
+        state.customStaff ||= [];
+        const customItem = state.customStaff.find(s => s.id === person.id);
+        if (customItem) {
+          customItem.email = newEmail;
+          if (result.tempPassword) customItem.tempPassword = result.tempPassword;
+        }
+        save();
+        render();
+        dialog.close();
+        openStaffDetailDrawer(person.id);
+        if (result.emailSent) {
+          toast(`Account created! Credentials sent to ${newEmail}`);
+        } else {
+          toast(`Account created for ${newEmail}. Temporary password: ${result.tempPassword || 'generated'}`);
+        }
+      } else {
+        person.pendingEmail = newEmail;
+        const customItem = state.customStaff.find(s => s.id === person.id);
+        if (customItem) customItem.pendingEmail = newEmail;
+        save();
+        dialog.close();
+        openStaffDetailDrawer(person.id);
+        toast(`Verification link sent to ${newEmail}!`);
+      }
     } catch (err) {
       toast('Error: ' + err.message);
       btn.disabled = false;
-      btn.textContent = 'Send Verification Link';
+      btn.textContent = isAdding ? 'Save Email & Send Invite' : 'Send Verification Link';
     }
   };
 
@@ -3795,6 +3831,7 @@ function openInvitePersonDialog(staffId) {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
         body: JSON.stringify({
+          staffId: person.id,
           fullName: person.displayName || person.name,
           email,
           roleTag: person.role,
@@ -3806,7 +3843,15 @@ function openInvitePersonDialog(staffId) {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || 'Failed to send invite.');
       person.email = email;
+      if (result.tempPassword) person.tempPassword = result.tempPassword;
+      state.customStaff ||= [];
+      const customItem = state.customStaff.find(s => s.id === person.id);
+      if (customItem) {
+        customItem.email = email;
+        if (result.tempPassword) customItem.tempPassword = result.tempPassword;
+      }
       save();
+      render();
 
       dialog.innerHTML = `
         <div class="shift-edit-form">

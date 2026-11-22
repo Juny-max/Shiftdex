@@ -1225,9 +1225,9 @@ export default {
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json({ error: 'Enter a valid email address.' }, 400);
 
         const baseId = fullName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'staff';
-        let staffId = baseId;
+        let staffId = body.staffId || baseId;
         const existingStaff = await db.prepare("SELECT id FROM staff WHERE id=?").bind(staffId).first();
-        if (existingStaff) {
+        if (existingStaff && !body.staffId) {
           const linkedAccount = await db.prepare("SELECT staff_id FROM worker_accounts WHERE email=?").bind(email).first();
           if (linkedAccount?.staff_id) staffId = linkedAccount.staff_id;
           else {
@@ -1560,8 +1560,89 @@ export default {
           return json({ error: 'Enter a valid new email address.' }, 400);
         }
 
-        const account = await db.prepare("SELECT a.id, a.email, a.full_name, a.staff_id FROM worker_accounts a WHERE a.staff_id=?").bind(staffId).first();
-        if (!account) return json({ error: 'Worker account not found.' }, 404);
+        let account = await db.prepare("SELECT a.id, a.email, a.full_name, a.staff_id FROM worker_accounts a WHERE a.staff_id=?").bind(staffId).first();
+        if (!account) {
+          // Worker account does not exist yet (e.g. newly imported from Excel)
+          let staffMember = await db.prepare("SELECT id, full_name, role_tag, pod_id, phone, status, effective_from FROM staff WHERE id=?").bind(staffId).first();
+          const fullName = String(body.fullName || (staffMember ? staffMember.full_name : staffId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))).trim();
+          const roleTag = String(body.roleTag || (staffMember ? staffMember.role_tag : 'NSP')).trim();
+          const podId = (body.podId && ['orange', 'green', 'blue', 'red'].includes(body.podId)) ? body.podId : (staffMember?.pod_id || null);
+          const phone = body.phone ? String(body.phone).trim().slice(0, 40) : (staffMember?.phone || null);
+          const effectiveFrom = (body.effectiveFrom && /^\d{4}-\d{2}-\d{2}$/.test(body.effectiveFrom)) ? body.effectiveFrom : (staffMember?.effective_from || new Date().toISOString().slice(0, 10));
+
+          await db.prepare("INSERT INTO staff(id, full_name, role_tag, pod_id, phone, status, effective_from, is_admin) VALUES(?, ?, ?, ?, ?, 'active', ?, 0) ON CONFLICT(id) DO UPDATE SET full_name=excluded.full_name, role_tag=excluded.role_tag, pod_id=excluded.pod_id, phone=excluded.phone")
+            .bind(staffId, fullName, roleTag, podId, phone, effectiveFrom).run();
+
+          const existingOther = await db.prepare("SELECT id, staff_id FROM worker_accounts WHERE email=?").bind(newEmail).first();
+          if (existingOther && existingOther.staff_id !== staffId) {
+            return json({ error: 'This email address is already in use by another worker account.' }, 409);
+          }
+
+          const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
+          const randomBytes = crypto.getRandomValues(new Uint8Array(12));
+          let code = '';
+          for (let i = 0; i < 12; i++) code += chars[randomBytes[i] % chars.length];
+          const tempPassword = `Shift-${code}`;
+
+          const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+          const digest = await passwordDigest(tempPassword, salt, CURRENT_PASSWORD_ITERATIONS);
+          const accountId = crypto.randomUUID();
+
+          await db.prepare(`INSERT INTO worker_accounts(id, email, full_name, password_salt, password_hash, password_iterations, staff_id, status, must_change_password)
+            VALUES(?, ?, ?, ?, ?, ?, ?, 'active', 1)
+            ON CONFLICT(email) DO UPDATE SET full_name=excluded.full_name, password_salt=excluded.password_salt, password_hash=excluded.password_hash, password_iterations=excluded.password_iterations, staff_id=excluded.staff_id, status='active', must_change_password=1, updated_at=CURRENT_TIMESTAMP`)
+            .bind(accountId, newEmail, fullName, salt, digest, CURRENT_PASSWORD_ITERATIONS, staffId).run();
+
+          const emailResult = await sendBrevoEmail(env, { email: newEmail, fullName, tempPassword });
+          await audit(db, actor.id, 'create_worker_account_email', 'worker_account', accountId, {
+            staffId,
+            newEmail,
+            emailSent: emailResult.success
+          });
+
+          return json({
+            ok: true,
+            staffId,
+            email: newEmail,
+            fullName,
+            tempPassword,
+            isNewAccount: true,
+            emailSent: emailResult.success,
+            emailError: emailResult.error || undefined
+          });
+        }
+
+        if (!account.email) {
+          const existingOther = await db.prepare("SELECT id, staff_id FROM worker_accounts WHERE email=?").bind(newEmail).first();
+          if (existingOther && existingOther.staff_id !== staffId) {
+            return json({ error: 'This email address is already in use by another worker account.' }, 409);
+          }
+
+          const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
+          const randomBytes = crypto.getRandomValues(new Uint8Array(12));
+          let code = '';
+          for (let i = 0; i < 12; i++) code += chars[randomBytes[i] % chars.length];
+          const tempPassword = `Shift-${code}`;
+
+          const salt = hex(crypto.getRandomValues(new Uint8Array(16)));
+          const digest = await passwordDigest(tempPassword, salt, CURRENT_PASSWORD_ITERATIONS);
+
+          await db.prepare("UPDATE worker_accounts SET email=?, password_salt=?, password_hash=?, password_iterations=?, must_change_password=1, status='active', updated_at=CURRENT_TIMESTAMP WHERE id=?")
+            .bind(newEmail, salt, digest, CURRENT_PASSWORD_ITERATIONS, account.id).run();
+
+          const emailResult = await sendBrevoEmail(env, { email: newEmail, fullName: account.full_name, tempPassword });
+
+          return json({
+            ok: true,
+            staffId,
+            email: newEmail,
+            fullName: account.full_name,
+            tempPassword,
+            isNewAccount: true,
+            emailSent: emailResult.success,
+            emailError: emailResult.error || undefined
+          });
+        }
 
         if (account.email.toLowerCase() === newEmail) {
           return json({ error: 'The new email is the same as the current email.' }, 400);
