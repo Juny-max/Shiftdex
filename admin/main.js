@@ -56,6 +56,7 @@ let rosterSearch = '';
 let rosterShowPast = false;
 let peopleFilter = 'all';
 let peopleSearch = '';
+let selectedArchivedIds = new Set();
 
 const app = document.querySelector('#app');
 
@@ -2168,17 +2169,39 @@ function renderPeopleView() {
       ` : ''}
 
       ${showArchived ? `
-        <!-- Minimalist Archived Staff Table -->
+        <!-- Minimalist Archived Staff Table with Select-All & Bulk Actions -->
         <div class="people-table-card">
-          <div style="padding:16px 20px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;background:#f8fafc;">
-            <div>
-              <div style="font-size:14px;font-weight:700;color:var(--text-main);">Archived Staff Directory (${filteredArchived.length})</div>
-              <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">These team members are inactive and removed from active work and schedules. You can restore them to active duty or delete them permanently.</p>
+          ${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length > 0 ? `
+            <div style="padding:12px 20px;border-bottom:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;background:#eff6ff;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="font-size:13px;font-weight:700;color:#1e40af;">
+                  ${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length} of ${filteredArchived.length} member${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length > 1 ? 's' : ''} selected
+                </span>
+                <button type="button" class="btn-clean" id="btn-archive-clear-selection" style="font-size:11.5px;padding:3px 10px;background:#fff;border-color:#bfdbfe;color:#1e40af;">Clear</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button type="button" class="btn-clean primary" id="btn-bulk-restore" style="font-size:12px;padding:6px 14px;font-weight:700;">
+                  Bring back selected (${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length})
+                </button>
+                <button type="button" class="btn-clean" id="btn-bulk-delete" style="font-size:12px;padding:6px 14px;font-weight:700;color:#dc2626;border-color:#fecaca;background:#fff;">
+                  Delete permanently (${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length})
+                </button>
+              </div>
             </div>
-          </div>
+          ` : `
+            <div style="padding:16px 20px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;background:#f8fafc;">
+              <div>
+                <div style="font-size:14px;font-weight:700;color:var(--text-main);">Archived Staff Directory (${filteredArchived.length})</div>
+                <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">These team members are inactive and removed from active work. Select members to perform bulk actions.</p>
+              </div>
+            </div>
+          `}
           <table class="people-table">
             <thead>
               <tr>
+                <th style="width:38px;padding-right:0;padding-left:16px;">
+                  <input type="checkbox" id="archive-select-all" title="Select all" style="cursor:pointer;width:15px;height:15px;accent-color:var(--blue-primary);vertical-align:middle;" ${filteredArchived.length > 0 && filteredArchived.every(s => selectedArchivedIds.has(s.id)) ? 'checked' : ''}>
+                </th>
                 <th>Member</th>
                 <th>Role</th>
                 <th>Previous Team</th>
@@ -2191,8 +2214,12 @@ function renderPeopleView() {
                 const initials = (s.displayName || s.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
                 const pObj = pods.find(p => p.id === s.podId);
                 const podName = pObj?.name || (s.podId ? s.podId : s.group || 'Day Support');
+                const isSelected = selectedArchivedIds.has(s.id);
                 return `
-                  <tr class="people-table-row" data-view-staff="${s.id}">
+                  <tr class="people-table-row ${isSelected ? 'row-selected' : ''}" data-view-staff="${s.id}">
+                    <td style="width:38px;padding-right:0;padding-left:16px;" onclick="event.stopPropagation();">
+                      <input type="checkbox" class="archive-row-check" data-archive-check="${s.id}" style="cursor:pointer;width:15px;height:15px;accent-color:var(--blue-primary);vertical-align:middle;" ${isSelected ? 'checked' : ''}>
+                    </td>
                     <td>
                       <div class="table-member-cell">
                         <div class="table-avatar" style="border-color:#cbd5e1;background:#f1f5f9;color:#64748b;">${initials}</div>
@@ -2224,7 +2251,7 @@ function renderPeopleView() {
                 `;
               }).join('') : `
                 <tr>
-                  <td colspan="5" style="padding:48px 20px;text-align:center;color:var(--text-muted);">
+                  <td colspan="6" style="padding:48px 20px;text-align:center;color:var(--text-muted);">
                     <div style="font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:4px;">No archived staff</div>
                     <p style="font-size:12px;margin:0;">There are currently no staff members in the archive.</p>
                   </td>
@@ -4475,9 +4502,167 @@ function bindEvents() {
   document.querySelectorAll('[data-people-filter]').forEach(btn => {
     btn.onclick = () => {
       peopleFilter = btn.dataset.peopleFilter;
+      selectedArchivedIds.clear();
       render();
     };
   });
+
+  // Archive bulk actions & selection
+  const allArchivedList = archivedStaff();
+  let currentFilteredArchived = allArchivedList;
+  if (peopleFilter === 'core') currentFilteredArchived = currentFilteredArchived.filter(s => s.podId);
+  else if (peopleFilter === 'support') currentFilteredArchived = currentFilteredArchived.filter(s => !s.podId);
+  if (peopleSearch.trim()) {
+    const q = peopleSearch.toLowerCase();
+    currentFilteredArchived = currentFilteredArchived.filter(s => (s.displayName || s.name || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
+  }
+
+  const archiveSelectAll = document.querySelector('#archive-select-all');
+  if (archiveSelectAll) {
+    const someSelected = currentFilteredArchived.some(s => selectedArchivedIds.has(s.id));
+    const allSelected = currentFilteredArchived.length > 0 && currentFilteredArchived.every(s => selectedArchivedIds.has(s.id));
+    if (someSelected && !allSelected) {
+      archiveSelectAll.indeterminate = true;
+    }
+    archiveSelectAll.onchange = (e) => {
+      if (e.target.checked) {
+        currentFilteredArchived.forEach(s => selectedArchivedIds.add(s.id));
+      } else {
+        selectedArchivedIds.clear();
+      }
+      render();
+    };
+  }
+
+  document.querySelectorAll('.archive-row-check').forEach(chk => {
+    chk.onchange = (e) => {
+      e.stopPropagation();
+      const id = chk.dataset.archiveCheck;
+      if (chk.checked) selectedArchivedIds.add(id);
+      else selectedArchivedIds.delete(id);
+      render();
+    };
+  });
+
+  const clearArchiveSelBtn = document.querySelector('#btn-archive-clear-selection');
+  if (clearArchiveSelBtn) {
+    clearArchiveSelBtn.onclick = () => {
+      selectedArchivedIds.clear();
+      render();
+    };
+  }
+
+  const bulkRestoreBtn = document.querySelector('#btn-bulk-restore');
+  if (bulkRestoreBtn) {
+    bulkRestoreBtn.onclick = async () => {
+      const ids = Array.from(selectedArchivedIds).filter(id => staff.some(s => s.id === id));
+      if (!ids.length) return;
+      const count = ids.length;
+      const confirmed = await showConfirmDialog({
+        eyebrow: 'BULK RESTORE',
+        title: `Restore ${count} team member${count > 1 ? 's' : ''}?`,
+        message: `Bring back ${count} selected team member${count > 1 ? 's' : ''} to active duty.`,
+        details: 'Selected staff will be returned to active status (Day Support) and can be scheduled on shifts.',
+        confirmText: `Bring Back (${count})`,
+        cancelText: 'Cancel',
+        type: 'primary'
+      });
+      if (!confirmed) return;
+
+      bulkRestoreBtn.disabled = true;
+      bulkRestoreBtn.textContent = 'Restoring…';
+
+      const token = sessionStorage.getItem('admin-session') || '';
+      state.inactiveStaffIds = (state.inactiveStaffIds || []).filter(id => !ids.includes(id));
+      for (const id of ids) {
+        const person = staff.find(s => s.id === id);
+        if (person) {
+          person.status = 'active';
+          person.podId = undefined;
+        }
+        const customItem = state.customStaff.find(s => s.id === id);
+        if (customItem) {
+          customItem.status = 'active';
+          customItem.podId = undefined;
+        }
+      }
+      save();
+
+      if (token) {
+        try {
+          await Promise.allSettled(ids.map(id => {
+            const person = staff.find(s => s.id === id);
+            return fetch(API + '/api/admin/workers/restore', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+              body: JSON.stringify({ staffId: id, podId: null, roleTag: person?.role || 'Support' })
+            });
+          }));
+        } catch {}
+      }
+
+      selectedArchivedIds.clear();
+      render();
+      toast(`${count} team member${count > 1 ? 's' : ''} restored to active staff!`);
+    };
+  }
+
+  const bulkDeleteBtn = document.querySelector('#btn-bulk-delete');
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.onclick = async () => {
+      const ids = Array.from(selectedArchivedIds).filter(id => staff.some(s => s.id === id));
+      if (!ids.length) return;
+      const count = ids.length;
+      const confirmed = await showConfirmDialog({
+        eyebrow: 'PERMANENT DELETION',
+        title: `Permanently delete ${count} team member${count > 1 ? 's' : ''}?`,
+        message: `Are you sure you want to permanently delete ${count} selected member${count > 1 ? 's' : ''}?`,
+        details: '<strong>Warning:</strong> This cannot be undone. All staff records, login credentials, and shift history will be permanently deleted.',
+        confirmText: `Delete Permanently (${count})`,
+        cancelText: 'Cancel',
+        type: 'danger'
+      });
+      if (!confirmed) return;
+
+      bulkDeleteBtn.disabled = true;
+      bulkDeleteBtn.textContent = 'Deleting…';
+
+      const token = sessionStorage.getItem('admin-session') || '';
+      for (const id of ids) {
+        state.inactiveStaffIds = (state.inactiveStaffIds || []).filter(x => x !== id);
+        const staffIdx = staff.findIndex(s => s.id === id);
+        if (staffIdx !== -1) staff.splice(staffIdx, 1);
+        const customIdx = state.customStaff.findIndex(s => s.id === id);
+        if (customIdx !== -1) state.customStaff.splice(customIdx, 1);
+        for (const [key, cover] of Object.entries(state.coverAssignments || {})) {
+          const requesterId = key.slice(11);
+          if (requesterId === id || cover.coverWorkerId === id) {
+            delete state.coverAssignments[key];
+          }
+        }
+        for (const key of Object.keys(state.assignments || {})) {
+          if (key.endsWith(':' + id)) delete state.assignments[key];
+        }
+      }
+      save();
+
+      if (token) {
+        try {
+          await Promise.allSettled(ids.map(id =>
+            fetch(API + '/api/admin/workers/delete', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+              body: JSON.stringify({ staffId: id })
+            })
+          ));
+        } catch {}
+      }
+
+      selectedArchivedIds.clear();
+      render();
+      toast(`${count} team member${count > 1 ? 's' : ''} permanently deleted.`);
+    };
+  }
 
   document.querySelectorAll('[data-restore-staff]').forEach(btn => {
     btn.onclick = (e) => {

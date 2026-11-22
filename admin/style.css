@@ -1949,6 +1949,14 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
   background-color: #f8fafc;
 }
 
+.people-table-row.row-selected {
+  background-color: #f0f7ff !important;
+}
+
+.people-table-row.row-selected:hover {
+  background-color: #e5f0fe !important;
+}
+
 .people-table-row:last-child td {
   border-bottom: none;
 }
