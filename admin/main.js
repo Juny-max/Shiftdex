@@ -4697,10 +4697,31 @@ function bindEvents() {
       if (!f) return;
       try {
         const parsed = parseWorkbook(XLSX.read(await f.arrayBuffer(), { cellStyles: true }));
+        undo.push(JSON.stringify(state));
+        redo = [];
+
+        // Clear existing overrides and cover assignments for the imported months so spreadsheet takes full effect
+        const importedMonths = new Set(parsed.summary.map(x => x.month));
+        const updatedOverrides = { ...(state.overrides || {}) };
+        for (const key of Object.keys(updatedOverrides)) {
+          const datePart = key.split(':')[0] || '';
+          if (importedMonths.has(datePart.slice(0, 7))) {
+            delete updatedOverrides[key];
+          }
+        }
+        const updatedCoverAssignments = { ...(state.coverAssignments || {}) };
+        for (const key of Object.keys(updatedCoverAssignments)) {
+          const datePart = key.split(':')[0] || '';
+          if (importedMonths.has(datePart.slice(0, 7))) {
+            delete updatedCoverAssignments[key];
+          }
+        }
+
         state = {
           ...state,
           assignments: { ...(state.assignments || {}), ...(parsed.state.assignments || {}) },
-          overrides: { ...(state.overrides || {}), ...(parsed.state.overrides || {}) },
+          overrides: { ...updatedOverrides, ...(parsed.state.overrides || {}) },
+          coverAssignments: updatedCoverAssignments,
           staffMonthly: { ...(state.staffMonthly || {}), ...(parsed.state.staffMonthly || {}) },
           customStaff: [...(state.customStaff || [])]
         };
