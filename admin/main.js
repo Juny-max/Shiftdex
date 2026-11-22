@@ -411,6 +411,53 @@ let copilotMessages = [];
 let copilotLottieInstance = null;
 let isCopilotOpen = false;
 let isCopilotAnalyzing = false;
+let copilotAnalysisType = 'text';
+
+function isActionPrompt(text) {
+  return /\b(swap|move|put|assign|change|leave|switch|replace|set|create|build|cover|adjust|update|allocate|give)\b/i.test(text);
+}
+
+function extractTargetDate(text) {
+  if (!text) return null;
+  const isoMatch = text.match(/\b(20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b/);
+  if (isoMatch) return isoMatch[0];
+
+  const lower = text.toLowerCase();
+  const now = new Date();
+  if (/\btoday\b/.test(lower)) {
+    return now.toISOString().slice(0, 10);
+  }
+  if (/\btomorrow\b/.test(lower)) {
+    const tm = new Date(now.getTime() + 86400000);
+    return tm.toISOString().slice(0, 10);
+  }
+
+  const months = {
+    jan: '01', january: '01', feb: '02', february: '02',
+    mar: '03', march: '03', apr: '04', april: '04',
+    may: '05', jun: '06', june: '06', jul: '07', july: '07',
+    aug: '08', august: '08', sep: '09', sept: '09', september: '09',
+    oct: '10', october: '10', nov: '11', november: '11', dec: '12', december: '12'
+  };
+
+  const m1 = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[,\s]+(20\d{2})\b/i);
+  if (m1) {
+    const d = m1[1].padStart(2, '0');
+    const mo = months[m1[2].toLowerCase()];
+    const yr = m1[3];
+    return `${yr}-${mo}-${d}`;
+  }
+
+  const m2 = text.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?[,\s]+(20\d{2})\b/i);
+  if (m2) {
+    const mo = months[m2[1].toLowerCase()];
+    const d = m2[2].padStart(2, '0');
+    const yr = m2[3];
+    return `${yr}-${mo}-${d}`;
+  }
+
+  return null;
+}
 
 function getDynamicCopilotSuggestions() {
   const active = activeStaff();
@@ -527,17 +574,29 @@ function renderCopilotWidget() {
 
       ${copilotMessages.map((msg, index) => renderCopilotMessage(msg, index)).join('')}
 
-      ${isCopilotAnalyzing ? `
-        <div class="copilot-msg-row">
-          <div class="copilot-msg-bubble assistant">
-            <div class="copilot-lottie-wrap">
-              <div id="copilot-lottie-container" class="copilot-lottie-container"></div>
-              <div class="copilot-loading-text">ShiftDesk AI is analyzing roster…</div>
-              <div class="copilot-loading-sub">Checking shift rotation rules &amp; constraints</div>
+      ${isCopilotAnalyzing ? (
+        copilotAnalysisType === 'build' ? `
+          <div class="copilot-msg-row">
+            <div class="copilot-msg-bubble assistant">
+              <div class="copilot-lottie-wrap">
+                <div id="copilot-lottie-container" class="copilot-lottie-container"></div>
+                <div class="copilot-loading-text">ShiftDesk AI is analyzing roster…</div>
+                <div class="copilot-loading-sub">Checking shift rotation rules &amp; constraints</div>
+              </div>
             </div>
           </div>
-        </div>
-      ` : ''}
+        ` : `
+          <div class="copilot-msg-row">
+            <div class="copilot-msg-bubble assistant" style="padding:0;background:transparent;box-shadow:none;border:none;">
+              <div class="copilot-typing-bubble" aria-label="AI is typing">
+                <span class="copilot-typing-dot"></span>
+                <span class="copilot-typing-dot"></span>
+                <span class="copilot-typing-dot"></span>
+              </div>
+            </div>
+          </div>
+        `
+      ) : ''}
     </div>
 
     <form class="copilot-footer-form" id="copilot-footer-form">
@@ -616,6 +675,7 @@ function renderCopilotWidget() {
       const text = (input?.value || '').trim();
       if (!text || isCopilotAnalyzing) return;
 
+      copilotAnalysisType = isActionPrompt(text) ? 'build' : 'text';
       copilotMessages.push({ role: 'user', text });
       isCopilotAnalyzing = true;
       renderCopilotWidget();
@@ -624,14 +684,32 @@ function renderCopilotWidget() {
       const scrollBody = widget.querySelector('#copilot-messages-body');
       if (scrollBody) scrollBody.scrollTop = scrollBody.scrollHeight;
 
-      // Mount Lottie Sand Timer animation
-      mountCopilotLottie();
+      // Mount Lottie Sand Timer animation only if building/modifying schedule
+      if (copilotAnalysisType === 'build') {
+        mountCopilotLottie();
+      }
 
       const token = sessionStorage.getItem('admin-session') || '';
-      const todayKey = new Date().toISOString().slice(0, 10);
-      const todayMorning = activeStaff().filter(s => cellFor(state, s.id, todayKey) === 'M').map(s => s.displayName || s.name);
-      const todayNight = activeStaff().filter(s => cellFor(state, s.id, todayKey) === 'N').map(s => s.displayName || s.name);
-      const scheduleContext = `Today is ${todayKey}. Active month is ${month}. Today Morning Shift (06:00 - 18:00): ${todayMorning.join(', ') || 'None'}. Today Night Shift (18:00 - 06:00): ${todayNight.join(', ') || 'None'}. Rotation: 8-day perpetual cycle (2M -> 2N -> 4 OFF).`;
+      const targetDate = extractTargetDate(text) || new Date().toISOString().slice(0, 10);
+      const morningPods = pods.filter(p => cycle(targetDate, p.anchor) === 'M');
+      const nightPods = pods.filter(p => cycle(targetDate, p.anchor) === 'N');
+      const offPods = pods.filter(p => cycle(targetDate, p.anchor) === 'OFF');
+
+      const morningStaff = activeStaff().filter(s => {
+        const c = cellFor(state, s.id, targetDate);
+        return c === 'M' || (!c && morningPods.some(p => p.id === s.podId));
+      }).map(s => s.displayName || s.name);
+
+      const nightStaff = activeStaff().filter(s => {
+        const c = cellFor(state, s.id, targetDate);
+        return c === 'N' || (!c && nightPods.some(p => p.id === s.podId));
+      }).map(s => s.displayName || s.name);
+
+      const scheduleContext = `Target date is ${targetDate}. Active month is ${month}. ` +
+        `On ${targetDate}: Morning Shift (06:00 - 18:00) is operated by ${morningPods.map(p => p.name).join(', ') || 'No team'} (Personnel: ${morningStaff.join(', ') || 'None assigned yet'}). ` +
+        `Night Shift (18:00 - 06:00) is operated by ${nightPods.map(p => p.name).join(', ') || 'No team'} (Personnel: ${nightStaff.join(', ') || 'None assigned yet'}). ` +
+        `Off Duty: ${offPods.map(p => p.name).join(', ') || 'None'}. ` +
+        `Rotation rule: 2 Morning -> 2 Night -> 4 Off perpetual 8-day cycle.`;
 
       try {
         const res = await fetch(API + '/api/admin/ai/copilot', {

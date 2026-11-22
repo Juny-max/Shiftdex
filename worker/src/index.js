@@ -680,9 +680,15 @@ ${scheduleContext || 'Standard 8-day rotation cycle (2M -> 2N -> 4 OFF)'}
 
 Instructions:
 1. Determine the user intent:
-   - Informational question ("Who is on night shift today?", "How many hours did Julius work?", "Explain how the cycle works"):
-     Set "type": "answer", provide a direct and helpful "summary", and set "changes": [].
-   - Schedule modification ("Swap Julius and Bernard on Nov 24", "Put Kate on leave from 2026-11-20 to 2026-11-22 and assign Owusu to cover", "Change Selorm to night shift tomorrow"):
+   - Informational question ("Who is on night shift today?", "Who is on duty on 21st January 2027?", "How does the cycle work?"):
+     Set "type": "answer", provide a complete, clear, and helpful "summary", and set "changes": [].
+     When answering who is on duty for any date:
+     - Clearly list the Morning Shift (06:00 - 18:00): team name and assigned staff.
+     - Clearly list the Night Shift (18:00 - 06:00): team name and assigned staff.
+     - Mention which teams are Off Duty.
+     - If the system currently has 0 staff imported, state which teams are on duty per the 8-day rotation, and note that individual personnel will populate once management's Excel roster is imported.
+     - NEVER return just an empty title, headline, or echo of the user's question.
+   - Schedule modification ("Swap Julius and Bernard on Nov 24", "Put Kate on leave from 2026-11-20 to 2026-11-22", "Change Selorm to night shift tomorrow"):
      Set "type": "mutation", provide a clear "summary" describing the exact changes, and list the exact changes in "changes".
 2. Date format in "changes": ALWAYS use exact ISO "YYYY-MM-DD" (e.g. "${month || '2026-11'}-15").
 3. Shift codes in "to": MUST be one of "M", "N", "OFF", "LEAVE".
