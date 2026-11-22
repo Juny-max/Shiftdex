@@ -1024,7 +1024,22 @@ async function publishRoster() {
     const res = await fetch(API + '/api/admin/publish', {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: 'Bearer ' + tok },
-      body: JSON.stringify({ month, assignments: getMonthAssignments(month), coverAssignments, removedCoverIds, inactiveStaffIds: state.inactiveStaffIds || [], podAssignments: activeStaff().map(person => personFor(person, month)).filter(person => person.podId).map(person => ({ staffId: person.id, podId: person.podId, rowOrder: person.rowOrder ?? staff.findIndex(item => item.id === person.id) })), staffRecords: (state.customStaff || []).filter(person => !(state.inactiveStaffIds || []).includes(person.id)).map(person => ({ id: person.id, fullName: person.name, roleTag: person.role, podId: person.podId || null, phone: person.phone || null, effectiveFrom: person.effectiveFrom || '0000-00-00' })) })
+      body: JSON.stringify({
+        month,
+        assignments: getMonthAssignments(month),
+        coverAssignments,
+        removedCoverIds,
+        inactiveStaffIds: state.inactiveStaffIds || [],
+        podAssignments: activeStaff().map(person => personFor(person, month)).filter(person => person.podId).map(person => ({ staffId: person.id, podId: person.podId, rowOrder: person.rowOrder ?? staff.findIndex(item => item.id === person.id) })),
+        staffRecords: activeStaff().map(person => ({
+          id: person.id,
+          fullName: person.displayName || person.name,
+          roleTag: person.role || 'NSP',
+          podId: person.podId || null,
+          phone: person.phone || null,
+          effectiveFrom: person.effectiveFrom || `${month}-01`
+        }))
+      })
     });
     if (!res.ok) throw Error(`Publish failed (${res.status})`);
     state.coverTombstones = (state.coverTombstones || []).filter(item => !item.date.startsWith(`${month}-`));
@@ -1351,15 +1366,57 @@ function parseWorkbook(workbook) {
       const source = String(rows[r]?.[0] || '').trim();
       if (!source) continue;
       const clean = source.replace(/\s*\([^)]*\)\s*$/, '').trim();
+      if (!clean) continue;
       const identity = clean.toLowerCase();
-      const person = staff.find(s => [s.name, s.shortName].filter(Boolean).some(a => identity === a.toLowerCase()));
-      if (!person) continue;
+      let person = staff.find(s => [s.name, s.shortName, s.displayName].filter(Boolean).some(a => identity === a.toLowerCase()));
 
       const color = String(sheet[`A${r + 1}`]?.s?.fgColor?.rgb || '').toUpperCase().slice(-6);
-      const podId = podByColor[color] || ['orange', 'green', 'blue', 'red'][Math.floor((r - 3) / 3)];
+      const podId = podByColor[color] || ['orange', 'green', 'blue', 'red'][Math.floor((r - 3) / 3)] || 'orange';
       const tag = source.match(/\(([^)]+)\)\s*$/);
-      const role = tag ? (tag[1].trim().toUpperCase() === 'NSP-SECURITY' ? 'NSP-SECURITY' : tag[1].trim().toUpperCase() === 'NSP' ? 'NSP' : tag[1].trim()) : (roleFor(person, key) || 'NSP');
+      let role = tag ? tag[1].trim() : (person ? (roleFor(person, key) || 'NSP') : 'NSP');
+      if (/team\s*lead/i.test(role)) role = 'Team Lead';
+      else if (/nsp-security/i.test(role)) role = 'NSP-SECURITY';
+      else if (/nsp/i.test(role)) role = 'NSP';
       const displayName = clean;
+
+      if (!person) {
+        const baseId = clean.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '') || (`staff-${r}`);
+        let uniqueId = baseId;
+        let counter = 1;
+        while (staff.some(s => s.id === uniqueId)) {
+          uniqueId = `${baseId}-${counter++}`;
+        }
+        person = {
+          id: uniqueId,
+          name: clean,
+          displayName: clean,
+          role,
+          podId,
+          status: 'active',
+          effectiveFrom: `${key}-01`
+        };
+        staff.push(person);
+        state.customStaff ||= [];
+        if (!state.customStaff.some(s => s.id === person.id)) {
+          state.customStaff.push(person);
+        }
+      } else {
+        person.role = role;
+        person.podId = podId;
+        if (person.status !== 'active') person.status = 'active';
+        if (state.inactiveStaffIds?.includes(person.id)) {
+          state.inactiveStaffIds = state.inactiveStaffIds.filter(id => id !== person.id);
+        }
+        state.customStaff ||= [];
+        const customItem = state.customStaff.find(s => s.id === person.id);
+        if (customItem) {
+          customItem.role = role;
+          customItem.podId = podId;
+          customItem.status = 'active';
+        } else {
+          state.customStaff.push(person);
+        }
+      }
 
       imported.staffMonthly[`${key}:${person.id}`] = { podId, role, displayName, podColor: color ? `#${color}` : undefined, rowOrder: r + 1 };
       matches++;
@@ -4097,10 +4154,17 @@ function bindEvents() {
       if (!f) return;
       try {
         const parsed = parseWorkbook(XLSX.read(await f.arrayBuffer(), { cellStyles: true }));
-        state = parsed.state;
+        state = {
+          ...state,
+          assignments: { ...(state.assignments || {}), ...(parsed.state.assignments || {}) },
+          overrides: { ...(state.overrides || {}), ...(parsed.state.overrides || {}) },
+          staffMonthly: { ...(state.staffMonthly || {}), ...(parsed.state.staffMonthly || {}) },
+          customStaff: [...(state.customStaff || [])]
+        };
         month = parsed.summary.map(x => x.month).sort().at(-1);
         localStorage.setItem('shift-roster-month', month);
         save();
+        render();
         toast(`Imported ${f.name} (${formatMonth(month)})`);
       } catch (err) {
         toast(err.message || 'Excel import failed. Check sheet names.');
