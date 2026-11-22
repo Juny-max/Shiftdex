@@ -468,8 +468,8 @@ function extractTargetDate(text) {
     return `${yr}-${mo}-${d}`;
   }
 
-  // 3. Just day of month: 'on the 25th', 'on 25th'
-  const m3 = text.match(/\b(?:on\s+(?:the\s+)?)(\d{1,2})(?:st|nd|rd|th)\b/i);
+  // 3. Just day of month: '25th', 'the 25th', 'what day is 25th', 'on the 25th'
+  const m3 = text.match(/\b(?:(?:what\s+day\s+is\s+|is\s+|on\s+)?(?:the\s+)?)?([1-9]|[12]\d|3[01])(?:st|nd|rd|th)\b/i);
   if (m3) {
     const d = m3[1].padStart(2, '0');
     return `${currY}-${currM}-${d}`;
@@ -710,6 +710,10 @@ function renderCopilotWidget() {
 
       const token = sessionStorage.getItem('admin-session') || '';
       const targetDate = extractTargetDate(text) || new Date().toISOString().slice(0, 10);
+      const targetDateObj = new Date(targetDate + 'T00:00:00Z');
+      const targetWeekday = targetDateObj.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+      const targetFormatted = targetDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
       const morningPods = pods.filter(p => cycle(targetDate, p.anchor) === 'M');
       const nightPods = pods.filter(p => cycle(targetDate, p.anchor) === 'N');
       const offPods = pods.filter(p => cycle(targetDate, p.anchor) === 'OFF');
@@ -724,11 +728,37 @@ function renderCopilotWidget() {
         return c === 'N' || (!c && nightPods.some(p => p.id === s.podId));
       }).map(s => s.displayName || s.name);
 
-      const scheduleContext = `Target date is ${targetDate}. Active month is ${month}. ` +
-        `On ${targetDate}: Morning Shift (06:00 - 18:00) is operated by ${morningPods.map(p => p.name).join(', ') || 'No team'} (Personnel: ${morningStaff.join(', ') || 'None assigned yet'}). ` +
+      // Check if user mentioned any active staff member
+      const lowerText = text.toLowerCase();
+      const mentionedStaff = activeStaff().filter(s => {
+        const nameParts = (s.displayName || s.name || '').toLowerCase().split(/\s+/);
+        return nameParts.some(part => part.length >= 3 && lowerText.includes(part));
+      });
+
+      let staffScheduleContext = '';
+      if (mentionedStaff.length > 0) {
+        staffScheduleContext = '\n\n' + mentionedStaff.map(member => {
+          const lines = [];
+          const start = new Date(targetDate + 'T00:00:00Z');
+          for (let i = 0; i < 7; i++) {
+            const cur = new Date(start.getTime() + i * 86400000);
+            const dStr = cur.toISOString().slice(0, 10);
+            const shift = cellFor(state, member.id, dStr);
+            const weekday = cur.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+            const shiftName = shift === 'M' ? 'Morning Shift (06:00 - 18:00)' : shift === 'N' ? 'Night Shift (18:00 - 06:00)' : shift === 'LEAVE' ? 'Approved Leave' : 'Off Duty';
+            lines.push(`${dStr} (${weekday}): ${shiftName}`);
+          }
+          const pName = pods.find(p => p.id === member.podId)?.name || 'Day Support';
+          return `Upcoming 7-Day Schedule for ${member.displayName || member.name} (${pName}):\n${lines.join('\n')}`;
+        }).join('\n\n');
+      }
+
+      const scheduleContext = `Target query date: ${targetDate} (${targetWeekday}, ${targetFormatted}). ` +
+        `Calendar Fact: ${targetFormatted} is definitively a ${targetWeekday}. ` +
+        `On ${targetWeekday}, ${targetFormatted}: Morning Shift (06:00 - 18:00) is operated by ${morningPods.map(p => p.name).join(', ') || 'No team'} (Personnel: ${morningStaff.join(', ') || 'None assigned yet'}). ` +
         `Night Shift (18:00 - 06:00) is operated by ${nightPods.map(p => p.name).join(', ') || 'No team'} (Personnel: ${nightStaff.join(', ') || 'None assigned yet'}). ` +
         `Off Duty: ${offPods.map(p => p.name).join(', ') || 'None'}. ` +
-        `Rotation rule: 2 Morning -> 2 Night -> 4 Off perpetual 8-day cycle.`;
+        `Rotation rule: 2 Morning -> 2 Night -> 4 Off perpetual 8-day cycle.${staffScheduleContext}`;
 
       try {
         const res = await fetch(API + '/api/admin/ai/copilot', {

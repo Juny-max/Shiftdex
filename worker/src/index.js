@@ -721,7 +721,8 @@ function extractDateFromPrompt(text, activeMonth = '2026-11') {
     return `${yr}-${mo}-${d}`;
   }
 
-  const m3 = text.match(/\b(?:on\s+(?:the\s+)?)(\d{1,2})(?:st|nd|rd|th)\b/i);
+  // 3. Just day of month: '25th', 'the 25th', 'what day is 25th', 'on 25th'
+  const m3 = text.match(/\b(?:(?:what\s+day\s+is\s+|is\s+|on\s+)?(?:the\s+)?)?([1-9]|[12]\d|3[01])(?:st|nd|rd|th)\b/i);
   if (m3) {
     const d = m3[1].padStart(2, '0');
     return `${currY}-${currM}-${d}`;
@@ -738,7 +739,11 @@ function resolveDateSchedule(dateStr, staffList = []) {
   const morningStaff = staffList.filter(s => s.podId === morningPod.id).map(s => s.name || s.fullName);
   const nightStaff = staffList.filter(s => s.podId === nightPod.id).map(s => s.name || s.fullName);
 
-  return { dateStr, morningPod, nightPod, offPods, morningStaff, nightStaff };
+  const dateObj = new Date(dateStr + 'T00:00:00Z');
+  const weekday = dateObj.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+  const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+
+  return { dateStr, weekday, formattedDate, morningPod, nightPod, offPods, morningStaff, nightStaff };
 }
 
 async function runRosterAi(env, { prompt, month, staff, scheduleContext, history }) {
@@ -754,9 +759,9 @@ async function runRosterAi(env, { prompt, month, staff, scheduleContext, history
   let dynamicDateContext = '';
   if (detectedDate) {
     targetDateInfo = resolveDateSchedule(detectedDate, activeStaffList);
-    const dateFormatted = new Date(detectedDate + 'T00:00:00Z').toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-    dynamicDateContext = `Specific Date Queried: ${detectedDate} (${dateFormatted}).
-Calculated 8-Day Rotation on ${detectedDate}:
+    dynamicDateContext = `Specific Date Queried: ${detectedDate} (${targetDateInfo.weekday}, ${targetDateInfo.formattedDate}).
+CRITICAL CALENDAR FACT: ${targetDateInfo.formattedDate} is definitively a ${targetDateInfo.weekday}.
+Calculated 8-Day Rotation on ${targetDateInfo.weekday}, ${targetDateInfo.formattedDate}:
 - Morning Shift (06:00 - 18:00): ${targetDateInfo.morningPod.name} (Assigned staff: ${targetDateInfo.morningStaff.join(', ') || 'No staff assigned yet'})
 - Night Shift (18:00 - 06:00): ${targetDateInfo.nightPod.name} (Assigned staff: ${targetDateInfo.nightStaff.join(', ') || 'No staff assigned yet'})
 - Off Duty (Rest days): ${targetDateInfo.offPods.map(p => p.name).join(', ')}`;
@@ -887,11 +892,27 @@ You MUST return ONLY a valid JSON object matching this schema:
     result.summary = "I'm doing well, thank you! I'm here and ready to help you coordinate shifts, review team schedules, or make roster adjustments. What would you like to look at today?";
   }
 
-  // Guardrail 2: Clean up generic headline answers when asking about dates/duty
+  // Guardrail 2: Mathematically handle day-of-the-week inquiries
+  const isDayOfWeekQuestion = /\b(what\s+day\s+is|what\s+day\s+of\s+the\s+week|which\s+day\s+is|is\s+.*(monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/i.test(prompt);
+  if (targetDateInfo && isDayOfWeekQuestion) {
+    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const wrongWeekdays = weekdays.filter(w => w.toLowerCase() !== targetDateInfo.weekday.toLowerCase());
+    const containsWrong = wrongWeekdays.some(w => new RegExp(`\\b${w}\\b`, 'i').test(result.summary));
+    const containsCorrect = new RegExp(`\\b${targetDateInfo.weekday}\\b`, 'i').test(result.summary);
+
+    if (containsWrong || !containsCorrect) {
+      result.summary = `The ${targetDateInfo.formattedDate} is a ${targetDateInfo.weekday}.\n\n` +
+        `On ${targetDateInfo.weekday}, ${targetDateInfo.formattedDate}:\n` +
+        `• Morning Shift (06:00 – 18:00): ${targetDateInfo.morningPod.name}${targetDateInfo.morningStaff.length ? ` (${targetDateInfo.morningStaff.join(', ')})` : ''}\n` +
+        `• Night Shift (18:00 – 06:00): ${targetDateInfo.nightPod.name}${targetDateInfo.nightStaff.length ? ` (${targetDateInfo.nightStaff.join(', ')})` : ''}\n` +
+        `• Off Duty: ${targetDateInfo.offPods.map(p => p.name).join(' & ')} (Rest days)`;
+    }
+  }
+
+  // Guardrail 3: Clean up generic headline answers when asking about dates/duty
   if (targetDateInfo && (result.summary.length < 50 || /^(shift\s+details|duty\s+schedule|shift\s+roster|schedule\s+for|personnel\s+for|duty\s+personnel)\b/i.test(result.summary.trim()))) {
-    const { dateStr, morningPod, nightPod, offPods, morningStaff, nightStaff } = targetDateInfo;
-    const formattedDate = new Date(dateStr + 'T00:00:00Z').toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
-    result.summary = `On ${formattedDate}:\n\n` +
+    const { dateStr, weekday, formattedDate, morningPod, nightPod, offPods, morningStaff, nightStaff } = targetDateInfo;
+    result.summary = `On ${weekday}, ${formattedDate}:\n\n` +
       `• Morning Shift (06:00 – 18:00): ${morningPod.name} ${morningStaff.length ? `(${morningStaff.join(', ')})` : '(No individual staff assigned yet)'}\n` +
       `• Night Shift (18:00 – 06:00): ${nightPod.name} ${nightStaff.length ? `(${nightStaff.join(', ')})` : '(No individual staff assigned yet)'}\n` +
       `• Off Duty: ${offPods.map(p => p.name).join(' & ')} (Rest days)\n\n` +
