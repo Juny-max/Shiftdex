@@ -419,18 +419,22 @@ function isActionPrompt(text) {
 
 function extractTargetDate(text) {
   if (!text) return null;
+  const [currY, currM] = (month || '2026-11').split('-');
+  const now = new Date();
+  const lower = text.toLowerCase().trim();
+
+  // Match ISO YYYY-MM-DD
   const isoMatch = text.match(/\b(20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b/);
   if (isoMatch) return isoMatch[0];
 
-  const lower = text.toLowerCase();
-  const now = new Date();
-  if (/\btoday\b/.test(lower)) {
-    return now.toISOString().slice(0, 10);
-  }
+  if (/\btoday\b/.test(lower)) return now.toISOString().slice(0, 10);
   if (/\btomorrow\b/.test(lower)) {
     const tm = new Date(now.getTime() + 86400000);
     return tm.toISOString().slice(0, 10);
   }
+  if (/christmas(?:\s+day)?\b/.test(lower)) return `${currY}-12-25`;
+  if (/new\s+year(?:'s)?(?:\s+day)?\b/.test(lower)) return `${Number(currY) + 1}-01-01`;
+  if (/boxing\s+day\b/.test(lower)) return `${currY}-12-26`;
 
   const months = {
     jan: '01', january: '01', feb: '02', february: '02',
@@ -440,20 +444,35 @@ function extractTargetDate(text) {
     oct: '10', october: '10', nov: '11', november: '11', dec: '12', december: '12'
   };
 
-  const m1 = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[,\s]+(20\d{2})\b/i);
+  // 1. Day + Month + optional Year: '25th december', '25 dec 2026', '25th of december'
+  const m1 = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:[,\s]+(20\d{2}))?\b/i);
   if (m1) {
     const d = m1[1].padStart(2, '0');
     const mo = months[m1[2].toLowerCase()];
-    const yr = m1[3];
+    let yr = m1[3];
+    if (!yr) {
+      yr = (Number(mo) < Number(currM) && Number(currM) >= 10) ? String(Number(currY) + 1) : currY;
+    }
     return `${yr}-${mo}-${d}`;
   }
 
-  const m2 = text.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?[,\s]+(20\d{2})\b/i);
+  // 2. Month + Day + optional Year: 'december 25', 'dec 25th, 2026'
+  const m2 = text.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:[,\s]+(20\d{2}))?\b/i);
   if (m2) {
     const mo = months[m2[1].toLowerCase()];
     const d = m2[2].padStart(2, '0');
-    const yr = m2[3];
+    let yr = m2[3];
+    if (!yr) {
+      yr = (Number(mo) < Number(currM) && Number(currM) >= 10) ? String(Number(currY) + 1) : currY;
+    }
     return `${yr}-${mo}-${d}`;
+  }
+
+  // 3. Just day of month: 'on the 25th', 'on 25th'
+  const m3 = text.match(/\b(?:on\s+(?:the\s+)?)(\d{1,2})(?:st|nd|rd|th)\b/i);
+  if (m3) {
+    const d = m3[1].padStart(2, '0');
+    return `${currY}-${currM}-${d}`;
   }
 
   return null;
@@ -719,7 +738,8 @@ function renderCopilotWidget() {
             prompt: text,
             month,
             staff: activeStaff().map(s => ({ id: s.id, name: s.displayName || s.name, role: s.role || 'NSP', podId: s.podId || '' })),
-            scheduleContext
+            scheduleContext,
+            history: copilotMessages.slice(0, -1).slice(-6).map(m => ({ role: m.role, text: m.text }))
           })
         });
         const data = await res.json();
@@ -781,6 +801,13 @@ function destroyCopilotLottie() {
   }
 }
 
+function formatCopilotMessageText(text) {
+  if (!text) return '';
+  return escapeHtml(text)
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
 function renderCopilotMessage(msg, index) {
   if (msg.role === 'user') {
     return `
@@ -796,7 +823,7 @@ function renderCopilotMessage(msg, index) {
   return `
     <div class="copilot-msg-row">
       <div class="copilot-msg-bubble assistant">
-        <div>${escapeHtml(msg.text)}</div>
+        <div class="copilot-text-content">${formatCopilotMessageText(msg.text)}</div>
 
         ${Array.isArray(msg.warnings) && msg.warnings.length ? `
           <div class="shift-conflict-preview has-warning" style="margin:4px 0 0;">

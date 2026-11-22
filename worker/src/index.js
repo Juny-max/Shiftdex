@@ -657,48 +657,151 @@ function renderVerificationHtml({ success, title, message, portalUrl, logoUrl, n
 </html>`;
 }
 
-async function runRosterAi(env, { prompt, month, staff, scheduleContext }) {
+const ROTATION_PODS = [
+  { id: 'orange', name: 'Team 1 (Orange)', anchor: '2026-11-03' },
+  { id: 'green', name: 'Team 2 (Green)', anchor: '2026-11-01' },
+  { id: 'blue', name: 'Team 3 (Blue)', anchor: '2026-11-05' },
+  { id: 'red', name: 'Team 4 (Red)', anchor: '2026-10-30' }
+];
+
+function dayEpoch(dateStr) {
+  return Math.floor((Date.parse(dateStr + 'T00:00:00Z') - Date.UTC(1970, 0, 1)) / 86400000);
+}
+
+function calculatePodCycle(dateStr, anchorStr) {
+  const phase = ((dayEpoch(dateStr) - dayEpoch(anchorStr)) % 8 + 8) % 8;
+  return phase < 2 ? 'M' : phase < 4 ? 'N' : 'OFF';
+}
+
+function extractDateFromPrompt(text, activeMonth = '2026-11') {
+  if (!text) return null;
+  const [currY, currM] = (activeMonth || '2026-11').split('-');
+  const now = new Date();
+  const lower = text.toLowerCase().trim();
+
+  const isoMatch = text.match(/\b(20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b/);
+  if (isoMatch) return isoMatch[0];
+
+  if (/\btoday\b/.test(lower)) return now.toISOString().slice(0, 10);
+  if (/\btomorrow\b/.test(lower)) {
+    const tm = new Date(now.getTime() + 86400000);
+    return tm.toISOString().slice(0, 10);
+  }
+  if (/christmas(?:\s+day)?\b/.test(lower)) return `${currY}-12-25`;
+  if (/new\s+year(?:'s)?(?:\s+day)?\b/.test(lower)) return `${Number(currY) + 1}-01-01`;
+  if (/boxing\s+day\b/.test(lower)) return `${currY}-12-26`;
+
+  const months = {
+    jan: '01', january: '01', feb: '02', february: '02',
+    mar: '03', march: '03', apr: '04', april: '04',
+    may: '05', jun: '06', june: '06', jul: '07', july: '07',
+    aug: '08', august: '08', sep: '09', sept: '09', september: '09',
+    oct: '10', october: '10', nov: '11', november: '11', dec: '12', december: '12'
+  };
+
+  const m1 = text.match(/\b(\d{1,2})(?:st|nd|rd|th)?(?:\s+of)?\s+(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)(?:[,\s]+(20\d{2}))?\b/i);
+  if (m1) {
+    const d = m1[1].padStart(2, '0');
+    const mo = months[m1[2].toLowerCase()];
+    let yr = m1[3];
+    if (!yr) {
+      yr = (Number(mo) < Number(currM) && Number(currM) >= 10) ? String(Number(currY) + 1) : currY;
+    }
+    return `${yr}-${mo}-${d}`;
+  }
+
+  const m2 = text.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:[,\s]+(20\d{2}))?\b/i);
+  if (m2) {
+    const mo = months[m2[1].toLowerCase()];
+    const d = m2[2].padStart(2, '0');
+    let yr = m2[3];
+    if (!yr) {
+      yr = (Number(mo) < Number(currM) && Number(currM) >= 10) ? String(Number(currY) + 1) : currY;
+    }
+    return `${yr}-${mo}-${d}`;
+  }
+
+  const m3 = text.match(/\b(?:on\s+(?:the\s+)?)(\d{1,2})(?:st|nd|rd|th)\b/i);
+  if (m3) {
+    const d = m3[1].padStart(2, '0');
+    return `${currY}-${currM}-${d}`;
+  }
+
+  return null;
+}
+
+function resolveDateSchedule(dateStr, staffList = []) {
+  const morningPod = ROTATION_PODS.find(p => calculatePodCycle(dateStr, p.anchor) === 'M') || { name: 'Unknown', id: '' };
+  const nightPod = ROTATION_PODS.find(p => calculatePodCycle(dateStr, p.anchor) === 'N') || { name: 'Unknown', id: '' };
+  const offPods = ROTATION_PODS.filter(p => calculatePodCycle(dateStr, p.anchor) === 'OFF');
+
+  const morningStaff = staffList.filter(s => s.podId === morningPod.id).map(s => s.name || s.fullName);
+  const nightStaff = staffList.filter(s => s.podId === nightPod.id).map(s => s.name || s.fullName);
+
+  return { dateStr, morningPod, nightPod, offPods, morningStaff, nightStaff };
+}
+
+async function runRosterAi(env, { prompt, month, staff, scheduleContext, history }) {
   if (!env.AI) {
     throw new Error('Cloudflare Workers AI binding is not configured.');
   }
 
-  const staffNames = (staff || []).map(s => `${s.name || s.fullName} (id: "${s.id}", role: "${s.role || s.roleTag || 'NSP'}", team: "${s.podId || 'support'}")`).join('\n');
+  const activeStaffList = Array.isArray(staff) ? staff : [];
+  const staffNames = activeStaffList.map(s => `${s.name || s.fullName} (id: "${s.id}", role: "${s.role || s.roleTag || 'NSP'}", team: "${s.podId || 'support'}")`).join('\n');
 
-  const systemPrompt = `You are ShiftDesk Copilot, an AI operations assistant for a 24/7 mission-critical shift scheduling system.
-Active month: ${month || '2026-11'}.
-Shift codes:
-- "M" = Morning shift (06:00 - 18:00)
-- "N" = Night shift (18:00 - 06:00)
-- "OFF" = Off duty
-- "LEAVE" = Approved leave
+  const detectedDate = extractDateFromPrompt(prompt, month);
+  let targetDateInfo = null;
+  let dynamicDateContext = '';
+  if (detectedDate) {
+    targetDateInfo = resolveDateSchedule(detectedDate, activeStaffList);
+    const dateFormatted = new Date(detectedDate + 'T00:00:00Z').toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+    dynamicDateContext = `Specific Date Queried: ${detectedDate} (${dateFormatted}).
+Calculated 8-Day Rotation on ${detectedDate}:
+- Morning Shift (06:00 - 18:00): ${targetDateInfo.morningPod.name} (Assigned staff: ${targetDateInfo.morningStaff.join(', ') || 'No staff assigned yet'})
+- Night Shift (18:00 - 06:00): ${targetDateInfo.nightPod.name} (Assigned staff: ${targetDateInfo.nightStaff.join(', ') || 'No staff assigned yet'})
+- Off Duty (Rest days): ${targetDateInfo.offPods.map(p => p.name).join(', ')}`;
+  }
 
-Active Staff:
-${staffNames}
+  const systemPrompt = `You are ShiftDesk AI, an intelligent, helpful, and operationally proficient AI assistant for ShiftDesk, an enterprise 24/7 mission-critical shift scheduling platform.
 
-Schedule context snippet:
-${scheduleContext || 'Standard 8-day rotation cycle (2M -> 2N -> 4 OFF)'}
+Platform Context:
+- Active Month: ${month || '2026-11'}.
+- Schedule System: Perpetual 8-day rotation cycle (2 Morning -> 2 Night -> 4 Off Duty).
+- Shift Types:
+  * Morning Shift ("M"): 06:00 – 18:00 (12 hours)
+  * Night Shift ("N"): 18:00 – 06:00 (12 hours)
+  * Off Duty ("OFF"): Rest / Recovery (4 consecutive days)
+  * Approved Leave ("LEAVE"): Scheduled absence
+- The 4 Rotation Teams:
+  * Team 1 (Orange)
+  * Team 2 (Green)
+  * Team 3 (Blue)
+  * Team 4 (Red)
+- Current Staff Registry:
+${staffNames || 'Currently 0 staff imported. Awaiting management Excel roster import.'}
+
+Schedule & Rotation Knowledge Base:
+${dynamicDateContext ? dynamicDateContext + '\n\n' : ''}${scheduleContext || 'Standard 8-day perpetual rotation (2M -> 2N -> 4 OFF)'}
 
 Instructions:
-1. Determine the user intent:
-   - Informational question ("Who is on night shift today?", "Who is on duty on 21st January 2027?", "How does the cycle work?"):
-     Set "type": "answer", provide a complete, clear, and helpful "summary", and set "changes": [].
-     When answering who is on duty for any date:
-     - Clearly list the Morning Shift (06:00 - 18:00): team name and assigned staff.
-     - Clearly list the Night Shift (18:00 - 06:00): team name and assigned staff.
-     - Mention which teams are Off Duty.
-     - If the system currently has 0 staff imported, state which teams are on duty per the 8-day rotation, and note that individual personnel will populate once management's Excel roster is imported.
-     - NEVER return just an empty title, headline, or echo of the user's question.
-   - Schedule modification ("Swap Julius and Bernard on Nov 24", "Put Kate on leave from 2026-11-20 to 2026-11-22", "Change Selorm to night shift tomorrow"):
-     Set "type": "mutation", provide a clear "summary" describing the exact changes, and list the exact changes in "changes".
-2. Date format in "changes": ALWAYS use exact ISO "YYYY-MM-DD" (e.g. "${month || '2026-11'}-15").
-3. Shift codes in "to": MUST be one of "M", "N", "OFF", "LEAVE".
-4. Staff IDs in "changes": MUST match the exact id from Active Staff.
-5. In "warnings", highlight any operational risks, like a person working double shifts or back-to-back night to morning.
-6. Return ONLY valid JSON (no markdown fences, no explanatory text outside the JSON object).
-Schema:
+1. Act as a true modern AI assistant:
+   - For greetings, check-ins, or questions about who you are ("hi", "how are you", "what is your name", "what can you do"): respond warmly, conversationally, and helpfully. NEVER use robotic clichés like "I am functioning within normal parameters".
+   - For schedule inquiries ("who is on shift on 25th december?", "who works tomorrow?", "duty on Jan 21 2027"):
+     * Provide a complete, structured answer detailing:
+       - Morning Shift (06:00 – 18:00): Team name and assigned staff (or note if 0 staff are imported yet).
+       - Night Shift (18:00 – 06:00): Team name and assigned staff (or note if 0 staff are imported yet).
+       - Off Duty: Teams that are on rest.
+     * If the system has 0 staff imported yet, explain which teams are scheduled according to the 8-day rotation math, and remind the user that individual staff names will automatically appear once management's Excel roster is imported.
+     * NEVER provide a lazy 1-line headline, title, or echo of the user's prompt (e.g. NEVER respond with just "Shift details for 25th December").
+   - For shift modifications ("Swap Julius and Bernard on Nov 24", "Put Kate on leave from 2026-11-20 to 2026-11-22", "Assign Owusu to morning shift tomorrow"):
+     * In "summary", explain clearly what adjustments are proposed and any coverage impacts.
+     * Set "type": "mutation".
+     * In "changes", list each proposed modification with exact "date" (YYYY-MM-DD), "staffId", and "to" ("M", "N", "OFF", "LEAVE").
+2. Output Format:
+You MUST return ONLY a valid JSON object matching this schema:
 {
-  "summary": "Concise explanation of answer or proposed schedule change",
-  "type": "mutation" or "answer",
+  "summary": "Your complete, well-written, conversational explanation or answer. Use line breaks and bullet points for readability when detailing shifts.",
+  "type": "answer" or "mutation",
   "changes": [
     {
       "date": "YYYY-MM-DD",
@@ -713,21 +816,37 @@ Schema:
 }`;
 
   const candidateModels = [
+    '@cf/meta/llama-3.1-8b-instruct',
     '@cf/meta/llama-3-8b-instruct',
     '@cf/meta/llama-3.2-3b-instruct',
     '@cf/meta/llama-3.2-1b-instruct',
     '@cf/mistral/mistral-7b-instruct-v0.2'
   ];
+
+  const messages = [
+    { role: 'system', content: systemPrompt }
+  ];
+
+  if (Array.isArray(history)) {
+    for (const item of history.slice(-6)) {
+      if (item && item.text) {
+        messages.push({
+          role: item.role === 'assistant' ? 'assistant' : 'user',
+          content: String(item.text)
+        });
+      }
+    }
+  }
+
+  messages.push({ role: 'user', content: prompt });
+
   let response = null;
   let lastErr = null;
   for (const model of candidateModels) {
     try {
       response = await env.AI.run(model, {
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: prompt }
-        ],
-        temperature: 0.1,
+        messages,
+        temperature: 0.6,
         max_tokens: 1024
       });
       if (response) break;
@@ -743,32 +862,45 @@ Schema:
   else if (typeof response?.choices?.[0]?.message?.content === 'string') raw = response.choices[0].message.content;
   else raw = JSON.stringify(response);
 
+  let result = {
+    summary: raw.trim(),
+    type: 'answer',
+    changes: [],
+    warnings: []
+  };
+
   const jsonMatch = raw.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    return {
-      summary: raw.trim() || 'Schedule analysis complete.',
-      type: 'answer',
-      changes: [],
-      warnings: []
-    };
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      result.summary = parsed.summary || raw.trim();
+      result.type = parsed.type === 'mutation' ? 'mutation' : 'answer';
+      result.changes = Array.isArray(parsed.changes) ? parsed.changes : [];
+      result.warnings = Array.isArray(parsed.warnings) ? parsed.warnings : [];
+    } catch {
+      // Keep result fallback
+    }
   }
 
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    return {
-      summary: parsed.summary || 'Schedule analysis complete.',
-      type: parsed.type === 'mutation' ? 'mutation' : 'answer',
-      changes: Array.isArray(parsed.changes) ? parsed.changes : [],
-      warnings: Array.isArray(parsed.warnings) ? parsed.warnings : []
-    };
-  } catch (err) {
-    return {
-      summary: raw.replace(/```json|```/g, '').trim(),
-      type: 'answer',
-      changes: [],
-      warnings: []
-    };
+  // Guardrail 1: Clean up robotic "functioning within normal parameters" responses
+  if (/functioning\s+within\s+normal\s+parameters/i.test(result.summary)) {
+    result.summary = "I'm doing well, thank you! I'm here and ready to help you coordinate shifts, review team schedules, or make roster adjustments. What would you like to look at today?";
   }
+
+  // Guardrail 2: Clean up generic headline answers when asking about dates/duty
+  if (targetDateInfo && (result.summary.length < 50 || /^(shift\s+details|duty\s+schedule|shift\s+roster|schedule\s+for|personnel\s+for|duty\s+personnel)\b/i.test(result.summary.trim()))) {
+    const { dateStr, morningPod, nightPod, offPods, morningStaff, nightStaff } = targetDateInfo;
+    const formattedDate = new Date(dateStr + 'T00:00:00Z').toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' });
+    result.summary = `On ${formattedDate}:\n\n` +
+      `• Morning Shift (06:00 – 18:00): ${morningPod.name} ${morningStaff.length ? `(${morningStaff.join(', ')})` : '(No individual staff assigned yet)'}\n` +
+      `• Night Shift (18:00 – 06:00): ${nightPod.name} ${nightStaff.length ? `(${nightStaff.join(', ')})` : '(No individual staff assigned yet)'}\n` +
+      `• Off Duty: ${offPods.map(p => p.name).join(' & ')} (Rest days)\n\n` +
+      (activeStaffList.length > 0
+        ? `This schedule is calculated per the perpetual 8-day rotation cycle.`
+        : `The rotation is calculated per the perpetual 8-day cycle. Once management's Excel roster is imported, team members will automatically populate each shift!`);
+  }
+
+  return result;
 }
 
 export default {
@@ -1528,7 +1660,8 @@ export default {
             prompt,
             month: body.month,
             staff: body.staff,
-            scheduleContext: body.scheduleContext
+            scheduleContext: body.scheduleContext,
+            history: body.history
           });
           return json({ ok: true, ...aiResult });
         } catch (err) {

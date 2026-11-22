@@ -2769,9 +2769,17 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
 }
 .copilot-msg-bubble {
   font-size: 12.5px;
-  line-height: 1.5;
+  line-height: 1.55;
   max-width: 90%;
   word-break: break-word;
+}
+.copilot-text-content {
+  line-height: 1.55;
+  color: #0f172a;
+}
+.copilot-text-content strong {
+  color: #0f172a;
+  font-weight: 700;
 }
 .copilot-msg-bubble.user {
   align-self: flex-end;
