@@ -1,62 +1,104 @@
-# Shift Desk
+# ShiftDex
 
-Electron desktop roster editor, mobile worker portal, and Cloudflare D1 API for the 24/7 12-hour roster.
+ShiftDex is an Electron desktop roster editor, a mobile worker portal, and a Cloudflare Worker API backed by D1. It models the 24/7 roster as 12-hour shifts on a continuous 2M → 2N → 4 OFF cycle.
 
-## Workbook analysis and domain model
+## Run locally
 
-The supplied `NOV-DEC 2026 ROOSTER.xlsx` has two sheets, `NOV 2026 ROOSTER` and `DEC 2026 ROOSTER`. Both use the same spreadsheet layout: weekday/date headers across columns E onward, staff names in column A, four pod blocks at rows 4–15, then Fueling, Power NOC, Manager, and leave/support rows at 19–23. The four source pod fills are Orange `#FFC000`, Green `#92D050`, Blue `#00B0F0`, and Red `#FF0000`; morning cells are yellow and night cells are pale blue.
+Requirements: Node.js 20 or newer and pnpm 12.15.0.
 
-The anchors below are inferred from the workbook's date cells and the uninterrupted 2M/2N/4OFF sequence in both months:
+```powershell
+pnpm install
+pnpm dev
+```
 
-| Pod | First M date in this continuous sequence | Color |
-|---|---|---|
-| Green | 2026-11-01 | `#92D050` |
-| Orange | 2026-11-03 | `#FFC000` |
-| Blue | 2026-11-05 | `#00B0F0` |
-| Red | 2026-10-30 | `#FF0000` |
+`pnpm dev` opens the Electron administrator app. `pnpm web` starts the worker portal, and `pnpm worker:dev` starts the local API.
 
-This matches the workbook across the November/December boundary. Pod membership and role assignments can vary between months, so import reads pod color, staff identity, and role tag from each sheet row. Blank roster cells import as OFF and unmatched staff rows are reported in the import summary. The workbook contains staff information and should remain private; it is not included in this repository.
+Use the roster’s **Import** control to load the workbook. The source workbook contains staff details; keep it in a private location and do not commit it. The checked-in initial roster is intentionally empty of staff and assignments.
 
-## Run the desktop app
+## Cloudflare setup
 
-1. Install Node.js 20 or newer and pnpm 12.15.0.
-2. Run `pnpm install` in this folder.
-3. Run `pnpm dev` to open the Electron admin app. `pnpm web` serves the worker portal locally; `pnpm worker:dev` starts the Cloudflare Worker API.
+1. Sign in to the Cloudflare account that owns the D1 database:
 
-## Build and release the Windows app
+   ```powershell
+   pnpm exec wrangler login
+   ```
 
-- Run `pnpm dist` to build a single per-user installer at `release/ShiftDex-Setup-1.0.1.exe` (the version follows `package.json`). The installed program and shortcuts are named **ShiftDex**; the installed executable is `ShiftDex.exe`.
-- Uninstall it from Windows Settings or the Start menu. The installer is configured to remove ShiftDex's local app data when uninstalling.
-- Every push to the `main` branch runs the Windows release workflow. It builds the installer, generates `latest.yml`, and publishes both files as a GitHub release. The release patch version increments automatically from the package version, so installed copies can discover and install newer releases from Settings. Keep the major and minor package version current when starting a new release line.
+2. Copy `worker/wrangler.example.toml` to `worker/wrangler.toml`. Put the D1 database ID and public configuration in the local file. Git ignores `worker/wrangler.toml`.
+3. Create the tables and generic pod definitions:
 
-This project uses pnpm and its `pnpm-lock.yaml`. Avoid running `npm install` over pnpm's `node_modules`: npm can encounter pnpm-specific `link:` entries in already installed package metadata. The `allowBuilds` entries in `pnpm-workspace.yaml` permit the Electron binary download, esbuild setup, and Cloudflare workerd runtime setup required by these scripts.
+   ```powershell
+   pnpm exec wrangler d1 execute shift-roster --remote --file=worker/schema.sql --config worker/wrangler.toml
+   ```
 
-The roster works locally in the desktop app and saves in browser local storage. Use the workbook buttons to import or export `.xlsx`; export creates a month sheet in the roster's tabular layout. The current export covers the pod matrix and support names. PNG export uses the system print dialog; choose Save as PDF or a PNG printer/extension if installed.
+   The schema does not insert staff names or shift assignments. Import the private workbook in ShiftDex, then publish the roster.
 
-## Cloudflare D1 API
+4. Add the Brevo API key as a Cloudflare secret. Wrangler prompts for the value; do not put the key in a file or command argument:
 
-1. Copy `worker/wrangler.example.toml` to `worker/wrangler.toml` and put your D1 ID and public configuration in the local file. The local config is ignored by Git. Store API keys with `wrangler secret put`, never in TOML, source code, or the desktop app.
-2. From the project root, run `pnpm exec wrangler d1 execute shift-roster --remote --file=worker/schema.sql --config worker/wrangler.toml` to create tables and seed the generic pods. Add staff by importing the workbook in the admin app, then publish the roster. Rerun this command after updating an existing database so it creates the monthly pod assignment table used by drag-and-drop team changes.
-3. Deploy the API with `pnpm exec wrangler deploy --config worker/wrangler.toml` from the project root.
-4. Create the first administrator with `pnpm admin:create`. The script requires an authenticated Wrangler session, prompts for the password without echoing it, and only creates an account while `admin_accounts` is empty. Admin passwords are salted and hashed before they reach D1. The script contains no Cloudflare credentials and does not deploy or modify Worker configuration.
-5. Workers create accounts with email and password; their registrations wait for an administrator to link each account to the correct staff record in the Requests page. Worker passwords are salted and hashed in D1.
-6. The API URL is configured in the app build. In ShiftDex, use **Publish schedule**, then sign in with the administrator email and password. Admin sessions expire after 12 hours and are stored hashed in D1; workers never enter API URLs or admin credentials.
+   ```powershell
+   pnpm set-brevo-key
+   ```
 
-## Worker portal
+   Configure the verified sender address in the local Wrangler file. Sender settings are public configuration; the API key is a secret.
 
-The static worker portal lives in `worker/`. Deploy its build output to Cloudflare Pages. Staff register with their name, email, and password; an administrator links the account to its roster record before sign-in is enabled. The portal includes a schedule view, a cover request form, unavailability submission, and downloadable `.ics` shifts.
+5. Deploy the API:
 
-## API routes
+   ```powershell
+   pnpm worker:deploy
+   ```
 
-- `GET /api/health`
-- `GET /api/roster?month=YYYY-MM` (authenticated worker/admin read)
-- `POST /api/admin/auth/login` and `POST /api/admin/auth/logout` (admin email/password)
-- `POST /api/admin/publish` (admin session)
-- `GET /api/admin/requests` and `POST /api/admin/requests/:id` (admin session)
-- `POST /api/covers` and `POST /api/unavailability` (worker token; identity is checked against payload)
+6. Deploy the worker portal to the configured Cloudflare Pages project. Build it, then upload `dist/worker` with Wrangler Pages.
 
-The D1 schema includes pods, staff, shift assignments, worker and administrator accounts/sessions, shift covers/payback links, pre-roster unavailability flags, and audit logs.
+## Administrator account commands
 
-## Current integration boundary
+Both commands require an interactive terminal, a local `worker/wrangler.toml`, an authenticated Wrangler session, and Cloudflare D1 write permission for the configured database. No Cloudflare token or reset password is built into the public repository.
 
-The Electron app and worker portal are scaffolded as independent clients. Worker requests are stored in D1 and the admin API can list and approve/reject them. The admin drawer currently displays a local placeholder until its request sync UI is connected. Cover approval records request status; automatic cover overrides, payback settlement, calendar subscription feeds, and natural-language AI command execution still need to be wired before operational rollout. The provided workbook's staff-name changes and support/leave entries should be reviewed during import.
+### Create the first administrator
+
+Run this once after applying the schema:
+
+```powershell
+pnpm admin:create
+```
+
+The command only creates an account when `admin_accounts` is empty. It asks for the email, display name, and a password without echoing the password. It refuses to add or alter accounts when an administrator already exists.
+
+### Reset an existing administrator password
+
+```powershell
+pnpm admin:reset-password
+```
+
+This command only resets the active administrator matching the email entered at the prompt. It cannot create an account, change an email, or reset a worker password. It confirms the target database and email, requires a 16-character minimum password entered without echo, and revokes that administrator’s existing sessions. The reset is recorded in the audit log. Its temporary SQL file is removed when the command finishes.
+
+The script is not itself a secret or an access-control mechanism. Anyone can read or run the public script against a database they control. It cannot change your Cloudflare database unless that person is signed in to an account with D1 write access to your database and has the local database configuration. Do not share Cloudflare credentials or grant D1 write permission to untrusted people.
+
+Cloudflare Workers currently rejects Web Crypto PBKDF2 counts above 100,000. ShiftDex uses that supported ceiling, salts each password, rate-limits sign-in attempts, requires long passwords for reset, and revokes sessions on reset. See [Cloudflare workerd issue 1346](https://github.com/cloudflare/workerd/issues/1346) for the platform limit.
+
+## Publishing and updates
+
+- In the desktop app, sign in with the administrator email and password, then use **Publish schedule** to sync roster changes to D1.
+- Pushes to `main` run the Windows packaging workflow. It publishes the installer and `latest.yml` to a GitHub release.
+- Installed apps check for updates at startup and about every six hours. **Settings → Check for updates** also checks manually.
+- Release downloads use the public GitHub repository. Never add a GitHub token to the app or repository to enable updates.
+
+## Data and security notes
+
+- The live D1 database is separate from the public source repository. Workers must authenticate to read the roster. Worker accounts can submit their own cover and unavailability requests; administrator actions require an admin session.
+- Passwords are stored as salted PBKDF2 hashes, never plaintext. D1 stores session-token hashes. Admin sessions expire after 12 hours; worker sessions expire after 30 days.
+- `worker/wrangler.toml`, `.env` files, local build output, and release artifacts are ignored by Git. Use `worker/wrangler.example.toml` as the public template.
+- A public repository makes its source, commit history, workflow, and releases visible to everyone. Do not commit real names, roster exports, credentials, private configuration, or production data. The app cannot hide information intentionally sent to a client from a person who controls that client device.
+- Keep the workbook, local roster cache, Cloudflare account, D1 permissions, and Brevo account access limited to people who need them. Back up D1 before destructive database changes.
+
+## Windows installer
+
+Build a per-user installer with:
+
+```powershell
+pnpm dist
+```
+
+The installer is named `ShiftDex-Setup-<version>.exe`. Windows installs `ShiftDex.exe` and creates Start menu and desktop shortcuts. Uninstall from Windows Settings or the Start menu; the NSIS configuration removes ShiftDex app data during uninstall.
+
+## Workbook and roster model
+
+The supplied workbook uses orange `#FFC000`, green `#92D050`, blue `#00B0F0`, and red `#FF0000` pod colors. The continuous pod anchors are Orange `2026-11-03`, Green `2026-11-01`, Blue `2026-11-05`, and Red `2026-10-30`. Import reads the sheet’s staff names, role tags, pod colors, and shift cells; blank shift cells become rest days. These values are not included as staff seed data in the public source.

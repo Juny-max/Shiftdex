@@ -10,7 +10,8 @@ const readline = require('node:readline');
 const ROOT = path.resolve(__dirname, '..');
 const CONFIG = path.join(ROOT, 'worker', 'wrangler.toml');
 const DATABASE = 'shift-roster';
-const ITERATIONS = 600000;
+// Cloudflare Workers rejects PBKDF2 iteration counts above 100,000.
+const ITERATIONS = 100000;
 
 function ask(question) {
   return new Promise((resolve, reject) => {

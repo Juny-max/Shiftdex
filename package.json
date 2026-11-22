@@ -19,7 +19,8 @@
     "worker:dev": "wrangler dev --config worker/wrangler.toml",
     "worker:deploy": "wrangler deploy --config worker/wrangler.toml",
     "set-brevo-key": "wrangler secret put BREVO_API_KEY --config worker/wrangler.toml",
-    "admin:create": "node scripts/create-admin.cjs"
+    "admin:create": "node scripts/create-admin.cjs",
+    "admin:reset-password": "node scripts/reset-admin-password.cjs"
   },
   "dependencies": {
     "electron-updater": "^6.8.11"

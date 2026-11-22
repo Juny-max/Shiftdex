@@ -10,9 +10,11 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
   headers: { ...cors, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY' },
 });
 const encoder = new TextEncoder();
-const CURRENT_PASSWORD_ITERATIONS = 600000;
+// Cloudflare Workers rejects PBKDF2 iteration counts above 100,000.
+// Compensate with long admin passwords, per-IP/email throttling, and short sessions.
+const CURRENT_PASSWORD_ITERATIONS = 100000;
 const MIN_PASSWORD_ITERATIONS = 100000;
-const MAX_PASSWORD_ITERATIONS = 600000;
+const MAX_PASSWORD_ITERATIONS = 100000;
 const hex = bytes => [...new Uint8Array(bytes)].map(byte => byte.toString(16).padStart(2, '0')).join('');
 const tokenString = bytes => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 
@@ -318,6 +320,7 @@ export default {
         if (limit?.blocked_until && limit.blocked_until > nowIso) return json({ error: 'Too many sign-in attempts. Try again in 15 minutes.' }, 429);
         const windowActive = limit && Date.parse(limit.window_started_at) > now.getTime() - 15 * 60 * 1000;
         const account = await db.prepare("SELECT id,email,full_name,password_salt,password_hash,password_iterations FROM admin_accounts WHERE email=? AND status='active'").bind(email).first();
+        if (account && Number(account.password_iterations) > MAX_PASSWORD_ITERATIONS) return json({ error: 'This administrator password must be reset by the Cloudflare account owner.' }, 401);
         const passwordIterations = safePasswordIterations(account?.password_iterations);
         const digest = await passwordDigest(password || 'invalid-password', account?.password_salt || '00000000000000000000000000000000', passwordIterations);
         if (!account || !password || !sameHash(digest, account.password_hash)) {
@@ -360,6 +363,7 @@ export default {
         const now = new Date();
         if (await isAuthBlocked(db, 'login', email, ipHash, now)) return json({ error: 'Too many sign-in attempts. Try again in 15 minutes.' }, 429);
         const account = await db.prepare('SELECT id,email,full_name,password_salt,password_hash,password_iterations,staff_id,status,must_change_password FROM worker_accounts WHERE email=?').bind(email).first();
+        if (account && Number(account.password_iterations) > MAX_PASSWORD_ITERATIONS) return json({ error: 'This password needs to be reissued by your roster administrator.' }, 401);
         const iterations = safePasswordIterations(account?.password_iterations);
         const digest = await passwordDigest(password || 'invalid-password', account?.password_salt || '00000000000000000000000000000000', iterations);
         if (!account || !password || !sameHash(digest, account.password_hash)) {
@@ -397,6 +401,7 @@ export default {
         const now = new Date();
         if (await isAuthBlocked(db, 'password-change', email, ipHash, now)) return json({ error: 'Too many attempts. Try again in 15 minutes.' }, 429);
         const account = await db.prepare('SELECT id,email,full_name,password_salt,password_hash,password_iterations,staff_id,status,must_change_password FROM worker_accounts WHERE email=?').bind(email).first();
+        if (account && Number(account.password_iterations) > MAX_PASSWORD_ITERATIONS) return json({ error: 'Ask your roster administrator to resend your account invitation.' }, 401);
         const iterations = safePasswordIterations(account?.password_iterations);
         const digest = await passwordDigest(tempPassword || 'invalid-password', account?.password_salt || '00000000000000000000000000000000', iterations);
         if (!account || !account.must_change_password || !sameHash(digest, account.password_hash)) {
