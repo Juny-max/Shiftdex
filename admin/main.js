@@ -2274,7 +2274,7 @@ function renderOverviewView() {
   const nLen = (stats.nPct / 100) * circ;
   const offLen = (stats.offPct / 100) * circ;
 
-  const activeShiftName = todayInfo.isMorningTime ? 'Day Shift (06:00 – 18:00)' : 'Night Shift (18:00 – 06:00)';
+  const activeShiftLabel = todayInfo.isMorningTime ? 'Day Shift' : 'Night Shift';
   const activeStaffList = todayInfo.activeStaff && todayInfo.activeStaff.length
     ? todayInfo.activeStaff
     : [{ displayName: 'Staff On Duty' }];
@@ -2321,10 +2321,9 @@ function renderOverviewView() {
             <span class="blue-arrow-corner" data-nav="roster" title="Go to roster">${ICONS.arrowUpRight}</span>
           </div>
 
-          <div class="blue-pod-lead">${escapeHtml(activeShiftName)}</div>
-          <div class="blue-deck-title-row">
-            <div class="blue-huge-title">${todayInfo.activeStaff?.length || activeStaffList.length} on desk</div>
-            <span class="deck-team-chip">${escapeHtml(activePodName)}</span>
+          <div class="blue-hero-center">
+            <div class="blue-huge-title">${escapeHtml(activeShiftLabel)}</div>
+            <div class="blue-pod-lead">${escapeHtml(activePodName)} · ${todayInfo.activeStaff?.length || activeStaffList.length} on desk</div>
           </div>
 
           <!-- Live On-Desk Avatar Strip -->
@@ -2339,17 +2338,6 @@ function renderOverviewView() {
                 </div>
               `;
             }).join('')}
-          </div>
-        </div>
-
-        <div class="blue-sub-metrics-row">
-          <div class="blue-sub-metric-item">
-            <small>Upcoming handover</small>
-            <b>${todayInfo.isMorningTime ? '18:00 (Night Shift)' : '06:00 (Day Shift)'}</b>
-          </div>
-          <div class="blue-sub-metric-item">
-            <small>Shift compliance</small>
-            <b>All clear ✓</b>
           </div>
         </div>
       </div>
@@ -2430,60 +2418,60 @@ function renderOverviewView() {
           <button class="clean-card-arrow-link" data-nav="roster" title="View details">${ICONS.arrowUpRight}</button>
         </div>
 
-        <div class="breakdown-list">
+        <div class="roster-shift-list">
           <!-- Day Shift Row -->
-          <div class="breakdown-row ${todayInfo.isMorningTime ? 'row-active' : ''}">
-            <div class="breakdown-icon-box morning">
-              <span>M</span>
-            </div>
-            <div class="breakdown-row-details">
-              <div class="breakdown-header-line">
-                <span class="breakdown-row-title">Day Shift (06:00 – 18:00)</span>
-                <span class="breakdown-status-tag ${todayInfo.isMorningTime ? 'active' : 'upcoming'}">
-                  ${todayInfo.isMorningTime ? 'Active on Desk' : 'Upcoming'}
-                </span>
+          <div class="roster-shift-row ${todayInfo.isMorningTime ? 'active-shift' : ''}">
+            <div class="roster-shift-main">
+              <div class="roster-shift-title-line">
+                <span class="roster-shift-name">Day Shift</span>
+                <span class="roster-shift-hours">06:00 – 18:00</span>
               </div>
-              <div class="breakdown-staff-chips">
+              <div class="roster-shift-personnel">
                 ${todayInfo.morningStaff.length
-                  ? todayInfo.morningStaff.map(s => `<span class="roster-staff-pill">${escapeHtml(s.displayName || s.name)}</span>`).join('')
-                  : '<span class="breakdown-row-sub">No staff assigned</span>'}
+                  ? todayInfo.morningStaff.map(s => escapeHtml(s.displayName || s.name)).join(' · ')
+                  : 'No staff assigned'}
               </div>
+            </div>
+            <div class="roster-shift-badge-wrap">
+              <span class="roster-shift-status-pill ${todayInfo.isMorningTime ? 'status-active' : 'status-upcoming'}">
+                ${todayInfo.isMorningTime ? '<span class="status-dot-green"></span>Active' : 'Upcoming'}
+              </span>
             </div>
           </div>
 
           <!-- Night Shift Row -->
-          <div class="breakdown-row ${!todayInfo.isMorningTime ? 'row-active' : ''}">
-            <div class="breakdown-icon-box night">
-              <span>N</span>
-            </div>
-            <div class="breakdown-row-details">
-              <div class="breakdown-header-line">
-                <span class="breakdown-row-title">Night Shift (18:00 – 06:00)</span>
-                <span class="breakdown-status-tag ${!todayInfo.isMorningTime ? 'active' : 'upcoming'}">
-                  ${!todayInfo.isMorningTime ? 'Active on Desk' : 'Next Shift'}
-                </span>
+          <div class="roster-shift-row ${!todayInfo.isMorningTime ? 'active-shift' : ''}">
+            <div class="roster-shift-main">
+              <div class="roster-shift-title-line">
+                <span class="roster-shift-name">Night Shift</span>
+                <span class="roster-shift-hours">18:00 – 06:00</span>
               </div>
-              <div class="breakdown-staff-chips">
+              <div class="roster-shift-personnel">
                 ${todayInfo.nightStaff.length
-                  ? todayInfo.nightStaff.map(s => `<span class="roster-staff-pill">${escapeHtml(s.displayName || s.name)}</span>`).join('')
-                  : '<span class="breakdown-row-sub">No staff assigned</span>'}
+                  ? todayInfo.nightStaff.map(s => escapeHtml(s.displayName || s.name)).join(' · ')
+                  : 'No staff assigned'}
               </div>
+            </div>
+            <div class="roster-shift-badge-wrap">
+              <span class="roster-shift-status-pill ${!todayInfo.isMorningTime ? 'status-active' : 'status-upcoming'}">
+                ${!todayInfo.isMorningTime ? '<span class="status-dot-green"></span>Active' : 'Next shift'}
+              </span>
             </div>
           </div>
 
           <!-- Day Support Row -->
-          <div class="breakdown-row">
-            <div class="breakdown-icon-box support">
-              <span>S</span>
+          <div class="roster-shift-row support-row">
+            <div class="roster-shift-main">
+              <div class="roster-shift-title-line">
+                <span class="roster-shift-name">Support Team</span>
+                <span class="roster-shift-hours">08:00 – 17:00</span>
+              </div>
+              <div class="roster-shift-personnel muted">
+                ${activeStaff().filter(person => !person.podId).map(person => escapeHtml(person.displayName || person.name)).join(' · ') || 'Support personnel on call'}
+              </div>
             </div>
-            <div class="breakdown-row-details">
-              <div class="breakdown-header-line">
-                <span class="breakdown-row-title">Day Support (08:00 – 17:00)</span>
-                <span class="breakdown-status-tag resting">Support</span>
-              </div>
-              <div class="breakdown-staff-chips">
-                ${activeStaff().filter(person => !person.podId).map(person => `<span class="roster-staff-pill muted">${escapeHtml(person.displayName || person.name)}</span>`).join('') || '<span class="breakdown-row-sub">Support team on call</span>'}
-              </div>
+            <div class="roster-shift-badge-wrap">
+              <span class="roster-shift-status-pill status-support">On Call</span>
             </div>
           </div>
         </div>

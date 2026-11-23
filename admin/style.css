@@ -536,7 +536,7 @@ button, input, select {
   padding: 26px 28px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   position: relative;
   min-height: 220px;
   overflow: hidden;
@@ -564,13 +564,14 @@ button, input, select {
 .blue-card-inner {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+  height: 100%;
 }
 
 .blue-card-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
 }
 
 /* Plain label directly on the card surface (no background box, no borders) */
@@ -616,21 +617,10 @@ button, input, select {
   height: 18px;
 }
 
-.blue-pod-lead {
-  font-size: 11.5px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #94a3b8;
-  margin-bottom: 3px;
-}
-
-.blue-deck-title-row {
+.blue-hero-center {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .blue-huge-title {
@@ -638,29 +628,24 @@ button, input, select {
   font-weight: 800;
   letter-spacing: -0.8px;
   color: #ffffff;
-  line-height: 1.1;
+  line-height: 1.15;
   margin: 0;
 }
 
-/* Team label directly on the card surface */
-.deck-team-chip {
-  display: inline-flex;
-  align-items: center;
+.blue-pod-lead {
   font-size: 13px;
-  font-weight: 700;
-  color: #60a5fa;
-  background: transparent;
-  border: none;
-  padding: 0;
+  font-weight: 500;
+  color: #94a3b8;
+  letter-spacing: 0.1px;
 }
 
 /* On-Desk Avatar Strip directly on card */
 .deck-avatars-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-top: 2px;
 }
 
 .deck-avatar-chip {
@@ -673,8 +658,8 @@ button, input, select {
 }
 
 .deck-avatar-bubble {
-  width: 24px;
-  height: 24px;
+  width: 25px;
+  height: 25px;
   border-radius: 50%;
   background: #ffffff;
   color: #0a0909;
@@ -683,43 +668,13 @@ button, input, select {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .deck-avatar-name {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #f1f5f9;
-}
-
-.blue-sub-metrics-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.blue-sub-metric-item {
-  background: transparent;
-  border: none;
-  padding: 0;
-}
-
-.blue-sub-metric-item small {
-  display: block;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: #94a3b8;
-  margin-bottom: 3px;
-}
-
-.blue-sub-metric-item b {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #ffffff;
 }
 
 /* ========================================================
@@ -879,136 +834,114 @@ button, input, select {
   transition: width 0.3s ease;
 }
 
-/* Account / Pod Breakdown Rows */
-.breakdown-list {
+/* Overview: Today's Shift Roster (Spacious, Minimal, Aesthetic) */
+.roster-shift-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.breakdown-row {
+.roster-shift-row {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 16px;
+  border-radius: 12px;
   background: #f8fafc;
-  transition: all 0.14s ease;
+  border: 1px solid #f1f5f9;
+  transition: all 0.15s ease;
 }
 
-.breakdown-row:hover {
+.roster-shift-row:hover {
   background: #f1f5f9;
   border-color: #e2e8f0;
 }
 
-.breakdown-row.row-active {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
+.roster-shift-row.active-shift {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.05);
+  border-left: 3.5px solid #10b981;
 }
 
-.breakdown-icon-box {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-md);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
-.breakdown-icon-box.morning {
-  background: #fef3c7;
-  color: #b45309;
-  border: 1.5px solid #fde68a;
-}
-
-.breakdown-icon-box.night {
-  background: #1e3a8a;
-  color: #ffffff;
-  border: 1.5px solid #1e40af;
-}
-
-.breakdown-icon-box.support {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1.5px solid #cbd5e1;
-}
-
-.breakdown-row-details {
+.roster-shift-main {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-width: 0;
   gap: 4px;
+  min-width: 0;
 }
 
-.breakdown-header-line {
+.roster-shift-title-line {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: baseline;
   gap: 8px;
 }
 
-.breakdown-row-title {
-  font-size: 12.5px;
+.roster-shift-name {
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text-main);
   letter-spacing: -0.2px;
 }
 
-.breakdown-staff-chips {
-  display: flex;
+.roster-shift-hours {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.roster-shift-personnel {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #475569;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.roster-shift-personnel.muted {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.roster-shift-badge-wrap {
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.roster-shift-status-pill {
+  display: inline-flex;
   align-items: center;
   gap: 5px;
-  flex-wrap: wrap;
-}
-
-.roster-staff-pill {
   font-size: 11px;
   font-weight: 600;
-  color: #334155;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: var(--radius-pill);
-  padding: 1px 7px;
-}
-
-.roster-staff-pill.muted {
-  color: #64748b;
-  background: #f8fafc;
-}
-
-.breakdown-row-sub {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.breakdown-status-tag {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: var(--radius-pill);
+  padding: 3px 9px;
+  border-radius: 9999px;
+  letter-spacing: 0.1px;
   white-space: nowrap;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
 }
 
-.breakdown-status-tag.active {
+.roster-shift-status-pill.status-active {
   background: #dcfce7;
   color: #15803d;
   border: 1px solid #bbf7d0;
 }
 
-.breakdown-status-tag.upcoming {
+.status-dot-green {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #16a34a;
+  display: inline-block;
+}
+
+.roster-shift-status-pill.status-upcoming {
   background: #f1f5f9;
   color: #64748b;
   border: 1px solid #e2e8f0;
 }
 
-.breakdown-status-tag.resting {
+.roster-shift-status-pill.status-support {
   background: #f8fafc;
   color: #94a3b8;
   border: 1px solid #f1f5f9;
