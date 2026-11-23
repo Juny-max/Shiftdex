@@ -2270,7 +2270,7 @@ function render() {
         </header>
 
         <!-- Canvas Body -->
-        <main class="content-canvas ${activePage === 'roster' ? 'roster-canvas' : ''}">
+        <main class="content-canvas ${activePage === 'roster' ? 'roster-canvas' : (activePage === 'people' ? 'people-canvas' : '')}">
           ${renderActiveView()}
         </main>
       </div>
@@ -2879,32 +2879,34 @@ function renderPeopleView() {
   const showArchived = (peopleFilter === 'archived');
 
   return `
-    <div class="people-section-wrapper">
-      <div style="display:flex;align-items:center;justify-content:space-between;">
-        <div>
-          <h2 style="font-size:22px;font-weight:700;letter-spacing:-0.5px;margin:0 0 4px;">People</h2>
-          <p style="font-size:13px;color:var(--text-light);margin:0;">Team members, role allocations, and shift loads. Tap any person to view full details.</p>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;">
-          <div class="clean-search-box" style="width:240px;">
-            ${ICONS.search}
-            <input type="text" id="input-people-search" placeholder="Search people..." value="${escapeHtml(peopleSearch)}" />
+    <div class="people-page-container">
+      <div class="people-header-section">
+        <div class="people-top-row">
+          <div>
+            <h2 class="people-page-title">People</h2>
+            <p class="people-page-sub">Team members, role allocations, and shift loads. Tap any person to view full details.</p>
           </div>
-          <button class="btn-clean primary" id="btn-add-person">+ Add person</button>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="clean-search-box" style="width:240px;">
+              ${ICONS.search}
+              <input type="text" id="input-people-search" placeholder="Search people..." value="${escapeHtml(peopleSearch)}" />
+            </div>
+            <button class="btn-clean primary" id="btn-add-person">+ Add person</button>
+          </div>
         </div>
-      </div>
 
-      <div class="filter-pills-row">
-        <button class="clean-filter-pill ${peopleFilter === 'all' ? 'active' : ''}" data-people-filter="all">All (${allStaff.length + allPending.length})</button>
-        <button class="clean-filter-pill ${peopleFilter === 'core' ? 'active' : ''}" data-people-filter="core">Shift Crew (${allStaff.filter(s => s.podId).length})</button>
-        <button class="clean-filter-pill ${peopleFilter === 'support' ? 'active' : ''}" data-people-filter="support">Day Support (${allStaff.filter(s => !s.podId).length})</button>
-        <button class="clean-filter-pill ${peopleFilter === 'pending' ? 'active' : ''}" data-people-filter="pending" style="${allPending.length ? 'color:#b45309;font-weight:700;' : ''}">Pending Invites (${allPending.length})</button>
-        <button class="clean-filter-pill ${peopleFilter === 'archived' ? 'active' : ''}" data-people-filter="archived" style="${allArchived.length ? 'color:#64748b;font-weight:700;' : ''}">Archive (${allArchived.length})</button>
+        <div class="filter-pills-row">
+          <button class="clean-filter-pill ${peopleFilter === 'all' ? 'active' : ''}" data-people-filter="all">All (${allStaff.length + allPending.length})</button>
+          <button class="clean-filter-pill ${peopleFilter === 'core' ? 'active' : ''}" data-people-filter="core">Shift Crew (${allStaff.filter(s => s.podId).length})</button>
+          <button class="clean-filter-pill ${peopleFilter === 'support' ? 'active' : ''}" data-people-filter="support">Day Support (${allStaff.filter(s => !s.podId).length})</button>
+          <button class="clean-filter-pill ${peopleFilter === 'pending' ? 'active' : ''}" data-people-filter="pending" style="${allPending.length ? 'color:#b45309;font-weight:700;' : ''}">Pending Invites (${allPending.length})</button>
+          <button class="clean-filter-pill ${peopleFilter === 'archived' ? 'active' : ''}" data-people-filter="archived" style="${allArchived.length ? 'color:#64748b;font-weight:700;' : ''}">Archive (${allArchived.length})</button>
+        </div>
       </div>
 
       ${showPending ? `
         <!-- Minimalist Pending Invitations (Zendenta style) -->
-        <div class="pending-minimal-card">
+        <div class="pending-minimal-card" style="margin: 18px 32px 0 32px;">
           <div class="pending-minimal-head">
             <div class="pending-minimal-title">
               <span class="pending-pulse-dot"></span>
@@ -2951,9 +2953,9 @@ function renderPeopleView() {
 
       ${showArchived ? `
         <!-- Minimalist Archived Staff Table with Select-All & Bulk Actions -->
-        <div class="people-table-card">
+        <div class="people-table-container">
           ${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length > 0 ? `
-            <div style="padding:12px 20px;border-bottom:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;background:#eff6ff;">
+            <div style="padding:12px 32px;border-bottom:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;background:#eff6ff;">
               <div style="display:flex;align-items:center;gap:12px;">
                 <span style="font-size:13px;font-weight:700;color:#1e40af;">
                   ${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length} of ${filteredArchived.length} member${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length > 1 ? 's' : ''} selected
@@ -2970,7 +2972,7 @@ function renderPeopleView() {
               </div>
             </div>
           ` : `
-            <div style="padding:16px 20px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;background:#f8fafc;">
+            <div style="padding:16px 32px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;background:#f8fafc;">
               <div>
                 <div style="font-size:14px;font-weight:700;color:var(--text-main);">Archived Staff Directory (${filteredArchived.length})</div>
                 <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">These team members are inactive and removed from active work. Select members to perform bulk actions.</p>
@@ -2980,7 +2982,7 @@ function renderPeopleView() {
           <table class="people-table">
             <thead>
               <tr>
-                <th style="width:38px;padding-right:0;padding-left:16px;">
+                <th style="width:38px;padding-right:0;padding-left:32px;">
                   <input type="checkbox" id="archive-select-all" title="Select all" style="cursor:pointer;width:15px;height:15px;accent-color:var(--blue-primary);vertical-align:middle;" ${filteredArchived.length > 0 && filteredArchived.every(s => selectedArchivedIds.has(s.id)) ? 'checked' : ''}>
                 </th>
                 <th class="th-member">Member</th>
@@ -2998,7 +3000,7 @@ function renderPeopleView() {
                 const isSelected = selectedArchivedIds.has(s.id);
                 return `
                   <tr class="people-table-row ${isSelected ? 'row-selected' : ''}" data-view-staff="${s.id}">
-                    <td style="width:38px;padding-right:0;padding-left:16px;" onclick="event.stopPropagation();">
+                    <td style="width:38px;padding-right:0;padding-left:32px;" onclick="event.stopPropagation();">
                       <input type="checkbox" class="archive-row-check" data-archive-check="${s.id}" style="cursor:pointer;width:15px;height:15px;accent-color:var(--blue-primary);vertical-align:middle;" ${isSelected ? 'checked' : ''}>
                     </td>
                     <td>
@@ -3032,7 +3034,7 @@ function renderPeopleView() {
                 `;
               }).join('') : `
                 <tr>
-                  <td colspan="6" style="padding:48px 20px;text-align:center;color:var(--text-muted);">
+                  <td colspan="6" style="padding:48px 32px;text-align:center;color:var(--text-muted);">
                     <div style="font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:4px;">No archived staff</div>
                     <p style="font-size:12px;margin:0;">There are currently no staff members in the archive.</p>
                   </td>
@@ -3044,8 +3046,8 @@ function renderPeopleView() {
       ` : ''}
 
       ${showActive ? `
-        <!-- Minimalist Active Staff Table (Zendenta style) -->
-        <div class="people-table-card">
+        <!-- Minimalist Active Staff Table (Edge-to-edge attached to page) -->
+        <div class="people-table-container">
           <table class="people-table">
             <thead>
               <tr>
@@ -3134,7 +3136,7 @@ function renderPeopleView() {
                 `;
               }).join('') : `
                 <tr>
-                  <td colspan="6" style="padding:48px 20px;text-align:center;color:var(--text-muted);">
+                  <td colspan="6" style="padding:48px 32px;text-align:center;color:var(--text-muted);">
                     <div style="font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:4px;">No members found</div>
                     <p style="font-size:12px;margin:0;">No team members match the search query or filter.</p>
                   </td>

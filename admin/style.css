@@ -2118,22 +2118,78 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
 }
 
 /* ========================================================
-   MINIMALIST PEOPLE DIRECTORY & DRAWER (Zendenta inspired)
+   MINIMALIST PEOPLE DIRECTORY & DRAWER (Edge-to-Edge Canvas)
 ======================================================== */
+.content-canvas.people-canvas {
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  background-color: #ffffff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+}
+
+.people-page-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 100%;
+  width: 100%;
+  background-color: #ffffff;
+}
+
+.people-header-section {
+  padding: 24px 32px 18px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background-color: #ffffff;
+}
+
+.people-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.people-page-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0 0 4px;
+  color: var(--text-main);
+}
+
+.people-page-sub {
+  font-size: 13px;
+  color: var(--text-light);
+  margin: 0;
+}
+
 .people-section-wrapper {
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-/* Minimal Table Container */
-/* Minimal Table Container */
+/* Minimal Table Container - attached directly to page, no floating card borders */
+.people-table-container,
 .people-table-card {
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-card);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  width: 100%;
+  border: none !important;
+  border-top: 1px solid #e2e8f0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background-color: #ffffff !important;
   overflow-x: auto;
+  flex: 1 1 auto;
+  margin: 0 !important;
 }
 
 .people-table {
@@ -2159,15 +2215,25 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
   white-space: nowrap;
 }
 
-.people-table th.th-member { min-width: 190px; }
+.people-table thead th:first-child,
+.people-table tbody td:first-child {
+  padding-left: 32px !important;
+}
+
+.people-table thead th:last-child,
+.people-table tbody td:last-child {
+  padding-right: 32px !important;
+}
+
+.people-table th.th-member { min-width: 220px; }
 .people-table th.th-role { min-width: 130px; }
 .people-table th.th-team { min-width: 110px; }
-.people-table th.th-status { min-width: 175px; }
-.people-table th.th-load { min-width: 120px; }
-.people-table th.th-actions { min-width: 190px; text-align: right; }
+.people-table th.th-status { min-width: 180px; }
+.people-table th.th-load { min-width: 130px; }
+.people-table th.th-actions { min-width: 200px; text-align: right; }
 
 .people-table td {
-  padding: 13px 18px;
+  padding: 14px 18px;
   border-bottom: 1px solid #f1f5f9;
   vertical-align: middle;
   color: var(--text-body);
@@ -2191,7 +2257,7 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
 }
 
 .people-table-row:last-child td {
-  border-bottom: none;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 /* Member Column */
