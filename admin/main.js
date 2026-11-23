@@ -2846,37 +2846,35 @@ function renderHubstaffRow(s, startDay, daysInMonth, todayStr, yy, mm) {
 
 // 3. PEOPLE DIRECTORY VIEW (Minimalist Table + Zendenta-inspired Detail Drawer)
 function renderPeopleView() {
-  const allStaff = orderedPeople(month);
+  const allActive = orderedPeople(month);
   const allPending = pendingStaff();
   const allArchived = archivedStaff();
-  let filtered = allStaff;
-  let filteredPending = allPending;
-  let filteredArchived = allArchived;
 
-  if (peopleFilter === 'core') {
-    filtered = filtered.filter(s => s.podId);
-    filteredPending = filteredPending.filter(s => s.podId);
-    filteredArchived = filteredArchived.filter(s => s.podId);
+  let filtered = [];
+  if (peopleFilter === 'pending') {
+    filtered = allPending;
+  } else if (peopleFilter === 'core') {
+    filtered = [...allActive.filter(s => s.podId), ...allPending.filter(s => s.podId)];
   } else if (peopleFilter === 'support') {
-    filtered = filtered.filter(s => !s.podId);
-    filteredPending = filteredPending.filter(s => !s.podId);
-    filteredArchived = filteredArchived.filter(s => !s.podId);
+    filtered = [...allActive.filter(s => !s.podId), ...allPending.filter(s => !s.podId)];
+  } else if (peopleFilter === 'archived') {
+    filtered = allArchived;
+  } else {
+    // 'all'
+    filtered = [...allActive, ...allPending];
   }
 
   if (peopleSearch.trim()) {
     const q = peopleSearch.toLowerCase();
     filtered = filtered.filter(s => (s.displayName || s.name || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
-    filteredPending = filteredPending.filter(s => (s.displayName || s.name || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
-    filteredArchived = filteredArchived.filter(s => (s.displayName || s.name || '').toLowerCase().includes(q) || (s.role || '').toLowerCase().includes(q) || (s.email || '').toLowerCase().includes(q));
   }
 
   const [yy, mm] = month.split('-').map(Number);
   const daysInMonth = new Date(yy, mm, 0).getDate();
   const todayStr = new Date().toISOString().slice(0, 10);
 
-  const showPending = (peopleFilter === 'all' || peopleFilter === 'pending') && filteredPending.length > 0;
-  const showActive = peopleFilter !== 'pending' && peopleFilter !== 'archived';
-  const showArchived = (peopleFilter === 'archived');
+  const isArchivedView = (peopleFilter === 'archived');
+  const isPendingView = (peopleFilter === 'pending');
 
   return `
     <div class="people-page-container">
@@ -2896,85 +2894,47 @@ function renderPeopleView() {
         </div>
 
         <div class="filter-pills-row">
-          <button class="clean-filter-pill ${peopleFilter === 'all' ? 'active' : ''}" data-people-filter="all">All (${allStaff.length + allPending.length})</button>
-          <button class="clean-filter-pill ${peopleFilter === 'core' ? 'active' : ''}" data-people-filter="core">Shift Crew (${allStaff.filter(s => s.podId).length})</button>
-          <button class="clean-filter-pill ${peopleFilter === 'support' ? 'active' : ''}" data-people-filter="support">Day Support (${allStaff.filter(s => !s.podId).length})</button>
+          <button class="clean-filter-pill ${peopleFilter === 'all' ? 'active' : ''}" data-people-filter="all">All (${allActive.length + allPending.length})</button>
+          <button class="clean-filter-pill ${peopleFilter === 'core' ? 'active' : ''}" data-people-filter="core">Shift Crew (${allActive.filter(s => s.podId).length + allPending.filter(s => s.podId).length})</button>
+          <button class="clean-filter-pill ${peopleFilter === 'support' ? 'active' : ''}" data-people-filter="support">Day Support (${allActive.filter(s => !s.podId).length + allPending.filter(s => !s.podId).length})</button>
           <button class="clean-filter-pill ${peopleFilter === 'pending' ? 'active' : ''}" data-people-filter="pending" style="${allPending.length ? 'color:#b45309;font-weight:700;' : ''}">Pending Invites (${allPending.length})</button>
           <button class="clean-filter-pill ${peopleFilter === 'archived' ? 'active' : ''}" data-people-filter="archived" style="${allArchived.length ? 'color:#64748b;font-weight:700;' : ''}">Archive (${allArchived.length})</button>
         </div>
       </div>
 
-      ${showPending ? `
-        <!-- Minimalist Pending Invitations (Zendenta style) -->
-        <div class="pending-minimal-card" style="margin: 18px 32px 0 32px;">
-          <div class="pending-minimal-head">
-            <div class="pending-minimal-title">
-              <span class="pending-pulse-dot"></span>
-              Pending Invitations (${filteredPending.length})
-            </div>
-            <span style="font-size:12px;color:#92400e;">Awaiting first sign-in &amp; permanent password creation</span>
-          </div>
-
-          <div>
-            ${filteredPending.map(p => {
-              const initials = (p.displayName || p.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-              const podName = pods.find(pod => pod.id === p.podId)?.name || (p.podId ? p.podId : 'Day Support');
-              return `
-                <div class="pending-minimal-row" data-view-staff="${p.id}" role="button" tabindex="0">
-                  <div class="table-member-cell">
-                    <div class="table-avatar" style="border-color:#fde68a;background:#fef3c7;color:#b45309;">${initials}</div>
-                    <div class="table-member-info">
-                      <span class="table-member-name">${escapeHtml(p.displayName || p.name)}</span>
-                      <span class="table-member-sub">${escapeHtml(p.email || 'No email')}</span>
-                    </div>
-                  </div>
-
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <span class="table-role-tag">${escapeHtml(p.role)}</span>
-                    <span class="table-pod-badge" style="--pod-col:${pods.find(pod => pod.id === p.podId)?.color || '#64748b'};"><span class="table-pod-dot"></span>${escapeHtml(podName)}</span>
-                  </div>
-
-                  <div style="display:flex;align-items:center;gap:8px;">
-                    <span class="table-status-pill morning">Pending Acceptance</span>
-                    ${p.tempPassword ? `<span class="pending-temp-pw" style="font-size:11px;">Temp: <code>${escapeHtml(p.tempPassword)}</code></span>` : ''}
-                  </div>
-
-                  <div class="pending-minimal-actions" onclick="event.stopPropagation();">
-                    <button type="button" class="btn-pending-resend" data-resend-invite="${p.id}" title="Resend credentials email">Resend</button>
-                    <button type="button" class="btn-pending-cancel" data-cancel-invite="${p.id}" title="Cancel invitation">Cancel</button>
-                    <button type="button" class="table-view-btn" data-view-staff="${p.id}">View info &rarr;</button>
-                  </div>
-                </div>
-              `;
-            }).join('')}
+      ${isPendingView ? `
+        <div class="pending-table-notice">
+          <div class="pending-table-notice-left">
+            <span class="pending-pulse-dot"></span>
+            <span><strong>Pending Invitations (${filtered.length})</strong> &mdash; Team members who have been invited and are awaiting their first sign-in &amp; permanent password creation.</span>
           </div>
         </div>
       ` : ''}
 
-      ${showArchived ? `
+      ${isArchivedView ? `
         <!-- Minimalist Archived Staff Table with Select-All & Bulk Actions -->
         <div class="people-table-container">
-          ${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length > 0 ? `
+          ${filtered.filter(s => selectedArchivedIds.has(s.id)).length > 0 ? `
             <div style="padding:12px 32px;border-bottom:1px solid #bfdbfe;display:flex;align-items:center;justify-content:space-between;background:#eff6ff;">
               <div style="display:flex;align-items:center;gap:12px;">
                 <span style="font-size:13px;font-weight:700;color:#1e40af;">
-                  ${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length} of ${filteredArchived.length} member${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length > 1 ? 's' : ''} selected
+                  ${filtered.filter(s => selectedArchivedIds.has(s.id)).length} of ${filtered.length} member${filtered.filter(s => selectedArchivedIds.has(s.id)).length > 1 ? 's' : ''} selected
                 </span>
                 <button type="button" class="btn-clean" id="btn-archive-clear-selection" style="font-size:11.5px;padding:3px 10px;background:#fff;border-color:#bfdbfe;color:#1e40af;">Clear</button>
               </div>
               <div style="display:flex;align-items:center;gap:8px;">
                 <button type="button" class="btn-clean primary" id="btn-bulk-restore" style="font-size:12px;padding:6px 14px;font-weight:700;">
-                  Bring back selected (${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length})
+                  Bring back selected (${filtered.filter(s => selectedArchivedIds.has(s.id)).length})
                 </button>
                 <button type="button" class="btn-clean" id="btn-bulk-delete" style="font-size:12px;padding:6px 14px;font-weight:700;color:#dc2626;border-color:#fecaca;background:#fff;">
-                  Delete permanently (${filteredArchived.filter(s => selectedArchivedIds.has(s.id)).length})
+                  Delete permanently (${filtered.filter(s => selectedArchivedIds.has(s.id)).length})
                 </button>
               </div>
             </div>
           ` : `
             <div style="padding:16px 32px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;justify-content:space-between;background:#f8fafc;">
               <div>
-                <div style="font-size:14px;font-weight:700;color:var(--text-main);">Archived Staff Directory (${filteredArchived.length})</div>
+                <div style="font-size:14px;font-weight:700;color:var(--text-main);">Archived Staff Directory (${filtered.length})</div>
                 <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">These team members are inactive and removed from active work. Select members to perform bulk actions.</p>
               </div>
             </div>
@@ -2983,7 +2943,7 @@ function renderPeopleView() {
             <thead>
               <tr>
                 <th style="width:38px;padding-right:0;padding-left:32px;">
-                  <input type="checkbox" id="archive-select-all" title="Select all" style="cursor:pointer;width:15px;height:15px;accent-color:var(--blue-primary);vertical-align:middle;" ${filteredArchived.length > 0 && filteredArchived.every(s => selectedArchivedIds.has(s.id)) ? 'checked' : ''}>
+                  <input type="checkbox" id="archive-select-all" title="Select all" style="cursor:pointer;width:15px;height:15px;accent-color:var(--blue-primary);vertical-align:middle;" ${filtered.length > 0 && filtered.every(s => selectedArchivedIds.has(s.id)) ? 'checked' : ''}>
                 </th>
                 <th class="th-member">Member</th>
                 <th class="th-role">Role</th>
@@ -2993,8 +2953,8 @@ function renderPeopleView() {
               </tr>
             </thead>
             <tbody>
-              ${filteredArchived.length ? filteredArchived.map(s => {
-                const initials = (s.displayName || s.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+              ${filtered.length ? filtered.map(s => {
+                const initials = (s.displayName || s.name || 'A').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
                 const pObj = pods.find(p => p.id === s.podId);
                 const podName = pObj?.name || (s.podId ? s.podId : s.group || 'Day Support');
                 const isSelected = selectedArchivedIds.has(s.id);
@@ -3043,10 +3003,8 @@ function renderPeopleView() {
             </tbody>
           </table>
         </div>
-      ` : ''}
-
-      ${showActive ? `
-        <!-- Minimalist Active Staff Table (Edge-to-edge attached to page) -->
+      ` : `
+        <!-- Minimalist Unified Staff Directory Table (Attached edge-to-edge to page) -->
         <div class="people-table-container">
           <table class="people-table">
             <thead>
@@ -3061,6 +3019,55 @@ function renderPeopleView() {
             </thead>
             <tbody>
               ${filtered.length ? filtered.map(s => {
+                const isPending = (s.status === 'pending');
+                const initials = (s.displayName || s.name || 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                const pObj = pods.find(p => p.id === s.podId);
+                const podName = pObj?.name || (s.podId ? s.podId : s.group || 'Day Support');
+                const podCol = pObj?.color || '#64748b';
+
+                if (isPending) {
+                  return `
+                    <tr class="people-table-row" data-view-staff="${s.id}">
+                      <td>
+                        <div class="table-member-cell">
+                          <div class="table-avatar" style="border-color:#fde68a;background:#fef3c7;color:#b45309;">${initials}</div>
+                          <div class="table-member-info">
+                            <span class="table-member-name">${escapeHtml(s.displayName || s.name)}</span>
+                            <span class="table-member-sub">${escapeHtml(s.email || s.pendingEmail || s.id)}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span class="table-role-tag">${escapeHtml(s.role)}</span>
+                      </td>
+                      <td>
+                        <span class="table-pod-badge" style="--pod-col:${podCol};">
+                          <span class="table-pod-dot"></span>
+                          ${escapeHtml(podName)}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="table-status-pill pending">
+                          <span class="table-status-dot pending"></span>
+                          <span>Pending Acceptance</span>
+                        </span>
+                      </td>
+                      <td>
+                        <span class="table-load-text" style="color:#b45309;font-weight:600;">Invited</span>
+                        <span class="table-load-sub">${s.tempPassword ? 'Temp: ' + escapeHtml(s.tempPassword) : 'Awaiting sign-in'}</span>
+                      </td>
+                      <td style="text-align:right;" onclick="event.stopPropagation();">
+                        <div class="table-actions-cell">
+                          <button type="button" class="btn-table-action" data-resend-invite="${s.id}" title="Resend credentials email">Resend</button>
+                          <button type="button" class="btn-clean" style="font-size:11.5px;padding:4.5px 9.5px;color:#dc2626;border-color:#fecaca;background:#ffffff;" data-cancel-invite="${s.id}" title="Cancel invitation">Cancel</button>
+                          <button type="button" class="btn-table-view" data-view-staff="${s.id}">View info &rarr;</button>
+                        </div>
+                      </td>
+                    </tr>
+                  `;
+                }
+
+                // Active staff
                 let mCount = 0, nCount = 0;
                 for (let d = 1; d <= daysInMonth; d++) {
                   const v = cellFor(state, s.id, dateKey(d));
@@ -3068,10 +3075,6 @@ function renderPeopleView() {
                   else if (v === 'N') nCount++;
                 }
                 const todayVal = cellFor(state, s.id, todayStr);
-                const initials = (s.displayName || s.name).split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-                const pObj = pods.find(p => p.id === s.podId);
-                const podName = pObj?.name || (s.podId ? s.podId : s.group || 'Day Support');
-                const podCol = pObj?.color || '#64748b';
                 let shiftStatusClass = 'off';
                 let shiftStatusText = 'Off Duty';
 
@@ -3137,15 +3140,15 @@ function renderPeopleView() {
               }).join('') : `
                 <tr>
                   <td colspan="6" style="padding:48px 32px;text-align:center;color:var(--text-muted);">
-                    <div style="font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:4px;">No members found</div>
-                    <p style="font-size:12px;margin:0;">No team members match the search query or filter.</p>
+                    <div style="font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:4px;">${isPendingView ? 'No pending invitations' : 'No members found'}</div>
+                    <p style="font-size:12px;margin:0;">${isPendingView ? 'There are currently no outstanding invitations awaiting acceptance.' : 'No team members match the search query or filter.'}</p>
                   </td>
                 </tr>
               `}
             </tbody>
           </table>
         </div>
-      ` : ''}
+      `}
     </div>
   `;
 }

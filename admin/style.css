@@ -2392,6 +2392,34 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
   background: #ec4899;
 }
 
+.table-status-pill.pending {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+.table-status-dot.pending {
+  background: #f59e0b;
+}
+
+.pending-table-notice {
+  padding: 12px 32px;
+  background: #fffdfa;
+  border-top: 1px solid #fde68a;
+  border-bottom: 1px solid #fef3c7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.pending-table-notice-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #92400e;
+}
+
 .table-load-text {
   font-size: 12.5px;
   color: var(--text-main);
