@@ -1279,15 +1279,17 @@ button, input, select, textarea {
 /* ========================================================
    FLOATING DARK MATTE BOTTOM DOCK (Image 2 Inspiration)
 ======================================================== */
+/* ========================================================
+   APPLE STYLE LIQUID CLEAR GLASS FLOATING BOTTOM DOCK
+======================================================== */
 .liquid-dock-wrap {
   position: fixed;
-  bottom: 22px;
+  bottom: 20px;
   left: 0;
   right: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
   z-index: 150;
   pointer-events: none;
   padding: 0 16px;
@@ -1297,19 +1299,32 @@ button, input, select, textarea {
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  background: #121316;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  gap: 5px;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.76);
+  backdrop-filter: blur(28px) saturate(210%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.85);
   border-radius: 9999px;
   box-shadow: 
-    0 20px 48px -6px rgba(0, 0, 0, 0.45),
-    0 10px 20px -5px rgba(0, 0, 0, 0.25);
+    0 16px 36px -6px rgba(15, 23, 42, 0.14),
+    0 4px 12px -2px rgba(15, 23, 42, 0.06),
+    inset 0 1.5px 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1px 2px 0 rgba(0, 0, 0, 0.03);
   position: relative;
+  overflow: hidden;
 }
 
 .liquid-glass-dock::after {
-  display: none;
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 14px;
+  right: 14px;
+  height: 44%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 100%);
+  border-radius: 9999px;
+  pointer-events: none;
 }
 
 .liquid-dock-item {
@@ -1317,20 +1332,21 @@ button, input, select, textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 6px;
   min-width: 44px;
-  height: 44px;
-  padding: 0 16px;
+  height: 40px;
+  padding: 0 14px;
   border-radius: 9999px;
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.55);
+  color: #64748b;
   font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 750;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   user-select: none;
+  z-index: 2;
 }
 
 .liquid-dock-item svg {
@@ -1344,8 +1360,8 @@ button, input, select, textarea {
 }
 
 .liquid-dock-item:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
+  color: var(--blue-primary, #2563eb);
+  background: rgba(37, 99, 235, 0.08);
 }
 
 .liquid-dock-item:hover svg {
@@ -1353,26 +1369,28 @@ button, input, select, textarea {
 }
 
 .liquid-dock-item.active {
-  background: #2563eb !important;
+  background: var(--blue-primary, #2563eb) !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45);
+  box-shadow: 
+    0 4px 14px -1px rgba(37, 99, 235, 0.42),
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.35) !important;
 }
 
 .liquid-dock-item.active:hover {
-  background: #1d4ed8 !important;
+  background: var(--blue-hover, #1d4ed8) !important;
   color: #ffffff !important;
 }
 
 .liquid-dock-item span.dock-label {
-  font-size: 12px;
-  font-weight: 800;
+  font-size: 11.5px;
+  font-weight: 750;
   letter-spacing: -0.2px;
 }
 
 @media (max-width: 540px) {
   .liquid-dock-item {
     min-width: 42px;
-    padding: 0 14px;
+    padding: 0 12px;
   }
 }
 
@@ -2290,37 +2308,99 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   width: 100%;
 }
 
-/* 1. Hero Balance-Style Card */
-.neo-hero-card {
+/* ========================================================
+   APPLE-STYLE CLEAN WHITE CARDS WITH AESTHETIC TICKET CUTS
+======================================================== */
+.neo-home {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+@media (min-width: 860px) {
+  .neo-home {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    align-items: stretch;
+  }
+  .neo-home > .neo-ticket-card {
+    grid-column: 1 / 2;
+  }
+  .neo-home > .neo-desk-card {
+    grid-column: 2 / 3;
+  }
+  .neo-home > .neo-white-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Aesthetic Card Edge Cut Notches (Top & Bottom Center Cuts) */
+.card-edge-cut {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-page, #f5f4ef);
+  border: 1px solid rgba(226, 224, 216, 0.8);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.card-edge-cut.cut-top {
+  top: -1px;
+  width: 44px;
+  height: 8px;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  box-shadow: inset 0 2px 2px rgba(15, 23, 42, 0.04);
+}
+
+.card-edge-cut.cut-bottom {
+  bottom: -1px;
+  width: 34px;
+  height: 7px;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  box-shadow: inset 0 -2px 2px rgba(15, 23, 42, 0.04);
+}
+
+/* 1. Hero Ticket Card with Aesthetic Notch Cutouts */
+.neo-ticket-card {
   background: #ffffff;
-  border-radius: var(--radius-card);
-  padding: 24px 22px 22px;
-  box-shadow: 0 4px 24px -2px rgba(24, 25, 28, 0.04);
+  border-radius: 24px;
+  padding: 16px 18px 15px;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
   border: 1px solid rgba(226, 224, 216, 0.75);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 12px;
   position: relative;
+  overflow: hidden;
+}
+
+.ticket-badge-wrap {
+  display: flex;
+  justify-content: center;
 }
 
 .neo-hero-top-badge {
-  align-self: center;
-  background: #f5f4ef;
-  border: 1px solid #e7e5dc;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 9999px;
-  padding: 4px 14px;
-  font-size: 11px;
-  font-weight: 750;
-  color: #5f5d56;
+  padding: 3px 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #475569;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   letter-spacing: -0.1px;
 }
 
 .neo-team-dot {
-  width: 7px;
-  height: 7px;
+  width: 6.5px;
+  height: 6.5px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -2328,14 +2408,14 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
 .neo-hero-metrics-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  padding: 0 4px;
+  gap: 12px;
+  padding: 0 2px;
 }
 
 .neo-hero-metric-col {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 2px;
 }
 
 .neo-hero-metric-col.right {
@@ -2344,129 +2424,167 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
 }
 
 .neo-metric-label {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 800;
-  color: #8c8980;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
 }
 
 .neo-metric-value {
-  font-size: clamp(20px, 4.5vw, 26px);
-  font-weight: 850;
-  color: #121316;
-  letter-spacing: -0.6px;
-  line-height: 1.15;
+  font-size: 16.5px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
   margin: 1px 0 0;
 }
 
 .neo-metric-subtext {
-  font-size: 11.5px;
-  color: #8c8980;
-  font-weight: 550;
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Aesthetic Ticket Notch Cut Divider */
+.ticket-notch-divider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin: 4px -18px;
+  height: 16px;
+  overflow: visible;
+}
+
+.ticket-notch-divider .notch-left,
+.ticket-notch-divider .notch-right {
+  position: absolute;
+  width: 12px;
+  height: 20px;
+  background-color: var(--bg-page);
+  border: 1px solid rgba(226, 224, 216, 0.75);
+  z-index: 2;
+}
+
+.ticket-notch-divider .notch-left {
+  left: -1px;
+  border-left: none;
+  border-radius: 0 12px 12px 0;
+  box-shadow: inset -2px 0 3px rgba(0, 0, 0, 0.03);
+}
+
+.ticket-notch-divider .notch-right {
+  right: -1px;
+  border-right: none;
+  border-radius: 12px 0 0 12px;
+  box-shadow: inset 2px 0 3px rgba(0, 0, 0, 0.03);
+}
+
+.ticket-notch-divider .notch-line {
+  flex: 1;
+  height: 0;
+  border-top: 1.5px dashed #e2e8f0;
+  margin: 0 16px;
+}
+
+.ticket-notch-divider.subtle .notch-line {
+  border-top: 1px dashed #eef2f6;
 }
 
 .neo-hero-actions-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 4px;
+  gap: 10px;
 }
 
-.neo-btn-primary-dark {
-  background: #121316;
+.neo-btn-primary-blue {
+  background: var(--blue-primary, #2563eb);
   color: #ffffff;
-  border-radius: 20px;
-  height: 50px;
+  border-radius: 14px;
+  height: 42px;
   border: none;
   font-weight: 750;
-  font-size: 13.5px;
+  font-size: 12.5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(18, 19, 22, 0.18);
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
   transition: all 0.18s ease;
 }
 
-.neo-btn-primary-dark:hover {
-  background: #000000;
-  transform: translateY(-1px);
+.neo-btn-primary-blue:hover {
+  background: var(--blue-hover, #1d4ed8);
+  transform: translateY(-0.5px);
 }
 
-.neo-btn-icon-blue {
-  width: 28px;
-  height: 28px;
+.neo-btn-icon-circle {
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background: #2563eb;
+  background: rgba(255, 255, 255, 0.22);
   color: #ffffff;
   display: grid;
   place-items: center;
   flex-shrink: 0;
 }
 
+.neo-btn-icon-circle.secondary {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
 .neo-btn-secondary {
   background: #ffffff;
-  color: #121316;
-  border-radius: 20px;
-  height: 50px;
-  border: 1.5px solid #e2e0d8;
+  color: #0f172a;
+  border-radius: 14px;
+  height: 42px;
+  border: 1.5px solid #e2e8f0;
   font-weight: 750;
-  font-size: 13.5px;
+  font-size: 12.5px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 7px;
   cursor: pointer;
   transition: all 0.18s ease;
 }
 
 .neo-btn-secondary:hover {
-  background: #f5f4ef;
-  border-color: #d8d5cb;
-  transform: translateY(-1px);
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  transform: translateY(-0.5px);
 }
 
-.neo-btn-icon-gray {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #f5f4ef;
-  color: #121316;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-/* 2. Featured 24/7 Facility Operations Desk (Signature ShiftDex Blue) */
-.neo-featured-blue-card {
-  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
-  border-radius: var(--radius-card);
-  padding: 24px 22px;
-  color: #ffffff;
-  box-shadow: 0 10px 30px -4px rgba(37, 99, 235, 0.35);
+/* 2. 24/7 Facility Desk Card (Clean White Aesthetic) */
+.neo-white-card {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 16px 18px 15px;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(226, 224, 216, 0.75);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 11px;
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
 }
 
-.blue-card-top-row {
+.desk-card-top-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.blue-card-kicker {
+.desk-card-kicker {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 11px;
+  gap: 6px;
+  font-size: 9.5px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #dbeafe;
+  letter-spacing: 0.07em;
+  color: #64748b;
   text-transform: uppercase;
 }
 
@@ -2474,31 +2592,28 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #60a5fa;
-  box-shadow: 0 0 8px #93c5fd;
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
 }
 
-.blue-ongoing-pill {
-  background: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #ffffff;
+.desk-live-pill {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
   border-radius: 9999px;
-  padding: 4px 12px;
-  font-size: 11px;
-  font-weight: 800;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 750;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
-.blue-live-dot {
-  width: 6.5px;
-  height: 6.5px;
+.desk-live-dot {
+  width: 5.5px;
+  height: 5.5px;
   border-radius: 50%;
-  background: #4ade80;
-  box-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
+  background: #10b981;
   animation: pulseDot 1.6s infinite;
 }
 
@@ -2508,120 +2623,121 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   100% { transform: scale(0.9); opacity: 0.8; }
 }
 
-.blue-card-main-content h3 {
-  font-size: clamp(23px, 4vw, 27px);
-  font-weight: 850;
-  color: #ffffff;
-  margin: 0 0 4px;
-  letter-spacing: -0.6px;
+.desk-card-main-content h3 {
+  font-size: 16.5px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 2px;
+  letter-spacing: -0.3px;
 }
 
-.blue-card-main-content p {
-  font-size: 13px;
-  font-weight: 600;
-  color: #e0e7ff;
+.desk-card-main-content p {
+  font-size: 11.5px;
+  font-weight: 550;
+  color: #64748b;
   margin: 0;
 }
 
-.blue-card-main-content p span {
-  padding: 0 4px;
-  opacity: 0.6;
+.desk-card-main-content p span {
+  padding: 0 3px;
+  color: #cbd5e1;
 }
 
-.blue-crew-pills-row {
+.desk-crew-pills-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
+  gap: 6px;
 }
 
-.blue-crew-chip {
-  background: #ffffff;
+.desk-crew-chip {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 9999px;
-  padding: 7px 14px;
+  padding: 5px 11px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
-  font-size: 12px;
-  color: #0f172a;
-  font-weight: 750;
+  gap: 6px;
+  font-size: 11px;
+  color: #1e293b;
+  font-weight: 700;
 }
 
 .crew-chip-dot {
-  width: 7px;
-  height: 7px;
+  width: 6.5px;
+  height: 6.5px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .crew-chip-role {
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-weight: 500;
-  color: #76746f;
+  color: #64748b;
 }
 
-/* 3. Rotation Cadence & Workload Statistics Panel */
+/* 3. Monthly Workload & Rotation Card (Clean White Panel) */
 .neo-white-panel {
   background: #ffffff;
-  border-radius: var(--radius-card);
-  padding: 24px 22px;
-  box-shadow: 0 4px 24px -2px rgba(24, 25, 28, 0.04);
+  border-radius: 24px;
+  padding: 18px 18px 16px;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
   border: 1px solid rgba(226, 224, 216, 0.75);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
 }
 
 .neo-panel-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .neo-panel-kicker {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 800;
-  color: #8c8980;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
   display: block;
 }
 
 .neo-panel-heading h2 {
-  font-size: 18px;
-  font-weight: 850;
-  color: #121316;
-  margin: 3px 0 0;
+  font-size: 16.5px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 2px 0 0;
   letter-spacing: -0.3px;
 }
 
 .neo-panel-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .neo-month-stepper {
   display: flex;
   align-items: center;
-  gap: 3px;
-  background: #f1f5f9;
-  padding: 3px;
+  gap: 2px;
+  background: #f8fafc;
+  padding: 2px;
   border-radius: 9999px;
   border: 1px solid #e2e8f0;
 }
 
 .neo-month-stepper button {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   border: none;
   background: transparent;
   color: #0f172a;
-  font-size: 16px;
+  font-size: 15px;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -2631,7 +2747,7 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
 
 .neo-month-stepper button:hover {
   background: #ffffff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .neo-btn-calendar-link {
@@ -2639,13 +2755,13 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   color: #1d4ed8;
   border: 1.5px solid #bfdbfe;
   border-radius: 9999px;
-  height: 34px;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 12px;
   font-weight: 750;
-  font-size: 12px;
+  font-size: 11.5px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   cursor: pointer;
   transition: all 0.18s ease;
   font-family: inherit;
@@ -2653,10 +2769,10 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
 }
 
 .neo-btn-calendar-link:hover {
-  background: #2563eb;
+  background: var(--blue-primary, #2563eb);
   color: #ffffff;
-  border-color: #2563eb;
-  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);
+  border-color: var(--blue-primary, #2563eb);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 .neo-btn-calendar-link svg {
@@ -2667,134 +2783,134 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   transform: translateX(2px);
 }
 
-/* Dark Contrast Cadence Box inside White Panel */
-.neo-dark-cadence-box {
-  background: #121316;
-  border-radius: 22px;
-  padding: 18px;
-  color: #ffffff;
+/* Clean Soft Cadence Box (NO BLACK BOX) */
+.neo-light-cadence-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 13px 14px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12);
+  gap: 10px;
 }
 
-.cadence-dark-head {
+.cadence-light-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
 .cadence-team-lead {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 11.5px;
   font-weight: 750;
-  color: rgba(255, 255, 255, 0.9);
+  color: #334155;
 }
 
 .cadence-today-pill {
-  background: rgba(255, 255, 255, 0.12);
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
   border-radius: 9999px;
-  padding: 3px 11px;
-  font-size: 10.5px;
+  padding: 2.5px 9px;
+  font-size: 10px;
   font-weight: 750;
-  color: #93c5fd;
+  color: #1d4ed8;
 }
 
 .neo-cadence-pills-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
+  gap: 5px;
 }
 
 .neo-step-chip {
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 8px 4px;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 6px 2px;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
   transition: all 0.2s ease;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid #e2e8f0;
+  color: #334155;
 }
 
 .neo-step-chip .step-chip-code {
-  font-size: 13.5px;
+  font-size: 12px;
   font-weight: 850;
 }
 
 .neo-step-chip .step-chip-name {
-  font-size: 9.5px;
+  font-size: 9px;
   font-weight: 650;
-  opacity: 0.75;
+  color: #64748b;
 }
 
 .neo-step-chip.is-today {
-  background: #2563eb !important;
+  background: var(--blue-primary, #2563eb) !important;
   color: #ffffff !important;
-  border-color: #2563eb !important;
-  box-shadow: 0 0 18px rgba(37, 99, 235, 0.5) !important;
+  border-color: var(--blue-primary, #2563eb) !important;
+  box-shadow: 0 3px 12px rgba(37, 99, 235, 0.35);
   transform: translateY(-1px);
 }
 
 .neo-step-chip.is-today .step-chip-name {
-  opacity: 0.95;
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 750;
 }
 
 .step-chip-today-tag {
-  font-size: 8px;
+  font-size: 7.5px;
   font-weight: 900;
   background: #ffffff;
-  color: #2563eb;
+  color: var(--blue-primary, #2563eb);
   border-radius: 9999px;
-  padding: 1px 6px;
-  margin-top: 2px;
+  padding: 1px 5px;
+  margin-top: 1px;
 }
 
 /* Key Statistics 3-Box Row */
 .neo-stats-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .neo-stat-cell {
-  background: #f7f6f1;
-  border-radius: 18px;
-  padding: 14px 10px;
+  background: #f8fafc;
+  border-radius: 14px;
+  padding: 10px 8px;
   text-align: center;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  border: 1px solid rgba(226, 224, 216, 0.6);
+  gap: 1px;
+  border: 1px solid #e2e8f0;
 }
 
 .neo-stat-label {
-  font-size: 10px;
-  font-weight: 800;
-  color: #8c8980;
+  font-size: 9.5px;
+  font-weight: 750;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
 }
 
 .neo-stat-num {
-  font-size: 24px;
+  font-size: 19px;
   font-weight: 850;
-  color: #121316;
-  line-height: 1.1;
+  color: #0f172a;
+  line-height: 1.15;
 }
 
 .neo-stat-sub {
-  font-size: 10.5px;
-  color: #8c8980;
+  font-size: 9.5px;
+  color: #64748b;
   font-weight: 600;
 }
 
@@ -2802,7 +2918,60 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
 .calendar-card,
 .unavailability-card,
 .side-summary-card {
-  border-radius: var(--radius-card);
+  border-radius: 24px;
   border: 1px solid rgba(226, 224, 216, 0.75);
-  box-shadow: 0 4px 24px -2px rgba(24, 25, 28, 0.04);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05);
+}
+
+/* Mobile Compact Refinements & Balanced Typography */
+@media (max-width: 540px) {
+  .neo-home {
+    gap: 12px;
+  }
+  .neo-ticket-card,
+  .neo-white-card,
+  .neo-white-panel {
+    padding: 13px 15px 12px;
+    border-radius: 20px;
+  }
+  .neo-metric-label {
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+  .neo-metric-value {
+    font-size: 15px;
+  }
+  .neo-metric-subtext {
+    font-size: 10px;
+  }
+  .desk-card-main-content h3 {
+    font-size: 15px;
+  }
+  .desk-card-main-content p {
+    font-size: 11px;
+  }
+  .neo-btn-primary-blue,
+  .neo-btn-secondary {
+    height: 40px;
+    font-size: 12px;
+    border-radius: 12px;
+  }
+  .neo-panel-heading h2 {
+    font-size: 15.5px;
+  }
+  .timeline-day-card {
+    padding: 9px 11px;
+  }
+  .timeline-date-block {
+    min-width: 44px;
+  }
+  .timeline-daynum {
+    font-size: 15px;
+  }
+  .timeline-info strong {
+    font-size: 12px;
+  }
+  .timeline-info span {
+    font-size: 10.5px;
+  }
 }

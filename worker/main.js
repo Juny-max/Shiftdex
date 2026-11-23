@@ -387,15 +387,20 @@ function renderDashboard() {
     </div>
 
     <main class="page-wrap">
-      <!-- 1. OVERVIEW VIEW (Image 2 Neobrutalist Smooth Mobile Aesthetic with System Blue) -->
+      <!-- 1. OVERVIEW VIEW (Apple Clean White Aesthetic with Aesthetic Ticket Cuts) -->
       ${activeWorkerTab === 'overview' ? `
         <section class="worker-home neo-home">
-          <!-- HERO CARD: Today's Shift & Next Duty (Modeled on "Balance" Card in Image 2) -->
-          <div class="neo-hero-card">
+          <!-- HERO CARD: Today's Shift & Next Duty with Ticket Cut Notches -->
+          <div class="neo-ticket-card">
+            <!-- Top Edge Cut Notch -->
+            <span class="card-edge-cut cut-top"></span>
+
             <!-- Center Top Pill Badge -->
-            <div class="neo-hero-top-badge">
-              <span class="neo-team-dot" style="background:${teamColor};"></span>
-              <span>${escapeHtml(teamName)} &middot; ${escapeHtml(me.role)}</span>
+            <div class="ticket-badge-wrap">
+              <div class="neo-hero-top-badge">
+                <span class="neo-team-dot" style="background:${teamColor};"></span>
+                <span>${escapeHtml(teamName)} &middot; ${escapeHtml(me.role)}</span>
+              </div>
             </div>
 
             <!-- Two Metric Columns -->
@@ -403,151 +408,91 @@ function renderDashboard() {
               <div class="neo-hero-metric-col">
                 <span class="neo-metric-label">CURRENT STATUS</span>
                 <div class="neo-metric-value">${todayShift === 'M' ? 'Morning Shift' : todayShift === 'N' ? 'Night Shift' : todayShift === 'LEAVE' ? 'On Leave' : 'Rest Day'}</div>
-                <span class="neo-metric-subtext">${todayShift === 'M' ? '06:00 – 18:00 · Day Post' : todayShift === 'N' ? '18:00 – 06:00 · Night Post' : todayShift === 'LEAVE' ? 'Approved Annual Leave' : 'No shift scheduled today'}</span>
+                <span class="neo-metric-subtext">${todayShift === 'M' ? '06:00 – 18:00 · Day' : todayShift === 'N' ? '18:00 – 06:00 · Night' : todayShift === 'LEAVE' ? 'Approved Leave' : 'No shift scheduled today'}</span>
               </div>
 
               <div class="neo-hero-metric-col right">
                 <span class="neo-metric-label">NEXT ON DUTY</span>
                 <div class="neo-metric-value">${nextShiftDay ? niceDate(nextShiftDay) : 'OFF'}</div>
-                <span class="neo-metric-subtext">${nextShiftDay ? (shiftFor(staffId, nextShiftDay) === 'M' ? 'Day Shift (06:00)' : 'Night Shift (18:00)') : 'Resting Cadence'}</span>
+                <span class="neo-metric-subtext">${nextShiftDay ? (shiftFor(staffId, nextShiftDay) === 'M' ? 'Day (06:00)' : 'Night (18:00)') : 'Resting Cadence'}</span>
               </div>
             </div>
 
-            <!-- Dual Pill Buttons (like Deposit / Withdraw in Image 2) -->
+            <!-- Aesthetic Ticket Notch Cut Divider -->
+            <div class="ticket-notch-divider">
+              <span class="notch-left"></span>
+              <span class="notch-line"></span>
+              <span class="notch-right"></span>
+            </div>
+
+            <!-- Dual Pill Buttons (Signature ShiftDex Blue & Clean White) -->
             <div class="neo-hero-actions-row">
-              <button type="button" class="neo-btn-primary-dark" data-tab="requests">
-                <span class="neo-btn-icon-blue">${ICONS.swap}</span>
+              <button type="button" class="neo-btn-primary-blue" data-tab="requests">
+                <span class="neo-btn-icon-circle">${ICONS.swap}</span>
                 <span>Request Off</span>
               </button>
               <button type="button" class="neo-btn-secondary" data-tab="calendar">
-                <span class="neo-btn-icon-gray">${ICONS.arrowUpRight}</span>
+                <span class="neo-btn-icon-circle secondary">${ICONS.arrowUpRight}</span>
                 <span>Full Calendar</span>
               </button>
             </div>
+
+            <!-- Bottom Edge Cut Notch -->
+            <span class="card-edge-cut cut-bottom"></span>
           </div>
 
-          <!-- FEATURED 24/7 FACILITY LIVE DESK (Signature ShiftDex Blue) -->
-          <section class="neo-featured-blue-card">
-            <div class="blue-card-top-row">
-              <div class="blue-card-kicker">
+          <!-- 2. 24/7 FACILITY LIVE DESK (Clean White Card with Ticket Cutout) -->
+          <section class="neo-white-card neo-desk-card">
+            <!-- Top Edge Cut Notch -->
+            <span class="card-edge-cut cut-top"></span>
+
+            <div class="desk-card-top-row">
+              <div class="desk-card-kicker">
                 <span class="kicker-pulse-dot"></span>
-                <span>24/7 FACILITY OPERATIONS DESK</span>
+                <span>24/7 Facility Desk</span>
               </div>
-              <span class="blue-ongoing-pill">
-                <span class="blue-live-dot"></span>
+              <span class="desk-live-pill">
+                <span class="desk-live-dot"></span>
                 Live on Duty
               </span>
             </div>
 
-            <div class="blue-card-main-content">
+            <div class="desk-card-main-content">
               <h3>${currentDuty === 'M' ? 'Morning Shift Crew' : 'Night Shift Crew'}</h3>
               <p>${currentDuty === 'M' ? '06:00 – 18:00' : '18:00 – 06:00'} <span>&middot;</span> Handover at ${currentDuty === 'M' ? '18:00' : '06:00'}</p>
             </div>
 
+            <!-- Aesthetic Ticket Notch Cut Divider -->
+            <div class="ticket-notch-divider subtle">
+              <span class="notch-left"></span>
+              <span class="notch-line"></span>
+              <span class="notch-right"></span>
+            </div>
+
             <!-- Crew Member Rounded White Pills -->
-            <div class="blue-crew-pills-row">
+            <div class="desk-crew-pills-row">
               ${onDesk.map(person => {
                 const pPod = pods.find(p => p.id === person.podId);
                 const pColor = pPod?.color || '#3b82f6';
                 return `
-                  <div class="blue-crew-chip">
+                  <div class="desk-crew-chip">
                     <span class="crew-chip-dot" style="background:${pColor};"></span>
                     <span class="crew-chip-name">${escapeHtml(person.name)}</span>
                     <span class="crew-chip-role">${escapeHtml(person.role)}</span>
                   </div>
                 `;
-              }).join('') || '<div class="blue-crew-chip"><span>Shift handover in progress</span></div>'}
+              }).join('') || '<div class="desk-crew-chip"><span>Shift handover in progress</span></div>'}
             </div>
+
+            <!-- Bottom Edge Cut Notch -->
+            <span class="card-edge-cut cut-bottom"></span>
           </section>
 
-          <!-- ROTATION CADENCE & WORKLOAD CARD (Image 2 Phone 2 Style) -->
+          <!-- 3. UPCOMING SHIFTS PANEL ("Your Week" Agenda) -->
           <section class="neo-white-panel">
-            <div class="neo-panel-heading">
-              <div>
-                <span class="neo-panel-kicker">MONTHLY WORKLOAD & ROTATION</span>
-                <h2>${formatMonthHeader(currentMonth)}</h2>
-              </div>
-              <div class="neo-panel-actions">
-                <div class="neo-month-stepper">
-                  <button type="button" id="home-prev-month" aria-label="Previous month" title="Previous month">&lsaquo;</button>
-                  <button type="button" id="home-next-month" aria-label="Next month" title="Next month">&rsaquo;</button>
-                </div>
-                <button type="button" class="neo-btn-calendar-link" data-tab="calendar">
-                  <span>Full Calendar</span>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                </button>
-              </div>
-            </div>
+            <!-- Top Edge Cut Notch -->
+            <span class="card-edge-cut cut-top"></span>
 
-            <!-- Dark Contrast Box (like dark possession card in Image 2 Phone 2) -->
-            <div class="neo-dark-cadence-box">
-              <div class="cadence-dark-head">
-                <div class="cadence-team-lead">
-                  <span class="cadence-team-dot" style="background:${teamColor};"></span>
-                  <span>${escapeHtml(teamName)} &middot; 8-Day Rotation Cadence</span>
-                </div>
-                <span class="cadence-today-pill">
-                  Today: Step ${currentStep.phase + 1} of 8 &middot; ${currentStep.title} (${currentStep.code})
-                </span>
-              </div>
-
-              <!-- 8-Step Interactive Visual Cadence -->
-              <div class="neo-cadence-pills-grid">
-                ${rotationSteps.map((step) => {
-                  const isCurrent = step.phase === currentRotationPhase;
-                  const isM = step.code === 'M';
-                  const isN = step.code === 'N';
-                  return `
-                    <div class="neo-step-chip ${isCurrent ? 'is-today' : ''} ${isM ? 'step-m' : isN ? 'step-n' : 'step-off'}">
-                      <span class="step-chip-code">${step.code}</span>
-                      <span class="step-chip-name">${step.title}</span>
-                      ${isCurrent ? '<span class="step-chip-today-tag">TODAY</span>' : ''}
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-
-            <!-- Key Workload Statistics (3 Metric Columns like Statistics in Image 2) -->
-            <div class="neo-stats-row">
-              <div class="neo-stat-cell">
-                <span class="neo-stat-label">Day Shifts</span>
-                <strong class="neo-stat-num">${morningShiftsCount}</strong>
-                <span class="neo-stat-sub">${morningShiftsCount * 12} hrs</span>
-              </div>
-              <div class="neo-stat-cell">
-                <span class="neo-stat-label">Night Shifts</span>
-                <strong class="neo-stat-num">${nightShiftsCount}</strong>
-                <span class="neo-stat-sub">${nightShiftsCount * 12} hrs</span>
-              </div>
-              <div class="neo-stat-cell">
-                <span class="neo-stat-label">Rest Days</span>
-                <strong class="neo-stat-num">${restDaysCount}</strong>
-                <span class="neo-stat-sub">${restDaysCount * 24} hrs</span>
-              </div>
-            </div>
-
-            <!-- Multi-Segment Proportional Distribution Bar -->
-            <div class="workload-bar-wrap">
-              <div class="workload-bar-labels">
-                <span>Shift Distribution (${daysInMonth} Days)</span>
-                <strong>${monthlyShiftsCount * 12} Total Hours</strong>
-              </div>
-              <div class="workload-multi-bar" role="progressbar" aria-label="Monthly shift balance">
-                <div class="bar-slice bar-m" style="width:${morningPct}%;" title="Morning Shifts: ${morningPct}% (${morningShiftsCount} shifts)"></div>
-                <div class="bar-slice bar-n" style="width:${nightPct}%;" title="Night Shifts: ${nightPct}% (${nightShiftsCount} shifts)"></div>
-                <div class="bar-slice bar-off" style="width:${restPct}%;" title="Rest Days: ${restPct}% (${restDaysCount} days)"></div>
-              </div>
-              <div class="workload-bar-legend">
-                <span><i class="legend-dot m"></i>Morning (${morningPct}%)</span>
-                <span><i class="legend-dot n"></i>Night (${nightPct}%)</span>
-                <span><i class="legend-dot off"></i>Rest / Off (${restPct}%)</span>
-              </div>
-            </div>
-          </section>
-
-          <!-- UPCOMING SHIFTS PANEL ("Your Week") -->
-          <section class="neo-white-panel">
             <div class="neo-panel-heading">
               <div>
                 <span class="neo-panel-kicker">YOUR WEEK</span>
@@ -556,6 +501,9 @@ function renderDashboard() {
               <button type="button" class="neo-panel-link" data-tab="calendar">See calendar</button>
             </div>
             <div class="home-agenda-list">${upcomingCards}</div>
+
+            <!-- Bottom Edge Cut Notch -->
+            <span class="card-edge-cut cut-bottom"></span>
           </section>
         </section>
       ` : ''}
