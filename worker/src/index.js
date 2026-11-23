@@ -54,6 +54,7 @@ const defaultSecurityHeaders = {
   'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
   'x-content-type-options': 'nosniff',
   'x-frame-options': 'DENY',
+  'content-security-policy': "default-src 'none'; frame-ancestors 'none';",
   'referrer-policy': 'strict-origin-when-cross-origin',
   'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
 };
@@ -1044,6 +1045,7 @@ export default {
       'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
       'x-content-type-options': 'nosniff',
       'x-frame-options': 'DENY',
+      'content-security-policy': "default-src 'none'; frame-ancestors 'none';",
       'referrer-policy': 'strict-origin-when-cross-origin',
       'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
     };
@@ -1512,8 +1514,13 @@ export default {
       if (url.pathname === '/api/covers' && req.method === 'POST') {
         const actor = await auth(req, env, db);
         if (!actor) return json({ error: 'Sign in required.' }, 401);
+        const rateLimit = await checkApiRateLimit(db, `covers:${actor.id}`, 10, 60);
+        if (!rateLimit.allowed) return json({ error: 'Too many cover requests submitted. Please wait.' }, 429);
         const body = await req.json();
         if (!/^\d{4}-\d{2}-\d{2}$/.test(body.date || '') || !['M', 'N'].includes(body.shiftCode)) return json({ error: 'Invalid shift' }, 400);
+        const todayIso = new Date().toISOString().slice(0, 10);
+        if (body.date < todayIso) return json({ error: 'Cover requests cannot be submitted for past dates.' }, 400);
+        if (body.coverWorkerId && body.coverWorkerId === actor.id) return json({ error: 'You cannot request cover from yourself.' }, 400);
         const id = crypto.randomUUID();
         await db.prepare('INSERT INTO shift_covers(id,original_date,shift_code,requester_id,cover_worker_id,status,return_date) VALUES(?,?,?,?,?,?,?)')
           .bind(id, body.date, body.shiftCode, actor.id, body.coverWorkerId || null, 'pending', body.returnDate || null).run();
@@ -1524,8 +1531,12 @@ export default {
       if (url.pathname === '/api/unavailability' && req.method === 'POST') {
         const actor = await auth(req, env, db);
         if (!actor) return json({ error: 'Sign in required.' }, 401);
+        const rateLimit = await checkApiRateLimit(db, `unavail:${actor.id}`, 10, 60);
+        if (!rateLimit.allowed) return json({ error: 'Too many unavailability requests submitted. Please wait.' }, 429);
         const body = await req.json();
         if (!/^\d{4}-\d{2}-\d{2}$/.test(body.startDate || '') || !/^\d{4}-\d{2}-\d{2}$/.test(body.endDate || '') || body.endDate < body.startDate) return json({ error: 'Invalid request' }, 400);
+        const todayIso = new Date().toISOString().slice(0, 10);
+        if (body.startDate < todayIso) return json({ error: 'Unavailability start date cannot be in the past.' }, 400);
         const diffMs = new Date(body.endDate + 'T00:00:00Z') - new Date(body.startDate + 'T00:00:00Z');
         const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000)) + 1;
         if (diffDays > 60) return json({ error: 'Unavailability requests cannot exceed 60 consecutive days. For extended leaves, contact operations.' }, 400);
@@ -1715,6 +1726,16 @@ export default {
       }
 
       if (url.pathname === '/api/verify-email' && (req.method === 'GET' || req.method === 'POST')) {
+        const ipHash = await hashText(req.headers.get('cf-connecting-ip') || 'unknown');
+        const rateLimit = await checkApiRateLimit(db, `email_verify:${ipHash}`, 20, 60);
+        if (!rateLimit.allowed) {
+          const wantsJson = (req.headers.get('accept') || '').includes('application/json') || req.method === 'POST';
+          if (wantsJson) return json({ error: 'Too many verification attempts. Please wait.' }, 429);
+          return new Response(renderVerificationHtml({ success: false, title: 'Too Many Attempts', message: 'Too many email verification attempts have been made. Please wait a minute and try again.', portalUrl: env.PORTAL_URL || 'https://shiftdex-workers.pages.dev', logoUrl: 'https://shiftdex-workers.pages.dev/shift-desk-mark.png' }), {
+            status: 429,
+            headers: { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src https:; font-src 'none'; frame-ancestors 'none';" }
+          });
+        }
         let token = url.searchParams.get('token');
         if (!token && req.method === 'POST') {
           const body = await req.json().catch(() => ({}));
@@ -1729,7 +1750,7 @@ export default {
           if (wantsJson) return json({ error: 'Verification token is required.' }, 400);
           return new Response(renderVerificationHtml({ success: false, title: 'Invalid Verification Link', message: 'The verification link is missing a valid token. Please contact your operations administrator for a new link.', portalUrl, logoUrl }), {
             status: 400,
-            headers: { 'content-type': 'text/html; charset=utf-8' }
+            headers: { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src https:; font-src 'none'; frame-ancestors 'none';" }
           });
         }
 
@@ -1740,7 +1761,7 @@ export default {
           if (wantsJson) return json({ error: 'This verification link is invalid or has already been used.' }, 404);
           return new Response(renderVerificationHtml({ success: false, title: 'Link Invalid or Already Used', message: 'This verification link is no longer valid or has already been used. If your email was not updated, ask your administrator to resend the verification link.', portalUrl, logoUrl }), {
             status: 404,
-            headers: { 'content-type': 'text/html; charset=utf-8' }
+            headers: { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src https:; font-src 'none'; frame-ancestors 'none';" }
           });
         }
 
@@ -1748,7 +1769,7 @@ export default {
           if (wantsJson) return json({ error: 'This verification link has expired. Please ask your administrator to send a new one.' }, 410);
           return new Response(renderVerificationHtml({ success: false, title: 'Verification Link Expired', message: 'This email verification link expired. For your security, links are valid for 48 hours. Please ask your operations administrator to request the email change again.', portalUrl, logoUrl }), {
             status: 410,
-            headers: { 'content-type': 'text/html; charset=utf-8' }
+            headers: { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src https:; font-src 'none'; frame-ancestors 'none';" }
           });
         }
 
@@ -1758,7 +1779,7 @@ export default {
           if (wantsJson) return json({ error: 'No pending email found for this token.' }, 400);
           return new Response(renderVerificationHtml({ success: false, title: 'No Pending Email', message: 'There is no pending email change associated with this account.', portalUrl, logoUrl }), {
             status: 400,
-            headers: { 'content-type': 'text/html; charset=utf-8' }
+            headers: { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src https:; font-src 'none'; frame-ancestors 'none';" }
           });
         }
 
@@ -1784,7 +1805,7 @@ export default {
           newEmail
         }), {
           status: 200,
-          headers: { 'content-type': 'text/html; charset=utf-8' }
+          headers: { 'content-type': 'text/html; charset=utf-8', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; img-src https:; font-src 'none'; frame-ancestors 'none';" }
         });
       }
 
@@ -1864,6 +1885,8 @@ export default {
       if (url.pathname === '/api/worker/change-password' && req.method === 'POST') {
         const actor = await auth(req, env, db);
         if (!actor) return json({ error: 'Sign in required.' }, 401);
+        const rateLimit = await checkApiRateLimit(db, `worker_pw_chg:${actor.accountId}`, 5, 300);
+        if (!rateLimit.allowed) return json({ error: 'Too many password attempts. Please wait 5 minutes.' }, 429);
         const body = await req.json();
         const currentPassword = String(body.currentPassword || '');
         const newPassword = String(body.newPassword || '');
@@ -1882,7 +1905,10 @@ export default {
         const newDigest = await passwordDigest(newPassword, newSalt, CURRENT_PASSWORD_ITERATIONS);
         await db.prepare("UPDATE worker_accounts SET password_salt=?, password_hash=?, password_iterations=?, must_change_password=0, updated_at=CURRENT_TIMESTAMP WHERE id=?")
           .bind(newSalt, newDigest, CURRENT_PASSWORD_ITERATIONS, account.id).run();
-        return json({ ok: true });
+        await db.prepare("DELETE FROM worker_sessions WHERE account_id=?").bind(account.id).run();
+        const session = await createSession(db, account.id);
+        await audit(db, actor.id, 'change_password_self', 'worker_account', account.id);
+        return json({ ok: true, token: session.token, expiresAt: session.expiresAt });
       }
 
       if ((url.pathname === '/api/admin/workers/reset-password' || url.pathname === '/api/admin/workers/change-password') && req.method === 'POST') {
@@ -2118,6 +2144,8 @@ export default {
       }
 
       if (url.pathname === '/api/roles' && req.method === 'GET') {
+        const actor = await auth(req, env, db) || await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Sign in required.' }, 401);
         const rolesList = await db.prepare(`
           SELECT r.id, r.name, r.is_system, COUNT(s.id) AS staff_count
           FROM roles r

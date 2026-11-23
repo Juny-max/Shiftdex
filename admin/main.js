@@ -246,7 +246,13 @@ async function syncDirectory() {
 
 async function fetchRoles() {
   try {
-    const res = await fetch(API + '/api/roles');
+    const token = sessionStorage.getItem('admin-session') || '';
+    if (!token) return;
+    const res = await fetch(API + '/api/roles', {
+      headers: {
+        authorization: `Bearer ${token}`
+      }
+    });
     if (!res.ok) return;
     const data = await res.json();
     if (Array.isArray(data.roles) && data.roles.length > 0) {
@@ -1551,6 +1557,7 @@ function requireCloudflareConnection(onConnected) {
       localStorage.setItem('admin-name', data.fullName || data.email.split('@')[0]);
       close();
       render();
+      fetchRoles();
       onConnected();
     }).catch(error => {
       dialog.querySelector('#cloudflare-login-error').textContent = error.message || 'Could not reach ShiftDex.';
@@ -2154,6 +2161,7 @@ function renderAdminLogin() {
         adminLoginEmail = '';
         render();
         syncDirectory();
+        fetchRoles();
         toast('Welcome back, ' + (data.fullName || data.email.split('@')[0]));
       } catch (err) {
         adminLoginError = err.message || 'Could not connect to ShiftDex.';
@@ -4377,7 +4385,7 @@ function renderRequestsListHtml() {
                   <span class="req-tag-pill" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">UNAVAILABLE DATES</span>
                 </div>
                 <div style="font-size:12.5px;color:var(--text-main);margin-top:4px;font-weight:500;">
-                  Requested Range: <strong>${r.startDate} &rarr; ${r.endDate}</strong>
+                  Requested Range: <strong>${escapeHtml(r.startDate)} &rarr; ${escapeHtml(r.endDate)}</strong>
                 </div>
                 ${r.reason ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;">Reason: <em>${escapeHtml(r.reason)}</em></div>` : ''}
                 <div style="margin-top:8px;">
@@ -4505,7 +4513,7 @@ function openResolveUnavailabilityDialog(r) {
           <span class="shift-edit-eyebrow">UNAVAILABILITY RESOLUTION</span>
           <h2 style="font-size:19px;margin:4px 0 2px;">Resolve Unavailability & Assign Stand-in</h2>
           <p style="margin:0;color:var(--text-light);font-size:12px;">
-            ${escapeHtml(r.name)} &middot; ${r.startDate} to ${r.endDate}
+            ${escapeHtml(r.name)} &middot; ${escapeHtml(r.startDate)} to ${escapeHtml(r.endDate)}
             ${r.reason ? `<br><em>Note: ${escapeHtml(r.reason)}</em>` : ''}
           </p>
         </div>

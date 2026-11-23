@@ -870,7 +870,7 @@ function renderDashboard() {
           return `
             <div class="my-request-card" style="animation: fade-in-up 0.25s ease;">
               <div>
-                <b>${req.start_date} &rarr; ${req.end_date}</b>
+                <b>${escapeHtml(req.start_date)} &rarr; ${escapeHtml(req.end_date)}</b>
                 ${req.reason ? `<span class="meta">Note: ${escapeHtml(req.reason)}</span>` : '<span class="meta">No note provided</span>'}
               </div>
               <div>
@@ -1192,10 +1192,14 @@ async function openWorkerSecurityModal(initialTab = 'passkeys') {
         submitBtn.textContent = 'Saving…';
 
         try {
-          await apiRequest('/api/worker/change-password', {
+          const res = await apiRequest('/api/worker/change-password', {
             method: 'POST',
             body: JSON.stringify({ currentPassword: curPw, newPassword: newPw })
           });
+          if (res?.token) {
+            token = res.token;
+            sessionStorage.setItem('worker-token', res.token);
+          }
           close();
           showWorkerToast('Password updated successfully!');
         } catch (err) {
