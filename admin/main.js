@@ -1656,36 +1656,51 @@ function copyHandoverBrief() {
   const nightPod = todayInfo.nightPod?.name || 'Night Team';
   const support = activeStaff().filter(person => !person.podId);
 
+  const dateObj = new Date(dKey + 'T00:00:00Z');
+  const formattedDate = dateObj.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC'
+  });
+
+  // Strictly staff names only - no role tags
   const morningLines = morning.length
-    ? morning.map(s => `• ${s.displayName || s.name} (${s.role || 'Staff'})`).join('\n')
+    ? morning.map(s => `• ${s.displayName || s.name}`).join('\n')
     : '• No staff assigned';
 
   const nightLines = night.length
-    ? night.map(s => `• ${s.displayName || s.name} (${s.role || 'Staff'})`).join('\n')
+    ? night.map(s => `• ${s.displayName || s.name}`).join('\n')
     : '• No staff assigned';
 
-  const supportLines = support.length
-    ? support.map(s => `• ${s.displayName || s.name} (${s.role || 'Support'})`).join('\n')
-    : '• Day Support operations (08:00 – 17:00)';
+  const supportStaff = support.filter(s => cellFor(state, s.id, dKey) !== 'OFF' && cellFor(state, s.id, dKey) !== 'LEAVE');
+  const activeSupport = supportStaff.length ? supportStaff : support;
+  const supportLines = activeSupport.length
+    ? activeSupport.map(s => `• ${s.displayName || s.name}`).join('\n')
+    : '• None scheduled';
 
-  const brief = `SHIFT HANDOVER DISPATCH · ${dKey}
-Cycle: 2M → 2N → 4 OFF
+  const brief = `SHIFT HANDOVER BRIEF
+${formattedDate}
 
-06:00 – 18:00 DAY SHIFT (${morningPod}):
+DAY SHIFT (06:00 – 18:00) · ${morningPod}
 ${morningLines}
 
-18:00 – 06:00 NIGHT SHIFT (${nightPod}):
-${nightLines}
+NIGHT SHIFT (18:00 – 06:00) · ${nightPod}
+${nightLines}${activeSupport.length ? `\n\nDAY SUPPORT (08:00 – 17:00)\n${supportLines}` : ''}
 
-08:00 – 17:00 SUPPORT TEAM:
-${supportLines}
+Next handover at 18:00 & 06:00. Have a safe shift!`;
 
-Status: 24/7 Tower & Generator operations active.`;
-
-  openHandoverModal(brief, dKey);
+  openHandoverModal(brief, dKey, formattedDate, {
+    morningPod,
+    nightPod,
+    morningStaff: morning.map(s => s.displayName || s.name),
+    nightStaff: night.map(s => s.displayName || s.name),
+    supportStaff: activeSupport.map(s => s.displayName || s.name)
+  });
 }
 
-function openHandoverModal(brief, dKey) {
+function openHandoverModal(brief, dKey, formattedDate = '', details = {}) {
   let dialog = document.getElementById('handover-brief-dialog');
   if (!dialog) {
     dialog = document.createElement('dialog');
@@ -1694,29 +1709,99 @@ function openHandoverModal(brief, dKey) {
     document.body.appendChild(dialog);
   }
 
+  const morningStaff = details.morningStaff || [];
+  const nightStaff = details.nightStaff || [];
+  const morningPod = details.morningPod || 'Morning Team';
+  const nightPod = details.nightPod || 'Night Team';
+
   dialog.innerHTML = `
-    <div class="custom-confirm-card" style="max-width:520px;padding:24px;display:flex;flex-direction:column;gap:16px;">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-        <div>
-          <span style="font-size:11px;font-weight:700;letter-spacing:0.8px;color:#2563eb;text-transform:uppercase;">OPERATIONS DISPATCH</span>
-          <h2 style="font-size:18px;font-weight:700;color:var(--text-main);margin:4px 0 2px;">Shift Handover Brief</h2>
-          <p style="font-size:12.5px;color:var(--text-muted);margin:0;">Daily shift briefing formatted for WhatsApp, Slack, or SMS logs.</p>
+    <div class="custom-confirm-card" style="max-width:550px;width:100%;padding:26px;display:flex;flex-direction:column;gap:18px;border-radius:20px;background:#ffffff;border:1px solid #e2e8f0;box-shadow:0 20px 45px rgba(15,23,42,0.12),0 2px 8px rgba(15,23,42,0.04);">
+      
+      <!-- Modal Header -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:#eff6ff;border:1px solid #bfdbfe;color:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
+              <path d="M9 14l2 2 4-4"/>
+            </svg>
+          </div>
+          <div>
+            <span style="font-size:10.5px;font-weight:700;letter-spacing:1px;color:#2563eb;text-transform:uppercase;display:block;margin-bottom:2px;">OPERATIONS DISPATCH</span>
+            <h2 style="font-size:19px;font-weight:800;color:var(--text-main);margin:0;letter-spacing:-0.4px;">Shift Handover Brief</h2>
+            <p style="font-size:12px;color:var(--text-muted);margin:2px 0 0;">${escapeHtml(formattedDate || dKey)} &middot; Formatted for WhatsApp &amp; messaging</p>
+          </div>
         </div>
-        <button type="button" id="btn-close-handover-modal" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;padding:2px 6px;line-height:1;" aria-label="Close">&times;</button>
+        <button type="button" id="btn-close-handover-modal" class="shift-edit-close" style="width:30px;height:30px;font-size:18px;flex-shrink:0;" aria-label="Close">&times;</button>
       </div>
 
-      <div style="background:#09101f;border-radius:10px;padding:16px 18px;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12.5px;line-height:1.65;white-space:pre-wrap;max-height:280px;overflow-y:auto;border:1px solid rgba(255,255,255,0.1);box-shadow:inset 0 2px 6px rgba(0,0,0,0.4);">${escapeHtml(brief)}</div>
+      <!-- Visual Crew Overview Cards (White aesthetic cards with subtle border & badge) -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <!-- Day Shift Card -->
+        <div style="background:#ffffff;border:1.5px solid #fed7aa;border-radius:14px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,0.02);display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:10px;font-weight:800;letter-spacing:0.8px;color:#ea580c;text-transform:uppercase;">DAY SHIFT</span>
+            <span style="font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:#fff7ed;color:#c2410c;border:1px solid #ffedd5;">06:00 – 18:00</span>
+          </div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text-main);">${escapeHtml(morningPod)}</div>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:2px;">
+            ${morningStaff.length ? morningStaff.map(n => `
+              <div style="font-size:12px;font-weight:600;color:var(--text-main);display:flex;align-items:center;gap:6px;">
+                <span style="width:6px;height:6px;border-radius:50%;background:#ea580c;flex-shrink:0;"></span>
+                <span>${escapeHtml(n)}</span>
+              </div>
+            `).join('') : '<span style="font-size:11.5px;color:var(--text-muted);">No staff assigned</span>'}
+          </div>
+        </div>
 
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:4px;">
-        <span style="font-size:12px;color:var(--text-muted);">${dKey} · 24/7 Operations</span>
+        <!-- Night Shift Card -->
+        <div style="background:#ffffff;border:1.5px solid #bfdbfe;border-radius:14px;padding:12px 14px;box-shadow:0 1px 3px rgba(0,0,0,0.02);display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:10px;font-weight:800;letter-spacing:0.8px;color:#2563eb;text-transform:uppercase;">NIGHT SHIFT</span>
+            <span style="font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:#eff6ff;color:#1d4ed8;border:1px solid #dbeafe;">18:00 – 06:00</span>
+          </div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--text-main);">${escapeHtml(nightPod)}</div>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:2px;">
+            ${nightStaff.length ? nightStaff.map(n => `
+              <div style="font-size:12px;font-weight:600;color:var(--text-main);display:flex;align-items:center;gap:6px;">
+                <span style="width:6px;height:6px;border-radius:50%;background:#2563eb;flex-shrink:0;"></span>
+                <span>${escapeHtml(n)}</span>
+              </div>
+            `).join('') : '<span style="font-size:11.5px;color:var(--text-muted);">No staff assigned</span>'}
+          </div>
+        </div>
+      </div>
+
+      <!-- Clean White Textarea (No black box) -->
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <label for="handover-brief-textarea" style="font-size:11px;font-weight:700;letter-spacing:0.7px;color:#64748b;text-transform:uppercase;">WhatsApp Message Text (Editable)</label>
+          <span style="font-size:11px;color:#94a3b8;font-weight:500;">You can edit before copying</span>
+        </div>
+        <textarea id="handover-brief-textarea" style="width:100%;box-sizing:border-box;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px 16px;color:#0f172a;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12.5px;line-height:1.6;min-height:155px;max-height:220px;resize:vertical;outline:none;transition:border-color 0.15s ease;" spellcheck="false">${escapeHtml(brief)}</textarea>
+      </div>
+
+      <!-- Action Footer -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:4px;border-top:1px solid #f1f5f9;">
+        <div style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:#15803d;background:#f0fdf4;border:1px solid #bbf7d0;padding:4px 10px;border-radius:999px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <span>WhatsApp Ready</span>
+        </div>
         <div style="display:flex;align-items:center;gap:10px;">
-          <button type="button" class="btn-clean" id="btn-handover-dismiss" style="padding:7px 14px;font-size:12.5px;">Close</button>
-          <button type="button" class="btn-clean primary" id="btn-handover-copy-now" style="padding:7px 16px;font-size:12.5px;display:inline-flex;align-items:center;gap:7px;font-weight:600;">
-            ${ICONS.copy}
+          <button type="button" class="btn-clean" id="btn-handover-dismiss" style="padding:8px 16px;font-size:12.5px;font-weight:600;">Close</button>
+          <button type="button" class="btn-clean" id="btn-handover-copy-now" style="background:#16a34a;color:#ffffff;border:none;border-radius:10px;padding:9px 18px;font-size:12.5px;display:inline-flex;align-items:center;gap:7px;font-weight:700;box-shadow:0 3px 10px rgba(22,163,74,0.25);cursor:pointer;transition:all 0.15s ease;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+            </svg>
             <span id="btn-handover-label">Copy for WhatsApp</span>
           </button>
         </div>
       </div>
+
     </div>
   `;
 
@@ -1726,35 +1811,42 @@ function openHandoverModal(brief, dKey) {
 
   const copyBtn = dialog.querySelector('#btn-handover-copy-now');
   const copyLabel = dialog.querySelector('#btn-handover-label');
+  const textarea = dialog.querySelector('#handover-brief-textarea');
+
+  if (textarea) {
+    textarea.onfocus = () => { textarea.style.borderColor = '#2563eb'; };
+    textarea.onblur = () => { textarea.style.borderColor = '#e2e8f0'; };
+  }
 
   const copyBriefText = async () => {
+    const textToCopy = (textarea ? textarea.value : brief).trim();
     let copied = false;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
-        await navigator.clipboard.writeText(brief);
+        await navigator.clipboard.writeText(textToCopy);
         copied = true;
       } catch {}
     }
     if (!copied) {
-      const textarea = document.createElement('textarea');
-      textarea.value = brief;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
+      const tempArea = document.createElement('textarea');
+      tempArea.value = textToCopy;
+      tempArea.style.position = 'fixed';
+      tempArea.style.opacity = '0';
+      document.body.appendChild(tempArea);
+      tempArea.focus();
+      tempArea.select();
       try {
         document.execCommand('copy');
         copied = true;
       } catch {}
-      document.body.removeChild(textarea);
+      document.body.removeChild(tempArea);
     }
     copyLabel.textContent = 'Copied to Clipboard!';
     copyBtn.style.background = '#15803d';
-    toast(`Copied handover brief for ${dKey}`);
+    toast(`Copied handover brief for ${formattedDate || dKey}`);
     setTimeout(() => {
       if (copyLabel) copyLabel.textContent = 'Copy for WhatsApp';
-      if (copyBtn) copyBtn.style.background = '';
+      if (copyBtn) copyBtn.style.background = '#16a34a';
     }, 2500);
   };
 
