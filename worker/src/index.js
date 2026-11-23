@@ -998,7 +998,7 @@ export default {
     const allowOriginHeader = origin || (isAllowedOrigin ? 'https://shiftdex-workers.pages.dev' : 'null');
     const secHeaders = {
       'access-control-allow-origin': allowOriginHeader,
-      'access-control-allow-methods': 'GET,POST,OPTIONS',
+      'access-control-allow-methods': 'GET,POST,PUT,DELETE,OPTIONS',
       'access-control-allow-headers': 'authorization,content-type,x-requested-with,x-client-platform',
       'access-control-max-age': '86400',
       'vary': 'Origin',
@@ -1840,18 +1840,125 @@ export default {
         });
       }
 
+      if (url.pathname === '/api/roles' && req.method === 'GET') {
+        const rolesList = await db.prepare(`
+          SELECT r.id, r.name, r.is_system, COUNT(s.id) AS staff_count
+          FROM roles r
+          LEFT JOIN staff s ON s.role_tag = r.name AND s.status = 'active'
+          GROUP BY r.id, r.name, r.is_system
+          ORDER BY r.name ASC
+        `).all().catch(() => ({ results: [] }));
+        return json({ roles: rolesList.results });
+      }
+
       if (url.pathname === '/api/admin/directory' && req.method === 'GET') {
         const actor = await auth(req, env, db, true);
         if (!actor) return json({ error: 'Admin token required' }, 401);
-        const staffList = await db.prepare(`
-          SELECT s.id, s.full_name, s.role_tag, s.pod_id, s.phone, s.status, s.effective_from,
-                 a.id account_id, a.email, a.must_change_password, a.pending_email, a.email_verify_expires
-          FROM staff s
-          LEFT JOIN worker_accounts a ON a.staff_id=s.id
-          WHERE s.is_admin=0
-          ORDER BY s.full_name ASC
+        const [staffList, rolesList] = await Promise.all([
+          db.prepare(`
+            SELECT s.id, s.full_name, s.role_tag, s.pod_id, s.phone, s.status, s.effective_from,
+                   a.id account_id, a.email, a.must_change_password, a.pending_email, a.email_verify_expires
+            FROM staff s
+            LEFT JOIN worker_accounts a ON a.staff_id=s.id
+            WHERE s.is_admin=0
+            ORDER BY s.full_name ASC
+          `).all(),
+          db.prepare(`
+            SELECT r.id, r.name, r.is_system, COUNT(s.id) AS staff_count
+            FROM roles r
+            LEFT JOIN staff s ON s.role_tag = r.name AND s.status = 'active'
+            GROUP BY r.id, r.name, r.is_system
+            ORDER BY r.name ASC
+          `).all().catch(() => ({ results: [] }))
+        ]);
+        return json({ staff: staffList.results, roles: rolesList.results });
+      }
+
+      if (url.pathname === '/api/admin/roles' && req.method === 'GET') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const rolesList = await db.prepare(`
+          SELECT r.id, r.name, r.is_system, COUNT(s.id) AS staff_count
+          FROM roles r
+          LEFT JOIN staff s ON s.role_tag = r.name AND s.status = 'active'
+          GROUP BY r.id, r.name, r.is_system
+          ORDER BY r.name ASC
         `).all();
-        return json({ staff: staffList.results });
+        return json({ roles: rolesList.results });
+      }
+
+      if (url.pathname === '/api/admin/roles' && req.method === 'POST') {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json().catch(() => ({}));
+        const name = String(body.name || '').trim();
+        if (!name || name.length < 2 || name.length > 50) {
+          return json({ error: 'Role name must be between 2 and 50 characters.' }, 400);
+        }
+        const existing = await db.prepare('SELECT id FROM roles WHERE LOWER(name) = LOWER(?)').bind(name).first();
+        if (existing) {
+          return json({ error: 'A role with this name already exists.' }, 400);
+        }
+        const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'role';
+        let id = baseSlug;
+        const idExists = await db.prepare('SELECT id FROM roles WHERE id = ?').bind(id).first();
+        if (idExists) id = `${baseSlug}-${Date.now().toString().slice(-4)}`;
+
+        await db.prepare('INSERT INTO roles (id, name, is_system) VALUES (?, ?, 0)').bind(id, name).run();
+        await audit(db, actor.id, 'create_role', 'role', id, { name });
+        return json({ ok: true, role: { id, name, is_system: 0, staff_count: 0 } }, 201);
+      }
+
+      if ((url.pathname === '/api/admin/roles' && req.method === 'PUT') || (url.pathname === '/api/admin/roles/edit' && req.method === 'POST')) {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = await req.json().catch(() => ({}));
+        const id = String(body.id || '').trim();
+        const newName = String(body.name || '').trim();
+        if (!id) return json({ error: 'Role id is required.' }, 400);
+        if (!newName || newName.length < 2 || newName.length > 50) {
+          return json({ error: 'Role name must be between 2 and 50 characters.' }, 400);
+        }
+        const role = await db.prepare('SELECT id, name FROM roles WHERE id = ?').bind(id).first();
+        if (!role) return json({ error: 'Role not found.' }, 404);
+
+        const duplicate = await db.prepare('SELECT id FROM roles WHERE LOWER(name) = LOWER(?) AND id != ?').bind(newName, id).first();
+        if (duplicate) return json({ error: 'Another role with this name already exists.' }, 400);
+
+        const oldName = role.name;
+        await db.batch([
+          db.prepare('UPDATE roles SET name = ? WHERE id = ?').bind(newName, id),
+          db.prepare('UPDATE staff SET role_tag = ? WHERE role_tag = ?').bind(newName, oldName)
+        ]);
+
+        await audit(db, actor.id, 'update_role', 'role', id, { oldName, newName });
+        return json({ ok: true, role: { id, name: newName } });
+      }
+
+      if ((url.pathname === '/api/admin/roles' && req.method === 'DELETE') || (url.pathname === '/api/admin/roles/delete' && req.method === 'POST')) {
+        const actor = await auth(req, env, db, true);
+        if (!actor) return json({ error: 'Admin token required' }, 401);
+        const body = (req.method === 'DELETE' ? await req.json().catch(() => ({})) : await req.json().catch(() => ({}))) || {};
+        const id = String(body.id || url.searchParams.get('id') || '').trim();
+        const reassignTo = body.reassignTo ? String(body.reassignTo).trim() : null;
+        if (!id) return json({ error: 'Role id is required.' }, 400);
+
+        const role = await db.prepare('SELECT id, name FROM roles WHERE id = ?').bind(id).first();
+        if (!role) return json({ error: 'Role not found.' }, 404);
+
+        const staffUsingRole = await db.prepare('SELECT COUNT(*) as c FROM staff WHERE role_tag = ?').bind(role.name).first();
+        const count = Number(staffUsingRole?.c || 0);
+
+        const batch = [];
+        if (count > 0) {
+          const fallbackRole = reassignTo || 'NSP';
+          batch.push(db.prepare('UPDATE staff SET role_tag = ? WHERE role_tag = ?').bind(fallbackRole, role.name));
+        }
+        batch.push(db.prepare('DELETE FROM roles WHERE id = ?').bind(id));
+
+        await db.batch(batch);
+        await audit(db, actor.id, 'delete_role', 'role', id, { name: role.name, reassignedTo: count > 0 ? (reassignTo || 'NSP') : null, affectedStaff: count });
+        return json({ ok: true, deletedId: id, reassignedStaff: count });
       }
 
       if (url.pathname === '/api/admin/ai/copilot' && req.method === 'POST') {

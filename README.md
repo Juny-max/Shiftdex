@@ -111,10 +111,19 @@ ShiftDex is purpose-built for mission-critical 24/7/365 telecommunications and c
 
 Administrators can apply scheduling policies across multiple staff simultaneously via **Settings & Shift Rules**:
 
-- **Batch Shift**: Assigns a specific shift code (`M`, `N`, `OFF`, `LEAVE`) across an entire target group (All Personnel, Team Leads, NSP Personnel, a specific Team, or Day Support) for any date range in one action. This eliminates repetitive cell-by-cell editing during group training, maintenance drills, or temporary reassignment.
+- **Batch Shift**: Assigns a specific shift code (`M`, `N`, `OFF`, `LEAVE`) across an entire target group (All Personnel, Team Leads, NSP Personnel, a specific Team, custom roles, or Day Support) for any date range in one action. This eliminates repetitive cell-by-cell editing during group training, maintenance drills, or temporary reassignment.
 - **Swap Teams**: Exchanges the 8-day rotation cycles between two teams across a chosen date range. Useful when two teams trade schedules due to field logistics, emergency maintenance, or operational swaps.
 - **Adjust Rotation**: Advances or delays an entire team's 8-day rotation anchor by +1, +2, +4, -1, or -2 days, realigning their rotational phase without disrupting individual shift history.
 - **Instant reversibility**: All collective shift rules push state to the undo stack, allowing full rollback via the **Undo** button.
+
+## Operational roles management
+
+Administrators can manage operational roles and duty classifications in **Settings & Shift Rules → Manage Roles**:
+
+- **Add roles**: Provision new role classifications (e.g. *Field Engineer*, *NOC Supervisor*, *Fiber Technician*) with real-time synchronization to the Cloudflare D1 database.
+- **Edit roles**: Rename existing roles at any time. Renaming automatically updates all assigned staff member profiles, schedule tags, and database records in a single coordinated transaction.
+- **Delete roles with safe reassignment**: Deleting an unneeded role verifies crew assignments and automatically reassigns active personnel to a standard role (`NSP`), ensuring no member is left with an invalid or orphaned title.
+- **Dynamic directory integration**: Active roles automatically populate the Add Person dialog, staff detail drawer, directory badges, and Batch Shift target group selectors.
 
 ## Shift teams and anchors customization
 

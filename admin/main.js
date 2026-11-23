@@ -36,6 +36,26 @@ state.coverTombstones ||= [];
 state.customStaff ||= [];
 state.inactiveStaffIds ||= [];
 state.customPods ||= [];
+const DEFAULT_ROLES = [
+  { id: 'team-lead', name: 'Team Lead' },
+  { id: 'nsp', name: 'NSP' },
+  { id: 'nsp-security', name: 'NSP-SECURITY' },
+  { id: 'energy', name: 'Energy' },
+  { id: 'power-noc', name: 'Power NOC' },
+  { id: 'manager', name: 'Manager' },
+  { id: 'support', name: 'Support' }
+];
+if (Array.isArray(state.customRoles) && state.customRoles.length > 0) {
+  state.customRoles = state.customRoles.map(r => typeof r === 'string' ? { id: r.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name: r } : r);
+} else {
+  state.customRoles = JSON.parse(JSON.stringify(DEFAULT_ROLES));
+}
+function getRoles() {
+  if (Array.isArray(state.customRoles) && state.customRoles.length > 0) {
+    return state.customRoles;
+  }
+  return DEFAULT_ROLES;
+}
 const savedCustomPods = (state.customPods && state.customPods.length >= 4)
   ? state.customPods
   : JSON.parse(localStorage.getItem('shift-roster-custom-pods') || 'null');
@@ -207,12 +227,39 @@ async function syncDirectory() {
         }
       }
     }
+    if (Array.isArray(data.roles) && data.roles.length > 0) {
+      state.customRoles = data.roles.map(r => ({
+        id: r.id,
+        name: r.name,
+        staff_count: r.staff_count
+      }));
+      changed = true;
+    }
     if (changed) {
       save();
       render();
     }
   } catch (err) {
     console.warn('Could not sync staff directory:', err);
+  }
+}
+
+async function fetchRoles() {
+  try {
+    const res = await fetch(API + '/api/roles');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (Array.isArray(data.roles) && data.roles.length > 0) {
+      state.customRoles = data.roles.map(r => ({
+        id: r.id,
+        name: r.name,
+        staff_count: r.staff_count
+      }));
+      localStorage.setItem('shift-roster', JSON.stringify(state));
+      render();
+    }
+  } catch (err) {
+    console.warn('Could not fetch roles:', err);
   }
 }
 
@@ -4112,13 +4159,7 @@ function openAddPersonDialog() {
       <label class="shift-edit-field">Role
         <select id="new-person-role" required>
           <option value="" selected disabled>Select a role</option>
-          <option>Team Lead</option>
-          <option>NSP</option>
-          <option>NSP-SECURITY</option>
-          <option>Energy</option>
-          <option>Power NOC</option>
-          <option>Manager</option>
-          <option>Support</option>
+          ${getRoles().map(r => `<option value="${escapeHtml(r.name)}">${escapeHtml(r.name)}</option>`).join('')}
         </select>
       </label>
       <label class="shift-edit-field">Team
@@ -4726,6 +4767,201 @@ function openEditTeamDialog(podId) {
   dialog.showModal();
 }
 
+async function createRole(name) {
+  const trimmed = String(name || '').trim();
+  if (!trimmed || trimmed.length < 2 || trimmed.length > 50) {
+    toast('Role title must be between 2 and 50 characters.');
+    return;
+  }
+  const currentRoles = getRoles();
+  if (currentRoles.some(r => r.name.toLowerCase() === trimmed.toLowerCase())) {
+    toast(`A role named "${trimmed}" already exists.`);
+    return;
+  }
+
+  const token = sessionStorage.getItem('admin-session') || '';
+  let newRole = {
+    id: trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || `role-${Date.now().toString(36)}`,
+    name: trimmed,
+    staff_count: 0
+  };
+
+  if (token) {
+    try {
+      const res = await fetch(API + '/api/admin/roles', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ name: trimmed })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create role in database.');
+      if (data.role) newRole = data.role;
+    } catch (err) {
+      toast('Database notice: ' + err.message);
+    }
+  }
+
+  undo.push(JSON.stringify(state));
+  redo = [];
+
+  state.customRoles = [...currentRoles.filter(r => r.id !== newRole.id), newRole];
+  save();
+  toast(`Role "${trimmed}" added.`);
+}
+
+async function updateRole(id, oldName, newName) {
+  const trimmed = String(newName || '').trim();
+  if (!trimmed || trimmed.length < 2 || trimmed.length > 50) {
+    toast('Role title must be between 2 and 50 characters.');
+    return;
+  }
+  if (trimmed.toLowerCase() === oldName.toLowerCase()) return;
+
+  const currentRoles = getRoles();
+  if (currentRoles.some(r => r.id !== id && r.name.toLowerCase() === trimmed.toLowerCase())) {
+    toast(`Another role named "${trimmed}" already exists.`);
+    return;
+  }
+
+  const token = sessionStorage.getItem('admin-session') || '';
+  if (token) {
+    try {
+      const res = await fetch(API + '/api/admin/roles', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ id, name: trimmed })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to update role in database.');
+    } catch (err) {
+      toast('Database notice: ' + err.message);
+    }
+  }
+
+  undo.push(JSON.stringify(state));
+  redo = [];
+
+  let staffUpdated = 0;
+  for (const s of staff) {
+    if (s.role === oldName) {
+      s.role = trimmed;
+      staffUpdated++;
+    }
+  }
+  if (state.customStaff) {
+    for (const s of state.customStaff) {
+      if (s.role === oldName) s.role = trimmed;
+    }
+  }
+
+  state.customRoles = currentRoles.map(r => r.id === id ? { ...r, name: trimmed } : r);
+  save();
+  toast(`Role renamed to "${trimmed}" (${staffUpdated} staff records updated).`);
+}
+
+async function removeRole(id, roleName) {
+  const assigned = activeStaff().filter(s => s.role === roleName);
+  const count = assigned.length;
+
+  const confirmed = await showConfirmDialog({
+    title: count > 0 ? 'Delete and Reassign Role?' : 'Delete Role?',
+    eyebrow: 'ROLE CLASSIFICATION',
+    message: count > 0
+      ? `"${roleName}" is currently assigned to ${count} active staff member${count > 1 ? 's' : ''}.`
+      : `Are you sure you want to delete "${roleName}"?`,
+    details: count > 0
+      ? `Deleting this role will automatically reassign all ${count} member(s) to "NSP" across the schedule and database.`
+      : 'This role will be permanently removed from selection lists.',
+    confirmText: count > 0 ? 'Delete & Reassign to NSP' : 'Delete Role',
+    type: 'danger'
+  });
+
+  if (!confirmed) return;
+
+  const token = sessionStorage.getItem('admin-session') || '';
+  if (token) {
+    try {
+      const res = await fetch(API + '/api/admin/roles', {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + token },
+        body: JSON.stringify({ id, reassignTo: 'NSP' })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete role in database.');
+    } catch (err) {
+      toast('Database notice: ' + err.message);
+    }
+  }
+
+  undo.push(JSON.stringify(state));
+  redo = [];
+
+  if (count > 0) {
+    for (const s of staff) {
+      if (s.role === roleName) s.role = 'NSP';
+    }
+    if (state.customStaff) {
+      for (const s of state.customStaff) {
+        if (s.role === roleName) s.role = 'NSP';
+      }
+    }
+  }
+
+  state.customRoles = getRoles().filter(r => r.id !== id && r.name !== roleName);
+  save();
+  toast(`Role "${roleName}" deleted.${count > 0 ? ` ${count} staff reassigned to NSP.` : ''}`);
+}
+
+function openEditRoleDialog(id, currentName) {
+  let dialog = document.getElementById('role-edit-dialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'role-edit-dialog';
+    dialog.className = 'shift-edit-dialog';
+    document.body.appendChild(dialog);
+  }
+
+  dialog.innerHTML = `
+    <form method="dialog" class="shift-edit-form" id="role-edit-form">
+      <div class="shift-edit-header">
+        <div>
+          <div class="shift-edit-eyebrow">ROLE CLASSIFICATION</div>
+          <h3 class="shift-edit-title">Edit Role Title</h3>
+        </div>
+        <button type="button" class="shift-edit-close" id="role-edit-close">✕</button>
+      </div>
+      <div class="shift-edit-body">
+        <label class="shift-edit-field">Role Name
+          <input type="text" id="input-edit-role-name" value="${escapeHtml(currentName)}" maxlength="50" required autofocus />
+        </label>
+        <p style="font-size:12px;color:var(--text-light);margin-top:6px;line-height:1.4;">
+          Renaming will update this role across all assigned staff profiles and synchronize directly with the Cloudflare D1 database.
+        </p>
+      </div>
+      <div class="shift-edit-actions">
+        <button type="button" class="btn-clean" id="role-edit-cancel">Cancel</button>
+        <button type="submit" class="btn-clean primary" id="role-edit-save">Save Changes</button>
+      </div>
+    </form>
+  `;
+
+  const close = () => dialog.close();
+  dialog.querySelector('#role-edit-close').onclick = close;
+  dialog.querySelector('#role-edit-cancel').onclick = close;
+
+  const form = dialog.querySelector('#role-edit-form');
+  form.onsubmit = (e) => {
+    e.preventDefault();
+    const newName = dialog.querySelector('#input-edit-role-name').value.trim();
+    dialog.close();
+    if (newName && newName !== currentName) {
+      updateRole(id, currentName, newName);
+    }
+  };
+
+  dialog.showModal();
+}
+
 let settingsRuleType = 'bulk_shift';
 
 function renderSettingsView() {
@@ -4744,6 +4980,7 @@ function renderSettingsView() {
             <option value="all">All Personnel (Core & Support)</option>
             <option value="leads">All Team Leads</option>
             <option value="nsps">All NSP Personnel (NSP & NSP-Security)</option>
+            ${getRoles().filter(r => !['Team Lead', 'NSP', 'NSP-SECURITY'].includes(r.name)).map(r => `<option value="role:${escapeHtml(r.name)}">${escapeHtml(r.name)} Staff</option>`).join('')}
             ${pods.map(p => `<option value="${p.id}">${escapeHtml(p.name)} Only</option>`).join('')}
             <option value="support">Day Support Staff</option>
           </select>
@@ -4827,6 +5064,89 @@ function renderSettingsView() {
     `;
   }
 
+  let mainCardContent = '';
+  if (settingsRuleType === 'roles') {
+    mainCardContent = `
+      <div class="roles-manager-container">
+        <!-- Add Role Bar -->
+        <form id="form-add-new-role" class="roles-add-bar">
+          <div class="roles-input-wrapper">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-light);margin-right:8px;flex-shrink:0;"><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/></svg>
+            <input type="text" id="input-new-role-title" placeholder="Enter new role title (e.g. Field Engineer, NOC Supervisor)" maxlength="45" required autocomplete="off" />
+          </div>
+          <button type="submit" class="btn-clean primary" id="btn-submit-add-role">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>Add Role</span>
+          </button>
+        </form>
+
+        <!-- Roles List -->
+        <div class="roles-list-wrapper">
+          <div class="roles-list-header">
+            <span>Role Classification</span>
+            <span>Assigned Crew</span>
+            <span style="text-align:right;">Actions</span>
+          </div>
+          <div class="roles-items-list">
+            ${getRoles().map(r => {
+              const staffCount = activeStaff().filter(s => s.role === r.name).length;
+              return `
+                <div class="role-list-row" data-role-id="${escapeHtml(r.id)}" data-role-name="${escapeHtml(r.name)}">
+                  <div class="role-col-title">
+                    <span class="role-tag-badge">${escapeHtml(r.name)}</span>
+                  </div>
+                  <div class="role-col-count">
+                    <span class="role-count-text">${staffCount} ${staffCount === 1 ? 'member' : 'members'}</span>
+                  </div>
+                  <div class="role-col-actions">
+                    <button type="button" class="btn-clean small btn-action-edit-role" data-role-id="${escapeHtml(r.id)}" data-role-name="${escapeHtml(r.name)}" title="Edit role title">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                      <span>Edit</span>
+                    </button>
+                    <button type="button" class="btn-clean small danger btn-action-delete-role" data-role-id="${escapeHtml(r.id)}" data-role-name="${escapeHtml(r.name)}" data-count="${staffCount}" title="Delete role">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="role-sync-notice">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--blue-primary);flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Role modifications synchronize directly with Cloudflare D1 database and automatically update assigned personnel profiles.</span>
+        </div>
+      </div>
+    `;
+  } else {
+    mainCardContent = `
+      <form id="settings-rule-form" class="settings-form-body">
+        ${specificFields}
+
+        <div class="shift-conflict-preview" style="background:#f8fafc;border-color:#e2e8f0;color:#334155;margin-top:6px;">
+          <b>Instant Effect &amp; Reversibility</b>
+          <p style="margin:2px 0 0;font-size:12px;color:#64748b;">
+            Applying this rule modifies the calendar immediately. You can revert this entire batch anytime using the <strong>Undo</strong> button.
+          </p>
+        </div>
+
+        <div class="settings-form-actions">
+          ${undo.length ? `
+            <button type="button" class="btn-clean" id="btn-settings-undo">
+              ${ICONS.undo}
+              <span>Undo Last Rule</span>
+            </button>
+          ` : ''}
+          <button type="submit" class="btn-clean primary">
+            <span>Apply Rule to Schedule</span>
+          </button>
+        </div>
+      </form>
+    `;
+  }
+
   return `
     <div class="settings-page-container">
       <!-- Settings Header -->
@@ -4843,12 +5163,12 @@ function renderSettingsView() {
       </div>
 
       <div class="settings-layout-grid">
-        <!-- Main Column: Global Shift Rules Engine -->
+        <!-- Main Column: Global Shift Rules Engine / Role Directory -->
         <div class="clean-card settings-card">
           <div class="clean-card-header">
             <div>
-              <h3 class="clean-card-title">Define Collective Shift Rule</h3>
-              <p class="clean-card-subtitle">Set batch overrides, team trades, or cycle adjustments for multiple staff in one step.</p>
+              <h3 class="clean-card-title">${settingsRuleType === 'roles' ? 'Operational Role Directory' : 'Define Collective Shift Rule'}</h3>
+              <p class="clean-card-subtitle">${settingsRuleType === 'roles' ? 'Add, edit, or delete staff roles synchronized with the Cloudflare D1 database.' : 'Set batch overrides, team trades, or cycle adjustments for multiple staff in one step.'}</p>
             </div>
           </div>
 
@@ -4863,31 +5183,12 @@ function renderSettingsView() {
             <button type="button" class="settings-tab-btn ${settingsRuleType === 'cycle_offset' ? 'active' : ''}" data-settings-tab="cycle_offset">
               Adjust Rotation
             </button>
+            <button type="button" class="settings-tab-btn ${settingsRuleType === 'roles' ? 'active' : ''}" data-settings-tab="roles">
+              Manage Roles
+            </button>
           </div>
 
-          <!-- Interactive Rule Form -->
-          <form id="settings-rule-form" class="settings-form-body">
-            ${specificFields}
-
-            <div class="shift-conflict-preview" style="background:#f8fafc;border-color:#e2e8f0;color:#334155;margin-top:6px;">
-              <b>Instant Effect &amp; Reversibility</b>
-              <p style="margin:2px 0 0;font-size:12px;color:#64748b;">
-                Applying this rule modifies the calendar immediately. You can revert this entire batch anytime using the <strong>Undo</strong> button.
-              </p>
-            </div>
-
-            <div class="settings-form-actions">
-              ${undo.length ? `
-                <button type="button" class="btn-clean" id="btn-settings-undo">
-                  ${ICONS.undo}
-                  <span>Undo Last Rule</span>
-                </button>
-              ` : ''}
-              <button type="submit" class="btn-clean primary">
-                <span>Apply Rule to Schedule</span>
-              </button>
-            </div>
-          </form>
+          ${mainCardContent}
         </div>
 
         <!-- Side Column: Active Operational Policies & Team Definitions -->
@@ -5101,6 +5402,34 @@ function bindEvents() {
     };
   });
 
+  // Role Management Event Bindings
+  const addRoleForm = document.querySelector('#form-add-new-role');
+  if (addRoleForm) {
+    addRoleForm.onsubmit = (event) => {
+      event.preventDefault();
+      const input = addRoleForm.querySelector('#input-new-role-title');
+      const val = input?.value.trim();
+      if (val) {
+        input.value = '';
+        createRole(val);
+      }
+    };
+  }
+
+  document.querySelectorAll('.btn-action-edit-role').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      openEditRoleDialog(btn.dataset.roleId, btn.dataset.roleName);
+    };
+  });
+
+  document.querySelectorAll('.btn-action-delete-role').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      removeRole(btn.dataset.roleId, btn.dataset.roleName);
+    };
+  });
+
   // Settings Rule Form Submission
   const settingsForm = document.querySelector('#settings-rule-form');
   if (settingsForm) {
@@ -5128,6 +5457,7 @@ function bindEvents() {
           if (target === 'all') return true;
           if (target === 'leads') return s.role === 'Team Lead';
           if (target === 'nsps') return (s.role || '').includes('NSP');
+          if (target.startsWith('role:')) return s.role === target.slice(5);
           if (target === 'support') return !s.podId;
           return s.podId === target;
         });
@@ -5913,6 +6243,7 @@ function bindEvents() {
 // Initial Run
 render();
 syncDirectory();
+fetchRoles();
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && isCopilotOpen) {
     closeCopilot();

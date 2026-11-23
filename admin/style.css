@@ -3376,3 +3376,136 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
   line-height: 1.2;
 }
 
+/* Role Management in Settings */
+.roles-manager-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 6px;
+}
+
+.roles-add-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.roles-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.roles-input-wrapper input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--text-main);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.roles-input-wrapper input:focus {
+  border-color: var(--blue-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.roles-list-wrapper {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.roles-list-header {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 140px 140px;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+}
+
+.roles-items-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.role-list-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 140px 140px;
+  padding: 12px 16px;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s ease;
+}
+
+.role-list-row:last-child {
+  border-bottom: none;
+}
+
+.role-list-row:hover {
+  background: #f8fafc;
+}
+
+.role-col-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.role-tag-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.role-col-count {
+  display: flex;
+  align-items: center;
+}
+
+.role-count-text {
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.role-col-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.role-sync-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  line-height: 1.4;
+}
+
+
