@@ -26,9 +26,11 @@ let isMobileNavOpen = false;
 let workerRequests = [];
 
 const ICONS = {
-  home: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
-  calendar: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
-  requests: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>`,
+  home: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
+  calendar: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
+  requests: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="9"/></svg>`,
+  arrowUpRight: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>`,
+  swap: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-4 4"/><path d="M20 7H4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h16"/></svg>`,
 };
 
 const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -324,11 +326,19 @@ function renderDashboard() {
   const restPct = Math.max(0, 100 - morningPct - nightPct);
 
   app.innerHTML = `
-    <!-- Top Navigation Bar -->
+    <!-- Top Navigation Bar (Image 2 style with Mobile Avatar + Greeting) -->
     <header class="app-header">
+      <div class="mobile-header-user">
+        <div class="user-avatar-circle" style="background:${teamColor};">${initial}</div>
+        <div class="mobile-header-text">
+          <span class="mobile-header-greeting">Hey,</span>
+          <strong class="mobile-header-name">${escapeHtml(me.name.split(' ')[0] || me.name)}</strong>
+        </div>
+      </div>
+
       <div class="brand-wrap">
         <img src="${shiftDeskMark}" alt="ShiftDex logo">
-        <b>shiftdex<span style="color:var(--blue-primary);">.</span></b>
+        <b>shiftdex<span style="color:#fed854;">.</span></b>
       </div>
 
       <!-- Desktop User Profile Controls -->
@@ -342,7 +352,7 @@ function renderDashboard() {
         <button class="btn-signout" id="logout" type="button">Sign out</button>
       </div>
 
-      <!-- Mobile Hamburger Button -->
+      <!-- Mobile Hamburger Button (Image 2 circular outline button) -->
       <button class="hamburger-btn" id="btn-hamburger" type="button" aria-label="Open menu">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
@@ -355,161 +365,215 @@ function renderDashboard() {
         <div class="drawer-head">
           <div class="brand-wrap">
             <img src="${shiftDeskMark}" alt="ShiftDex logo">
-            <b>shiftdex<span style="color:var(--blue-primary);">.</span></b>
+            <b>shiftdex<span style="color:#fed854;">.</span></b>
           </div>
-          <button type="button" id="btn-close-drawer" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-light);">&times;</button>
+          <button type="button" id="btn-close-drawer" style="border:none;background:none;font-size:24px;cursor:pointer;color:var(--text-light);">&times;</button>
         </div>
         <div class="drawer-user-info">
-          <div class="user-avatar-circle" style="background:${teamColor};width:36px;height:36px;font-size:14px;">${initial}</div>
+          <div class="user-avatar-circle" style="background:${teamColor};width:42px;height:42px;font-size:16px;">${initial}</div>
           <div>
-            <div style="font-weight:700;font-size:14px;color:var(--text-main);">${escapeHtml(me.name)}</div>
-            <div style="display:flex;align-items:center;gap:6px;margin-top:3px;">
+            <div style="font-weight:700;font-size:15px;color:var(--text-main);">${escapeHtml(me.name)}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
               <span class="user-team-chip" style="border-color:${teamColor};">${escapeHtml(teamName)}</span>
-              <span style="font-size:11px;color:var(--text-light);">${escapeHtml(me.role)}</span>
+              <span style="font-size:12px;color:var(--text-light);">${escapeHtml(me.role)}</span>
             </div>
           </div>
         </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:8px;">
-        <button class="btn-signout" id="drawer-worker-change-pw" type="button" style="width:100%;height:42px;border-color:var(--border-card);color:var(--text-main);background:#ffffff;">Change password</button>
-        <button class="btn-signout" id="drawer-logout" type="button" style="width:100%;height:42px;">Sign out</button>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="btn-signout" id="drawer-worker-change-pw" type="button" style="width:100%;height:46px;border-radius:14px;border-color:var(--border-card);color:var(--text-main);background:#ffffff;font-weight:600;">Change password</button>
+        <button class="btn-signout" id="drawer-logout" type="button" style="width:100%;height:46px;border-radius:14px;background:#121316;color:#ffffff;font-weight:700;">Sign out</button>
       </div>
     </div>
 
     <main class="page-wrap">
-      <!-- 1. OVERVIEW VIEW -->
+      <!-- 1. OVERVIEW VIEW (Image 2 Neobrutalist Smooth Mobile Aesthetic) -->
       ${activeWorkerTab === 'overview' ? `
-        <section class="worker-home">
-          <div class="home-welcome">
-            <div><span class="home-date-label">${today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
-              <h1>Good ${currentHour < 12 ? 'morning' : currentHour < 18 ? 'afternoon' : 'evening'}, ${escapeHtml(me.name)}</h1>
-              <p>${escapeHtml(teamName)} <span>·</span> ${escapeHtml(me.role)}</p>
+        <section class="worker-home neo-home">
+          <!-- HERO CARD: Today's Shift & Next Duty (Modeled on "Balance" Card in Image 2) -->
+          <div class="neo-hero-card">
+            <!-- Center Top Pill Badge -->
+            <div class="neo-hero-top-badge">
+              <span class="neo-team-dot" style="background:${teamColor};"></span>
+              <span>${escapeHtml(teamName)} &middot; ${escapeHtml(me.role)}</span>
             </div>
-            <button type="button" class="home-calendar-link" data-tab="calendar">Open calendar <span aria-hidden="true">↗</span></button>
+
+            <!-- Two Metric Columns -->
+            <div class="neo-hero-metrics-row">
+              <div class="neo-hero-metric-col">
+                <span class="neo-metric-label">CURRENT STATUS</span>
+                <div class="neo-metric-value">${todayShift === 'M' ? 'Morning Shift' : todayShift === 'N' ? 'Night Shift' : todayShift === 'LEAVE' ? 'On Leave' : 'Rest Day'}</div>
+                <span class="neo-metric-subtext">${todayShift === 'M' ? '06:00 – 18:00 · Day Post' : todayShift === 'N' ? '18:00 – 06:00 · Night Post' : todayShift === 'LEAVE' ? 'Approved Annual Leave' : 'No shift scheduled today'}</span>
+              </div>
+
+              <div class="neo-hero-metric-col right">
+                <span class="neo-metric-label">NEXT ON DUTY</span>
+                <div class="neo-metric-value">${nextShiftDay ? niceDate(nextShiftDay) : 'OFF'}</div>
+                <span class="neo-metric-subtext">${nextShiftDay ? (shiftFor(staffId, nextShiftDay) === 'M' ? 'Day Shift (06:00)' : 'Night Shift (18:00)') : 'Resting Cadence'}</span>
+              </div>
+            </div>
+
+            <!-- Dual Pill Buttons (like Deposit / Withdraw in Image 2) -->
+            <div class="neo-hero-actions-row">
+              <button type="button" class="neo-btn-primary-dark" data-tab="requests">
+                <span class="neo-btn-icon-yellow">${ICONS.swap}</span>
+                <span>Request Off</span>
+              </button>
+              <button type="button" class="neo-btn-secondary" data-tab="calendar">
+                <span class="neo-btn-icon-gray">${ICONS.arrowUpRight}</span>
+                <span>Full Calendar</span>
+              </button>
+            </div>
           </div>
 
-          <div class="home-summary-row">
-            <section class="home-today-card">
-              <div class="home-today-copy"><span class="home-section-kicker">TODAY</span>
-                <h2>${todayShift === 'M' ? 'Morning shift' : todayShift === 'N' ? 'Night shift' : todayShift === 'LEAVE' ? 'On leave' : 'Rest day'}</h2>
-                <p>${todayShift === 'M' ? '06:00-18:00' : todayShift === 'N' ? '18:00-06:00' : todayShift === 'LEAVE' ? 'Enjoy your time away' : 'No shift scheduled today'}</p>
-              </div>
-              <div class="home-today-side"><span class="home-shift-letter ${todayShift.toLowerCase()}">${todayShift}</span>
-                <span>${nextShiftDay ? `Next shift ${niceDate(nextShiftDay)}` : 'No upcoming shift'}</span>
-              </div>
-            </section>
-            <section class="home-desk-card">
-              <div class="home-card-heading"><div><span class="home-section-kicker">ON DUTY NOW</span><h2>${currentDuty === 'M' ? 'Morning team' : 'Night team'}</h2></div><span class="home-live-dot" aria-label="Current shift"></span></div>
-              <p class="home-handover">${currentDuty === 'M' ? '06:00-18:00' : '18:00-06:00'} <span>·</span> Handover ${currentDuty === 'M' ? '18:00' : '06:00'}</p>
-              <div class="home-team-list">${onDesk.map(person => `<span>${escapeHtml(person.name)}<small>${escapeHtml(person.role)}</small></span>`).join('') || '<span>Shift handover in progress</span>'}</div>
-            </section>
+          <!-- SECTION LEAD & CATEGORY HORIZONTAL PILLS (like Top Events / Football in Image 2) -->
+          <div class="neo-section-header">
+            <span class="neo-section-title">Operations Hub</span>
+            <button type="button" class="neo-section-link" data-tab="calendar">View Full Roster &rarr;</button>
           </div>
 
-          <div class="home-planner-grid">
-            <section class="home-panel home-workload-panel">
-              <div class="home-panel-heading">
-                <div>
-                  <span class="home-section-kicker">MONTHLY WORKLOAD & ROTATION</span>
-                  <h2>${formatMonthHeader(currentMonth)}</h2>
-                </div>
-                <div style="display:flex;align-items:center;gap:10px;">
-                  <div class="home-month-controls">
-                    <button type="button" id="home-prev-month" aria-label="Previous month" title="Previous month">‹</button>
-                    <button type="button" id="home-next-month" aria-label="Next month" title="Next month">›</button>
-                  </div>
-                  <button type="button" class="home-text-link" data-tab="calendar">Full calendar &rarr;</button>
-                </div>
-              </div>
-
-              <!-- Live 8-Day Rotation Cycle Tracker -->
-              <div class="cadence-tracker-box">
-                <div class="cadence-tracker-header">
-                  <div class="cadence-team-tag">
-                    <span class="cadence-team-dot" style="background:${teamColor};"></span>
-                    <span>${escapeHtml(teamName)} &middot; 8-Day Rotation Cadence</span>
-                  </div>
-                  <span class="cadence-today-badge">
-                    Today: Step ${currentStep.phase + 1} of 8 &middot; ${currentStep.title} (${currentStep.code})
-                  </span>
-                </div>
-                <div class="cadence-steps-row">
-                  ${rotationSteps.map((step) => {
-                    const isCurrent = step.phase === currentRotationPhase;
-                    const isM = step.code === 'M';
-                    const isN = step.code === 'N';
-                    return `
-                      <div class="cadence-step-pip ${isCurrent ? 'is-active' : ''} ${isM ? 'step-m' : isN ? 'step-n' : 'step-off'}">
-                        <span class="cadence-step-code">${step.code}</span>
-                        <span class="cadence-step-name">${step.title}</span>
-                        ${isCurrent ? '<span class="cadence-today-pip">Today</span>' : ''}
-                      </div>
-                    `;
-                  }).join('')}
-                </div>
-              </div>
-
-              <!-- Key Workload Breakdown Stats (3 Metric Cards) -->
-              <div class="workload-stats-grid">
-                <div class="workload-stat-card m">
-                  <div class="stat-card-top">
-                    <span class="stat-badge m">M</span>
-                    <span class="stat-label">Day Shifts</span>
-                  </div>
-                  <div class="stat-value-row">
-                    <span class="stat-num">${morningShiftsCount}</span>
-                    <span class="stat-unit">shifts</span>
-                  </div>
-                  <span class="stat-subtext">${morningShiftsCount * 12} hrs (06:00 – 18:00)</span>
-                </div>
-
-                <div class="workload-stat-card n">
-                  <div class="stat-card-top">
-                    <span class="stat-badge n">N</span>
-                    <span class="stat-label">Night Shifts</span>
-                  </div>
-                  <div class="stat-value-row">
-                    <span class="stat-num">${nightShiftsCount}</span>
-                    <span class="stat-unit">shifts</span>
-                  </div>
-                  <span class="stat-subtext">${nightShiftsCount * 12} hrs (18:00 – 06:00)</span>
-                </div>
-
-                <div class="workload-stat-card off">
-                  <div class="stat-card-top">
-                    <span class="stat-badge off">OFF</span>
-                    <span class="stat-label">Rest Days</span>
-                  </div>
-                  <div class="stat-value-row">
-                    <span class="stat-num">${restDaysCount}</span>
-                    <span class="stat-unit">days</span>
-                  </div>
-                  <span class="stat-subtext">${restDaysCount * 24} hrs recovery</span>
-                </div>
-              </div>
-
-              <!-- Proportional Balance Multi-Segment Progress Bar -->
-              <div class="workload-bar-wrap">
-                <div class="workload-bar-labels">
-                  <span>Shift Distribution (${daysInMonth} Days)</span>
-                  <strong>${monthlyShiftsCount * 12} Total Hours</strong>
-                </div>
-                <div class="workload-multi-bar" role="progressbar" aria-label="Monthly shift balance">
-                  <div class="bar-slice bar-m" style="width:${morningPct}%;" title="Morning Shifts: ${morningPct}% (${morningShiftsCount} shifts)"></div>
-                  <div class="bar-slice bar-n" style="width:${nightPct}%;" title="Night Shifts: ${nightPct}% (${nightShiftsCount} shifts)"></div>
-                  <div class="bar-slice bar-off" style="width:${restPct}%;" title="Rest Days: ${restPct}% (${restDaysCount} days)"></div>
-                </div>
-                <div class="workload-bar-legend">
-                  <span><i class="legend-dot m"></i>Morning (${morningPct}%)</span>
-                  <span><i class="legend-dot n"></i>Night (${nightPct}%)</span>
-                  <span><i class="legend-dot off"></i>Rest / Off (${restPct}%)</span>
-                </div>
-              </div>
-            </section>
-            <section class="home-panel home-agenda-panel">
-              <div class="home-panel-heading"><div><span class="home-section-kicker">YOUR WEEK</span><h2>Upcoming shifts</h2></div><button type="button" class="home-text-link" data-tab="calendar">See calendar</button></div>
-              <div class="home-agenda-list">${upcomingCards}</div>
-            </section>
+          <div class="neo-category-pills-row">
+            <button type="button" class="neo-cat-pill active">
+              <span class="cat-pill-dot live"></span>
+              <span>Live On Duty</span>
+            </button>
+            <button type="button" class="neo-cat-pill" data-tab="calendar">
+              <span class="cat-pill-dot"></span>
+              <span>8-Day Rotation</span>
+            </button>
+            <button type="button" class="neo-cat-pill" data-tab="calendar">
+              <span class="cat-pill-dot"></span>
+              <span>Monthly Stats</span>
+            </button>
+            <button type="button" class="neo-cat-pill" data-tab="requests">
+              <span class="cat-pill-dot"></span>
+              <span>Leave Desk</span>
+            </button>
           </div>
+
+          <!-- FEATURED WARM HONEY-AMBER CARD (The Yellow "Premier League" Card from Image 2) -->
+          <section class="neo-amber-card">
+            <div class="amber-card-top-row">
+              <span class="amber-card-kicker">24/7 FACILITY DESK</span>
+              <span class="amber-ongoing-pill">
+                <span class="amber-live-dot"></span>
+                Ongoing
+              </span>
+            </div>
+
+            <div class="amber-card-main-content">
+              <h3>${currentDuty === 'M' ? 'Morning Shift Crew' : 'Night Shift Crew'}</h3>
+              <p>${currentDuty === 'M' ? '06:00 – 18:00' : '18:00 – 06:00'} <span>&middot;</span> Handover at ${currentDuty === 'M' ? '18:00' : '06:00'}</p>
+            </div>
+
+            <!-- Crew Member Rounded White Pills (like odds pills [1x 1.8] [x 2.0] [2x 6.0] in Image 2) -->
+            <div class="amber-crew-pills-row">
+              ${onDesk.map(person => {
+                const pPod = pods.find(p => p.id === person.podId);
+                const pColor = pPod?.color || '#3b82f6';
+                return `
+                  <div class="amber-crew-chip">
+                    <span class="crew-chip-dot" style="background:${pColor};"></span>
+                    <span class="crew-chip-name">${escapeHtml(person.name)}</span>
+                    <span class="crew-chip-role">${escapeHtml(person.role)}</span>
+                  </div>
+                `;
+              }).join('') || '<div class="amber-crew-chip"><span>Shift handover in progress</span></div>'}
+            </div>
+          </section>
+
+          <!-- ROTATION CADENCE & WORKLOAD CARD (Image 2 Phone 2 Style) -->
+          <section class="neo-white-panel">
+            <div class="neo-panel-heading">
+              <div>
+                <span class="neo-panel-kicker">MONTHLY WORKLOAD & ROTATION</span>
+                <h2>${formatMonthHeader(currentMonth)}</h2>
+              </div>
+              <div class="neo-month-controls">
+                <button type="button" id="home-prev-month" aria-label="Previous month">&lsaquo;</button>
+                <button type="button" id="home-next-month" aria-label="Next month">&rsaquo;</button>
+                <button type="button" class="neo-panel-link" data-tab="calendar">Calendar &rarr;</button>
+              </div>
+            </div>
+
+            <!-- Dark Contrast Box (like dark possession card in Image 2 Phone 2) -->
+            <div class="neo-dark-cadence-box">
+              <div class="cadence-dark-head">
+                <div class="cadence-team-lead">
+                  <span class="cadence-team-dot" style="background:${teamColor};"></span>
+                  <span>${escapeHtml(teamName)} &middot; 8-Day Rotation Cadence</span>
+                </div>
+                <span class="cadence-today-pill">
+                  Today: Step ${currentStep.phase + 1} of 8 &middot; ${currentStep.title} (${currentStep.code})
+                </span>
+              </div>
+
+              <!-- 8-Step Interactive Visual Cadence -->
+              <div class="neo-cadence-pills-grid">
+                ${rotationSteps.map((step) => {
+                  const isCurrent = step.phase === currentRotationPhase;
+                  const isM = step.code === 'M';
+                  const isN = step.code === 'N';
+                  return `
+                    <div class="neo-step-chip ${isCurrent ? 'is-today' : ''} ${isM ? 'step-m' : isN ? 'step-n' : 'step-off'}">
+                      <span class="step-chip-code">${step.code}</span>
+                      <span class="step-chip-name">${step.title}</span>
+                      ${isCurrent ? '<span class="step-chip-today-tag">TODAY</span>' : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <!-- Key Workload Statistics (3 Metric Columns like Statistics in Image 2) -->
+            <div class="neo-stats-row">
+              <div class="neo-stat-cell">
+                <span class="neo-stat-label">Day Shifts</span>
+                <strong class="neo-stat-num">${morningShiftsCount}</strong>
+                <span class="neo-stat-sub">${morningShiftsCount * 12} hrs</span>
+              </div>
+              <div class="neo-stat-cell">
+                <span class="neo-stat-label">Night Shifts</span>
+                <strong class="neo-stat-num">${nightShiftsCount}</strong>
+                <span class="neo-stat-sub">${nightShiftsCount * 12} hrs</span>
+              </div>
+              <div class="neo-stat-cell">
+                <span class="neo-stat-label">Rest Days</span>
+                <strong class="neo-stat-num">${restDaysCount}</strong>
+                <span class="neo-stat-sub">${restDaysCount * 24} hrs</span>
+              </div>
+            </div>
+
+            <!-- Multi-Segment Proportional Distribution Bar -->
+            <div class="workload-bar-wrap">
+              <div class="workload-bar-labels">
+                <span>Shift Distribution (${daysInMonth} Days)</span>
+                <strong>${monthlyShiftsCount * 12} Total Hours</strong>
+              </div>
+              <div class="workload-multi-bar" role="progressbar" aria-label="Monthly shift balance">
+                <div class="bar-slice bar-m" style="width:${morningPct}%;" title="Morning Shifts: ${morningPct}% (${morningShiftsCount} shifts)"></div>
+                <div class="bar-slice bar-n" style="width:${nightPct}%;" title="Night Shifts: ${nightPct}% (${nightShiftsCount} shifts)"></div>
+                <div class="bar-slice bar-off" style="width:${restPct}%;" title="Rest Days: ${restPct}% (${restDaysCount} days)"></div>
+              </div>
+              <div class="workload-bar-legend">
+                <span><i class="legend-dot m"></i>Morning (${morningPct}%)</span>
+                <span><i class="legend-dot n"></i>Night (${nightPct}%)</span>
+                <span><i class="legend-dot off"></i>Rest / Off (${restPct}%)</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- UPCOMING SHIFTS PANEL ("Your Week") -->
+          <section class="neo-white-panel">
+            <div class="neo-panel-heading">
+              <div>
+                <span class="neo-panel-kicker">YOUR WEEK</span>
+                <h2>Upcoming shifts</h2>
+              </div>
+              <button type="button" class="neo-panel-link" data-tab="calendar">See calendar</button>
+            </div>
+            <div class="home-agenda-list">${upcomingCards}</div>
+          </section>
         </section>
       ` : ''}
       <!-- 2. CALENDAR VIEW (Image 2 Wylro & Image 4 Pocket Cal) -->
@@ -701,23 +765,23 @@ function renderDashboard() {
       ` : ''}
     </main>
 
-    <!-- Clear Liquid Glass Floating Down Bar (3 tabs: Home, Calendar, Requests) -->
-    <div class="liquid-dock-wrap" role="navigation" aria-label="Liquid Navigation Dock">
+    <!-- Dark Matte Floating Bottom Navigation Bar (Image 2 style) -->
+    <nav class="liquid-dock-wrap" role="navigation" aria-label="Primary Mobile Dock">
       <div class="liquid-glass-dock">
         <button type="button" class="liquid-dock-item ${activeWorkerTab === 'overview' ? 'active' : ''}" data-tab="overview" aria-label="Home Dashboard">
-          ${ICONS.home}
-          <span class="dock-label">Home</span>
+          <span class="dock-icon-wrap">${ICONS.home}</span>
+          ${activeWorkerTab === 'overview' ? '<span class="dock-label">Home</span>' : ''}
         </button>
         <button type="button" class="liquid-dock-item ${activeWorkerTab === 'calendar' ? 'active' : ''}" data-tab="calendar" aria-label="Calendar Matrix">
-          ${ICONS.calendar}
-          <span class="dock-label">Calendar</span>
+          <span class="dock-icon-wrap">${ICONS.calendar}</span>
+          ${activeWorkerTab === 'calendar' ? '<span class="dock-label">Calendar</span>' : ''}
         </button>
         <button type="button" class="liquid-dock-item ${activeWorkerTab === 'requests' ? 'active' : ''}" data-tab="requests" aria-label="Requests">
-          ${ICONS.requests}
-          <span class="dock-label">Requests</span>
+          <span class="dock-icon-wrap">${ICONS.requests}</span>
+          ${activeWorkerTab === 'requests' ? '<span class="dock-label">Requests</span>' : ''}
         </button>
       </div>
-    </div>
+    </nav>
   `;
 
   // Bind View Switcher events (Liquid Glass Dock items)
