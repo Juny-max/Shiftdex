@@ -2818,6 +2818,14 @@ button:not(:disabled):active { animation: button-press-feedback 160ms ease-out; 
   color: var(--blue-primary);
   border-color: var(--blue-primary);
 }
+.btn-team-edit-icon svg,
+#btn-add-team-header svg {
+  width: 12px !important;
+  height: 12px !important;
+  max-width: 12px !important;
+  max-height: 12px !important;
+  flex-shrink: 0;
+}
 
 
 .update-settings-card {

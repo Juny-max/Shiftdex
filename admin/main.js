@@ -83,7 +83,7 @@ const ICONS = {
   copy: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
   download: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
   upload: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`,
-  plus: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
+  plus: `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`,
   clock: `<svg class="analog-clock-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9.4"/><path d="M12 4.2v1M19.8 12h-1M12 19.8v-1M4.2 12h1" opacity=".45"/><line class="clock-hour-hand" x1="12" y1="12" x2="15.2" y2="13.5"/><line class="clock-minute-hand" x1="12" y1="12" x2="12" y2="6.5"/><line class="clock-second-hand" x1="12" y1="13" x2="12" y2="5.2"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>`,
   undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`,
   redo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
@@ -4800,8 +4800,8 @@ function renderSettingsView() {
                 <h3 class="clean-card-title">Shift Teams &amp; Anchors</h3>
                 <p class="clean-card-subtitle">Active ${pods.length}-team rotation roster.</p>
               </div>
-              <button type="button" class="btn-clean small" id="btn-add-team-header" style="font-size:11.5px;color:var(--text-light);display:flex;align-items:center;gap:4px;" title="Add a new shift team">
-                ${ICONS.plus}
+              <button type="button" class="btn-clean small" id="btn-add-team-header" style="font-size:11.5px;color:var(--text-light);display:inline-flex;align-items:center;gap:4px;" title="Add a new shift team">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 <span>Add Team</span>
               </button>
             </div>
@@ -4822,16 +4822,12 @@ function renderSettingsView() {
                     <div style="display:flex;align-items:center;gap:8px;">
                       <span class="team-anchor-chip">${p.anchor}</span>
                       <button type="button" class="btn-clean small btn-team-edit-icon" data-pod-edit="${p.id}" title="Edit team">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
                       </button>
                     </div>
                   </div>
                 `;
               }).join('')}
-              <button type="button" class="btn-clean small" id="btn-add-team" style="font-size:11.5px;color:var(--text-light);background:transparent;border:1px dashed #cbd5e1;border-radius:9px;padding:8px;width:100%;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;">
-                ${ICONS.plus}
-                <span>Add Team</span>
-              </button>
             </div>
           </div>
         </div>
@@ -5121,8 +5117,6 @@ function bindEvents() {
       openEditTeamDialog(el.dataset.podEdit);
     };
   });
-  const addTeamBtn = document.querySelector('#btn-add-team');
-  if (addTeamBtn) addTeamBtn.onclick = () => openEditTeamDialog(null);
   const addTeamHeaderBtn = document.querySelector('#btn-add-team-header');
   if (addTeamHeaderBtn) addTeamHeaderBtn.onclick = () => openEditTeamDialog(null);
 
