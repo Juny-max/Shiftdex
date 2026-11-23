@@ -1559,11 +1559,11 @@ function requireCloudflareConnection(onConnected) {
   };
   dialog.showModal();
 }
-async function publishRoster() {
+async function publishRoster({ silent = false } = {}) {
   const tok = sessionStorage.getItem('admin-session') || '';
   const expires = Date.parse(sessionStorage.getItem('admin-session-expires') || '');
   if (!tok || expires <= Date.now()) {
-    requireCloudflareConnection(publishRoster);
+    if (!silent) requireCloudflareConnection(() => publishRoster({ silent }));
     return;
   }
   const publishButton = document.querySelector('#btn-top-publish');
@@ -1609,9 +1609,9 @@ async function publishRoster() {
     if (!res.ok) throw Error(`Publish failed (${res.status})`);
     state.coverTombstones = (state.coverTombstones || []).filter(item => !item.date.startsWith(`${month}-`));
     localStorage.setItem('shift-roster', JSON.stringify(state));
-    toast('Published live successfully');
+    if (!silent) toast('Published live successfully');
   } catch (error) {
-    toast(error.message?.startsWith('Publish failed') ? error.message : 'Could not connect to Worker API');
+    if (!silent) toast(error.message?.startsWith('Publish failed') ? error.message : 'Could not connect to Worker API');
   } finally {
     if (publishButton?.isConnected) {
       publishButton.innerHTML = previousMarkup;
@@ -4340,6 +4340,117 @@ function openAddPersonDialog() {
   dialog.showModal();
 }
 
+function renderRequestsListHtml() {
+  if (!requests.length) {
+    return `
+      <div class="clean-card" style="padding:48px 20px;text-align:center;color:var(--text-muted);background:#fff;border:1px solid #e2e8f0;border-radius:14px;">
+        <div style="font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:4px;">No pending requests</div>
+        <p style="font-size:12px;margin:0;">Worker registrations and unavailable date notifications will appear here.</p>
+      </div>
+    `;
+  }
+
+  return requests.map(r => {
+    const initials = (r.name || 'W').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    if (r.type === 'unavailability') {
+      const affected = [];
+      if (r.startDate && r.endDate) {
+        let cur = new Date(r.startDate + 'T00:00:00Z');
+        const end = new Date(r.endDate + 'T00:00:00Z');
+        while (cur <= end) {
+          const dStr = cur.toISOString().slice(0, 10);
+          const val = cellFor(state, r.staffId, dStr);
+          if (['M', 'N'].includes(val)) {
+            affected.push({ date: dStr, shift: val });
+          }
+          cur.setUTCDate(cur.getUTCDate() + 1);
+        }
+      }
+      return `
+        <div class="clean-request-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;gap:14px;align-items:flex-start;">
+              <div class="member-avatar-chip" style="width:40px;height:40px;border-radius:10px;font-size:13px;">${initials}</div>
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <b style="font-size:14px;color:var(--text-main);">${escapeHtml(r.name)}</b>
+                  <span class="req-tag-pill" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">UNAVAILABLE DATES</span>
+                </div>
+                <div style="font-size:12.5px;color:var(--text-main);margin-top:4px;font-weight:500;">
+                  Requested Range: <strong>${r.startDate} &rarr; ${r.endDate}</strong>
+                </div>
+                ${r.reason ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;">Reason: <em>${escapeHtml(r.reason)}</em></div>` : ''}
+                <div style="margin-top:8px;">
+                  ${affected.length ? `
+                    <span style="font-size:11.5px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:3px 8px;border-radius:6px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                      ${affected.length} scheduled working shift(s) affected (${affected.map(a => `${a.date}: ${a.shift}`).join(', ')})
+                    </span>
+                  ` : `
+                    <span style="font-size:11.5px;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;padding:3px 8px;border-radius:6px;font-weight:600;">
+                      Worker is already scheduled OFF for these dates
+                    </span>
+                  `}
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+              <button class="btn-clean small primary" data-review-unavail-id="${r.id}">Review & Approve</button>
+              <button class="btn-clean small" style="color:#dc2626;" data-reject-unavail-id="${r.id}">Reject</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (r.type === 'account') {
+      return `
+        <div class="clean-request-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+            <div style="display:flex;gap:14px;align-items:flex-start;">
+              <div class="member-avatar-chip" style="width:40px;height:40px;border-radius:10px;font-size:13px;">${initials}</div>
+              <div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <b style="font-size:14px;color:var(--text-main);">${escapeHtml(r.name)}</b>
+                  <span class="req-tag-pill" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">NEW ACCOUNT</span>
+                </div>
+                <div style="font-size:12px;color:var(--text-light);margin-top:2px;">Email: ${escapeHtml(r.email || '')}</div>
+                <div style="margin-top:8px;">
+                  <select class="account-staff-link" id="account-staff-${r.id}" aria-label="Link to staff profile" style="min-width:240px;">
+                    <option value="">Link to staff member...</option>
+                    ${availableStaff.map(person => `<option value="${person.id}">${escapeHtml(person.full_name)} · ${escapeHtml(person.role_tag)}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+              <button class="btn-clean small primary" data-approve-account-id="${r.id}">Approve Account</button>
+              <button class="btn-clean small" style="color:#dc2626;" data-reject-account-id="${r.id}">Reject</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="clean-request-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
+          <div style="display:flex;gap:14px;align-items:center;">
+            <div class="member-avatar-chip" style="width:40px;height:40px;border-radius:10px;font-size:13px;">${initials}</div>
+            <div>
+              <b style="font-size:14px;color:var(--text-main);">${escapeHtml(r.name)}</b>
+              <div style="font-size:12px;color:var(--text-light);">${escapeHtml(r.text)}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-clean small primary" data-legacy-req-id="${r.id}" data-req-action="approved">Approve</button>
+            <button class="btn-clean small" style="color:#dc2626;" data-legacy-req-id="${r.id}" data-req-action="rejected">Reject</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
 function renderRequestsView() {
   return `
     <div style="display:flex;flex-direction:column;gap:18px;">
@@ -4354,110 +4465,7 @@ function renderRequestsView() {
       </div>
 
       <div class="requests-list-clean" style="display:flex;flex-direction:column;gap:12px;">
-        ${requests.length ? requests.map(r => {
-          const initials = (r.name || 'W').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-          if (r.type === 'unavailability') {
-            const affected = [];
-            if (r.startDate && r.endDate) {
-              let cur = new Date(r.startDate + 'T00:00:00Z');
-              const end = new Date(r.endDate + 'T00:00:00Z');
-              while (cur <= end) {
-                const dStr = cur.toISOString().slice(0, 10);
-                const val = cellFor(state, r.staffId, dStr);
-                if (['M', 'N'].includes(val)) {
-                  affected.push({ date: dStr, shift: val });
-                }
-                cur.setUTCDate(cur.getUTCDate() + 1);
-              }
-            }
-            return `
-              <div class="clean-request-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
-                  <div style="display:flex;gap:14px;align-items:flex-start;">
-                    <div class="member-avatar-chip" style="width:40px;height:40px;border-radius:10px;font-size:13px;">${initials}</div>
-                    <div>
-                      <div style="display:flex;align-items:center;gap:8px;">
-                        <b style="font-size:14px;color:var(--text-main);">${escapeHtml(r.name)}</b>
-                        <span class="req-tag-pill" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#fef3c7;color:#92400e;border:1px solid #fde68a;">UNAVAILABLE DATES</span>
-                      </div>
-                      <div style="font-size:12.5px;color:var(--text-main);margin-top:4px;font-weight:500;">
-                        Requested Range: <strong>${r.startDate} &rarr; ${r.endDate}</strong>
-                      </div>
-                      ${r.reason ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;">Reason: <em>${escapeHtml(r.reason)}</em></div>` : ''}
-                      <div style="margin-top:8px;">
-                        ${affected.length ? `
-                          <span style="font-size:11.5px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:3px 8px;border-radius:6px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
-                            ${affected.length} scheduled working shift(s) affected (${affected.map(a => `${a.date}: ${a.shift}`).join(', ')})
-                          </span>
-                        ` : `
-                          <span style="font-size:11.5px;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;padding:3px 8px;border-radius:6px;font-weight:600;">
-                            Worker is already scheduled OFF for these dates
-                          </span>
-                        `}
-                      </div>
-                    </div>
-                  </div>
-                  <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
-                    <button class="btn-clean small primary" data-review-unavail-id="${r.id}">Review & Approve</button>
-                    <button class="btn-clean small" style="color:#dc2626;" data-reject-unavail-id="${r.id}">Reject</button>
-                  </div>
-                </div>
-              </div>
-            `;
-          }
-
-          if (r.type === 'account') {
-            return `
-              <div class="clean-request-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
-                  <div style="display:flex;gap:14px;align-items:flex-start;">
-                    <div class="member-avatar-chip" style="width:40px;height:40px;border-radius:10px;font-size:13px;">${initials}</div>
-                    <div>
-                      <div style="display:flex;align-items:center;gap:8px;">
-                        <b style="font-size:14px;color:var(--text-main);">${escapeHtml(r.name)}</b>
-                        <span class="req-tag-pill" style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">NEW ACCOUNT</span>
-                      </div>
-                      <div style="font-size:12px;color:var(--text-light);margin-top:2px;">Email: ${escapeHtml(r.email || '')}</div>
-                      <div style="margin-top:8px;">
-                        <select class="account-staff-link" id="account-staff-${r.id}" aria-label="Link to staff profile" style="min-width:240px;">
-                          <option value="">Link to staff member...</option>
-                          ${availableStaff.map(person => `<option value="${person.id}">${escapeHtml(person.full_name)} · ${escapeHtml(person.role_tag)}</option>`).join('')}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-                  <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
-                    <button class="btn-clean small primary" data-approve-account-id="${r.id}">Approve Account</button>
-                    <button class="btn-clean small" style="color:#dc2626;" data-reject-account-id="${r.id}">Reject</button>
-                  </div>
-                </div>
-              </div>
-            `;
-          }
-
-          return `
-            <div class="clean-request-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;">
-                <div style="display:flex;gap:14px;align-items:center;">
-                  <div class="member-avatar-chip" style="width:40px;height:40px;border-radius:10px;font-size:13px;">${initials}</div>
-                  <div>
-                    <b style="font-size:14px;color:var(--text-main);">${escapeHtml(r.name)}</b>
-                    <div style="font-size:12px;color:var(--text-light);">${escapeHtml(r.text)}</div>
-                  </div>
-                </div>
-                <div style="display:flex;gap:8px;">
-                  <button class="btn-clean small primary" data-legacy-req-id="${r.id}" data-req-action="approved">Approve</button>
-                  <button class="btn-clean small" style="color:#dc2626;" data-legacy-req-id="${r.id}" data-req-action="rejected">Reject</button>
-                </div>
-              </div>
-            </div>
-          `;
-        }).join('') : `
-          <div class="clean-card" style="padding:48px 20px;text-align:center;color:var(--text-muted);background:#fff;border:1px solid #e2e8f0;border-radius:14px;">
-            <div style="font-size:14px;font-weight:600;color:var(--text-main);margin-bottom:4px;">No pending requests</div>
-            <p style="font-size:12px;margin:0;">Worker registrations and unavailable date notifications will appear here.</p>
-          </div>
-        `}
+        ${renderRequestsListHtml()}
       </div>
     </div>
   `;
@@ -4551,52 +4559,65 @@ function openResolveUnavailabilityDialog(r) {
     });
     if (!confirmed) return;
 
-    // 1. Apply changes to calendar state
-    if (r.startDate && r.endDate) {
-      let cur = new Date(r.startDate + 'T00:00:00Z');
-      const end = new Date(r.endDate + 'T00:00:00Z');
-      while (cur <= end) {
-        const dStr = cur.toISOString().slice(0, 10);
-        const shiftVal = cellFor(state, r.staffId, dStr);
-        if (['M', 'N'].includes(shiftVal)) {
-          setCell(state, r.staffId, dStr, 'OFF');
-          const standInSelect = document.getElementById(`standin-${dStr}`);
-          const standInId = standInSelect?.value;
-          if (standInId) {
-            setCell(state, standInId, dStr, shiftVal);
-            state.coverAssignments = state.coverAssignments || {};
-            state.coverAssignments[`${dStr}:${r.staffId}`] = { coverWorkerId: standInId, shiftCode: shiftVal };
-          }
-        }
-        cur.setUTCDate(cur.getUTCDate() + 1);
-      }
-      save();
+    const btn = document.getElementById('btn-confirm-resolve');
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<span class="button-spinner" aria-hidden="true" style="margin-right:6px;"></span><span>Applying...</span>';
     }
 
-    // 2. Call backend API
     try {
-      await fetch(API + '/api/admin/requests/' + r.id, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + (sessionStorage.getItem('admin-session') || '') },
-        body: JSON.stringify({ status: 'approved' })
-      });
-    } catch (err) {
-      console.warn('API update warning:', err);
-    }
-
-    // 3. Publish updated roster online
-    if (admin.loggedIn) {
-      try {
-        await publishRoster({ silent: true });
-      } catch (err) {
-        console.warn('Publish warning:', err);
+      // 1. Apply changes to calendar state
+      if (r.startDate && r.endDate) {
+        let cur = new Date(r.startDate + 'T00:00:00Z');
+        const end = new Date(r.endDate + 'T00:00:00Z');
+        while (cur <= end) {
+          const dStr = cur.toISOString().slice(0, 10);
+          const shiftVal = cellFor(state, r.staffId, dStr);
+          if (['M', 'N'].includes(shiftVal)) {
+            setCell(state, r.staffId, dStr, 'OFF');
+            const standInSelect = document.getElementById(`standin-${dStr}`);
+            const standInId = standInSelect?.value;
+            if (standInId) {
+              setCell(state, standInId, dStr, shiftVal);
+              state.coverAssignments = state.coverAssignments || {};
+              state.coverAssignments[`${dStr}:${r.staffId}`] = { coverWorkerId: standInId, shiftCode: shiftVal };
+            }
+          }
+          cur.setUTCDate(cur.getUTCDate() + 1);
+        }
+        save();
       }
-    }
 
-    dialog.close();
-    requests = requests.filter(x => x.id !== r.id);
-    render();
-    toast(`Approved: ${r.name} marked OFF and calendar updated.`);
+      // 2. Call backend API
+      try {
+        await fetch(API + '/api/admin/requests/' + r.id, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', authorization: 'Bearer ' + (sessionStorage.getItem('admin-session') || '') },
+          body: JSON.stringify({ status: 'approved' })
+        });
+      } catch (err) {
+        console.warn('API update warning:', err);
+      }
+
+      // 3. Publish updated roster online
+      const adminUser = currentAdmin();
+      if (adminUser.loggedIn) {
+        try {
+          await publishRoster({ silent: true });
+        } catch (err) {
+          console.warn('Publish warning:', err);
+        }
+      }
+
+      toast(`Approved: ${r.name} marked OFF and calendar updated.`);
+    } catch (err) {
+      console.error('Error during unavailability approval:', err);
+      toast('Error approving request');
+    } finally {
+      dialog.close();
+      requests = requests.filter(x => x.id !== r.id);
+      updateRequestsUIInPlace();
+    }
   };
 }
 
@@ -5281,6 +5302,9 @@ function bindEvents() {
       }
       activePage = targetNav;
       render();
+      if (targetNav === 'requests') {
+        fetchAdminRequests({ silent: true });
+      }
     };
   });
 
@@ -6059,54 +6083,95 @@ function bindEvents() {
     };
   });
 
+  // Request Actions Binding
+  bindRequestActions();
+}
+
+let lastRequestsDigest = '';
+
+function updateRequestsUIInPlace() {
+  document.querySelectorAll('.side-nav-button[data-nav="requests"] .side-nav-counter').forEach(el => {
+    el.textContent = requests.length;
+  });
+  if (activePage === 'requests') {
+    const listEl = document.querySelector('.requests-list-clean');
+    if (listEl) {
+      listEl.innerHTML = renderRequestsListHtml();
+      bindRequestActions();
+    }
+  }
+}
+
+async function fetchAdminRequests({ silent = true } = {}) {
+  const tok = sessionStorage.getItem('admin-session') || '';
+  if (!tok) return;
+  try {
+    const res = await fetch(API + '/api/admin/requests', { headers: { authorization: 'Bearer ' + tok } });
+    if (!res.ok) return;
+    const data = await res.json();
+    availableStaff = data.availableStaff || [];
+    const newRequests = [
+      ...(data.covers || []).map(x => ({
+        id: x.id,
+        type: 'cover',
+        name: x.requester,
+        requesterId: x.requester_id,
+        targetWorkerId: x.target_worker_id,
+        originalDate: x.original_date,
+        shiftCode: x.shift_code,
+        reason: x.reason || '',
+        createdAt: x.created_at,
+        text: `Shift Cover · ${x.original_date} · Shift ${x.shift_code}`
+      })),
+      ...(data.unavailability || []).map(x => ({
+        id: x.id,
+        type: 'unavailability',
+        staffId: x.staff_id,
+        name: x.full_name,
+        startDate: x.start_date,
+        endDate: x.end_date,
+        reason: x.reason || '',
+        createdAt: x.created_at,
+        text: `Unavailable · ${x.start_date} to ${x.end_date}`
+      })),
+      ...(data.accounts || []).map(x => ({
+        id: x.id,
+        type: 'account',
+        name: x.full_name,
+        email: x.email,
+        createdAt: x.created_at,
+        text: `New account · ${x.email}`
+      }))
+    ];
+
+    const currentDigest = JSON.stringify(newRequests.map(r => ({ id: r.id, type: r.type })));
+    if (currentDigest !== lastRequestsDigest || !silent) {
+      lastRequestsDigest = currentDigest;
+      requests = newRequests;
+      updateRequestsUIInPlace();
+    }
+  } catch (err) {
+    if (!silent) console.warn('Could not sync requests:', err);
+  }
+}
+
+function bindRequestActions() {
   // Sync D1 Requests
   const syncBtn = document.querySelector('#btn-sync-d1');
   if (syncBtn) {
     syncBtn.onclick = () => requireCloudflareConnection(async () => {
-      const tok = sessionStorage.getItem('admin-session') || '';
+      const origHtml = syncBtn.innerHTML;
+      syncBtn.disabled = true;
+      syncBtn.innerHTML = '<span class="button-spinner" aria-hidden="true" style="margin-right:6px;"></span><span>Syncing...</span>';
       try {
         await syncDirectory();
-        const res = await fetch(API + '/api/admin/requests', { headers: { authorization: 'Bearer ' + tok } });
-        if (!res.ok) throw Error();
-        const data = await res.json();
-        availableStaff = data.availableStaff || [];
-        requests = [
-          ...data.covers.map(x => ({
-            id: x.id,
-            type: 'cover',
-            name: x.requester,
-            requesterId: x.requester_id,
-            targetWorkerId: x.target_worker_id,
-            originalDate: x.original_date,
-            shiftCode: x.shift_code,
-            reason: x.reason || '',
-            createdAt: x.created_at,
-            text: `Shift Cover · ${x.original_date} · Shift ${x.shift_code}`
-          })),
-          ...data.unavailability.map(x => ({
-            id: x.id,
-            type: 'unavailability',
-            staffId: x.staff_id,
-            name: x.full_name,
-            startDate: x.start_date,
-            endDate: x.end_date,
-            reason: x.reason || '',
-            createdAt: x.created_at,
-            text: `Unavailable · ${x.start_date} to ${x.end_date}`
-          })),
-          ...(data.accounts || []).map(x => ({
-            id: x.id,
-            type: 'account',
-            name: x.full_name,
-            email: x.email,
-            createdAt: x.created_at,
-            text: `New account · ${x.email}`
-          }))
-        ];
-        render();
-        toast(`Synced ${requests.length} requests & updated staff`);
+        await fetchAdminRequests({ silent: false });
+        toast(`Synced ${requests.length} pending request(s)`);
       } catch {
         toast('Could not reach Worker API');
+      } finally {
+        syncBtn.disabled = false;
+        syncBtn.innerHTML = origHtml;
       }
     });
   }
@@ -6144,7 +6209,7 @@ function bindEvents() {
         });
         if (!res.ok) throw new Error();
         requests = requests.filter(x => x.id !== id);
-        render();
+        updateRequestsUIInPlace();
         toast('Request rejected.');
       } catch {
         toast('Error rejecting request');
@@ -6183,7 +6248,7 @@ function bindEvents() {
         });
         if (!res.ok) throw new Error();
         requests = requests.filter(x => x.id !== id);
-        render();
+        updateRequestsUIInPlace();
         toast(`Account approved and linked to ${matched?.full_name || staffId}.`);
       } catch {
         toast('Error approving account');
@@ -6215,7 +6280,7 @@ function bindEvents() {
         });
         if (!res.ok) throw new Error();
         requests = requests.filter(x => x.id !== id);
-        render();
+        updateRequestsUIInPlace();
         toast('Account registration rejected.');
       } catch {
         toast('Error rejecting account');
@@ -6236,7 +6301,7 @@ function bindEvents() {
         });
         if (!res.ok) throw new Error();
         requests = requests.filter(x => x.id !== id);
-        render();
+        updateRequestsUIInPlace();
         toast(`Request ${action}`);
       } catch {
         toast('Error updating request');
@@ -6249,6 +6314,24 @@ function bindEvents() {
 render();
 syncDirectory();
 fetchRoles();
+fetchAdminRequests({ silent: true });
+
+// Auto-refresh requests silently in the background every 45 seconds (no white screen)
+setInterval(() => {
+  const admin = currentAdmin();
+  if (admin.loggedIn && document.visibilityState === 'visible') {
+    fetchAdminRequests({ silent: true });
+  }
+}, 45000);
+
+// Auto-sync directory every 3 minutes silently
+setInterval(() => {
+  const admin = currentAdmin();
+  if (admin.loggedIn && document.visibilityState === 'visible') {
+    syncDirectory();
+  }
+}, 180000);
+
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && isCopilotOpen) {
     closeCopilot();
@@ -6264,6 +6347,10 @@ document.addEventListener('visibilitychange', () => {
       month = realMonth < '2026-11' ? '2026-11' : realMonth;
       render();
     }
+    const admin = currentAdmin();
+    if (admin.loggedIn) {
+      fetchAdminRequests({ silent: true });
+    }
   }
 });
 window.addEventListener('focus', () => {
@@ -6271,6 +6358,10 @@ window.addEventListener('focus', () => {
   if (activePage === 'overview' && month !== realMonth) {
     month = realMonth < '2026-11' ? '2026-11' : realMonth;
     render();
+  }
+  const admin = currentAdmin();
+  if (admin.loggedIn) {
+    fetchAdminRequests({ silent: true });
   }
 });
 if (window.shiftDexDesktop?.updates) {
