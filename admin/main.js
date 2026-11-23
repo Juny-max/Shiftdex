@@ -275,32 +275,37 @@ function getMonthStats(m) {
 function getTodayInfo() {
   const now = new Date();
   const todayStr = now.toISOString().slice(0, 10);
-  const [curY, curM, curD] = todayStr.split('-').map(Number);
-  const isCurrentMonth = (month === `${curY}-${String(curM).padStart(2, '0')}`);
-  const todayDay = isCurrentMonth ? curD : 20;
-  const todayKeyStr = `${month}-${String(todayDay).padStart(2, '0')}`;
   const hour = now.getHours();
   const isMorningTime = (hour >= 6 && hour < 18);
 
   const core = activeStaff().filter(s => s.podId);
-  const morningStaff = core.filter(s => cellFor(state, s.id, todayKeyStr) === 'M');
-  const nightStaff = core.filter(s => cellFor(state, s.id, todayKeyStr) === 'N');
-  const morningPod = pods.find(p => morningStaff.some(s => s.podId === p.id));
-  const nightPod = pods.find(p => nightStaff.some(s => s.podId === p.id));
+
+  // Today's real rotational pods based on 8-day rotation cycle on real-world todayStr
+  const morningPodObj = pods.find(p => cycle(todayStr, p.anchor) === 'M') || pods[0];
+  const nightPodObj = pods.find(p => cycle(todayStr, p.anchor) === 'N') || pods[1];
+
+  let morningStaff = core.filter(s => cellFor(state, s.id, todayStr) === 'M');
+  if (morningStaff.length === 0) {
+    morningStaff = core.filter(s => s.podId === morningPodObj.id);
+  }
+
+  let nightStaff = core.filter(s => cellFor(state, s.id, todayStr) === 'N');
+  if (nightStaff.length === 0) {
+    nightStaff = core.filter(s => s.podId === nightPodObj.id);
+  }
 
   const activeShiftStaff = isMorningTime ? morningStaff : nightStaff;
-  const activePod = isMorningTime ? morningPod : nightPod;
+  const activePod = isMorningTime ? morningPodObj : nightPodObj;
 
   return {
-    isCurrentMonth,
-    todayDay,
-    todayKeyStr,
+    todayStr,
+    todayKeyStr: todayStr,
     hour,
     isMorningTime,
     morningStaff,
     nightStaff,
-    morningPod,
-    nightPod,
+    morningPod: morningPodObj,
+    nightPod: nightPodObj,
     activeStaff: activeShiftStaff,
     activePod
   };
@@ -2320,40 +2325,21 @@ function renderOverviewView() {
   const activeShiftName = todayInfo.isMorningTime ? 'Day Shift (06:00 – 18:00)' : 'Night Shift (18:00 – 06:00)';
   const activeStaffList = todayInfo.activeStaff && todayInfo.activeStaff.length
     ? todayInfo.activeStaff
-    : [{ displayName: 'Julius' }, { displayName: 'Selorm' }, { displayName: 'Benedicta' }];
-  const activePodName = todayInfo.activePod?.name || (todayInfo.isMorningTime ? 'Team 3 (Blue)' : 'Team 1 (Orange)');
+    : [{ displayName: 'Staff On Duty' }];
+  const activePodName = todayInfo.activePod?.name || (todayInfo.isMorningTime ? 'Team 4' : 'Team 3');
 
   return `
     <!-- Executive Hero Duo Grid -->
     <div class="hero-duo-grid">
-      <!-- Card 1: Operations Hub (Quartz White Card) -->
+      <!-- Card 1: Total Monthly Shifts (Minimal Quartz White Card) -->
       <div class="payday-hero-white">
-        <div class="hero-white-content">
-          <div class="payday-tag-pill">
-            <span class="pulse-radar-dot green"></span>
-            <span>24/7 MISSION ROTATION</span>
-          </div>
+        <div class="hero-white-main">
+          <div class="payday-label-sub">Total monthly shifts</div>
           <div class="payday-huge-number">${stats.totalShifts} Shifts</div>
           <div class="payday-date-line">
             <span>${formatMonth(month)}</span>
             <span class="bullet-sep">·</span>
             <span>${stats.hours.toLocaleString()} hours delivered</span>
-          </div>
-
-          <!-- KPI Strip -->
-          <div class="hero-kpi-strip">
-            <div class="hero-kpi-item">
-              <span class="hero-kpi-label">Rotation Model</span>
-              <span class="hero-kpi-val highlight">2M → 2N → 4 OFF</span>
-            </div>
-            <div class="hero-kpi-item">
-              <span class="hero-kpi-label">Active Pods</span>
-              <span class="hero-kpi-val">4 Core Teams</span>
-            </div>
-            <div class="hero-kpi-item">
-              <span class="hero-kpi-label">Shift Duration</span>
-              <span class="hero-kpi-val">12h Continuous</span>
-            </div>
           </div>
         </div>
 
@@ -2372,12 +2358,12 @@ function renderOverviewView() {
         </button>
       </div>
 
-      <!-- Card 2: Active Shift Deck (Deep Midnight Royal Blue Gradient) -->
+      <!-- Card 2: Active Shift Deck (Deep Obsidian / Slate Card - Non-AI Aesthetic) -->
       <div class="payday-hero-blue">
         <div class="blue-card-inner">
           <div class="blue-card-top-row">
             <span class="blue-tag-pill">
-              <span class="pulse-radar-dot glowing"></span>
+              <span class="desk-dot"></span>
               CURRENT ON-DUTY SHIFT
             </span>
             <span class="blue-arrow-corner" data-nav="roster" title="Go to roster">${ICONS.arrowUpRight}</span>
@@ -2385,7 +2371,7 @@ function renderOverviewView() {
 
           <div class="blue-pod-lead">${escapeHtml(activeShiftName)}</div>
           <div class="blue-deck-title-row">
-            <div class="blue-huge-title">${todayInfo.activeStaff.length || 3} on desk</div>
+            <div class="blue-huge-title">${todayInfo.activeStaff?.length || activeStaffList.length} on desk</div>
             <span class="deck-team-chip">${escapeHtml(activePodName)}</span>
           </div>
 
@@ -2411,7 +2397,7 @@ function renderOverviewView() {
           </div>
           <div class="blue-sub-metric-box">
             <small>Shift compliance</small>
-            <b>100% All Clear ✓</b>
+            <b>All clear ✓</b>
           </div>
         </div>
       </div>
@@ -2419,7 +2405,7 @@ function renderOverviewView() {
 
     <!-- Executive Tri-Card Grid -->
     <div class="tri-card-grid">
-      <!-- Card 1: Shift Allocation (Donut Ring + Distribution Bars) -->
+      <!-- Card 1: Shift Allocation -->
       <div class="clean-card">
         <div class="clean-card-header">
           <div>
@@ -2508,7 +2494,7 @@ function renderOverviewView() {
               <div class="breakdown-staff-chips">
                 ${todayInfo.morningStaff.length
                   ? todayInfo.morningStaff.map(s => `<span class="roster-staff-pill">${escapeHtml(s.displayName || s.name)}</span>`).join('')
-                  : '<span class="breakdown-row-sub">3 staff assigned</span>'}
+                  : '<span class="breakdown-row-sub">No staff assigned</span>'}
               </div>
             </div>
           </div>
@@ -2528,7 +2514,7 @@ function renderOverviewView() {
               <div class="breakdown-staff-chips">
                 ${todayInfo.nightStaff.length
                   ? todayInfo.nightStaff.map(s => `<span class="roster-staff-pill">${escapeHtml(s.displayName || s.name)}</span>`).join('')
-                  : '<span class="breakdown-row-sub">3 staff assigned</span>'}
+                  : '<span class="breakdown-row-sub">No staff assigned</span>'}
               </div>
             </div>
           </div>
@@ -2567,7 +2553,7 @@ function renderOverviewView() {
               <div class="timeline-dot morning"></div>
               <div class="timeline-content">
                 <span class="timeline-time">06:00 – 18:00 Morning</span>
-                <span class="timeline-staff">${todayInfo.morningStaff.map(s => s.displayName || s.name).join(', ') || 'Julius, Selorm, Benedicta'}</span>
+                <span class="timeline-staff">${todayInfo.morningStaff.map(s => s.displayName || s.name).join(', ') || 'Assigned morning team'}</span>
               </div>
             </div>
             <div class="timeline-connector"></div>
@@ -2575,21 +2561,21 @@ function renderOverviewView() {
               <div class="timeline-dot night"></div>
               <div class="timeline-content">
                 <span class="timeline-time">18:00 – 06:00 Night</span>
-                <span class="timeline-staff">${todayInfo.nightStaff.map(s => s.displayName || s.name).join(', ') || 'Papa Nii, Owusu, Frimpong'}</span>
+                <span class="timeline-staff">${todayInfo.nightStaff.map(s => s.displayName || s.name).join(', ') || 'Assigned night team'}</span>
               </div>
             </div>
           </div>
 
-          <!-- Handover Dispatch Promo Card -->
-          <div class="payday-promo-card" id="btn-promo-handover" title="Click to copy formatted handover dispatch">
-            <div class="promo-card-left">
-              <div class="promo-card-title-row">
-                <span class="promo-card-title">Today's handover brief</span>
-                <span class="promo-badge-tag">Quick Copy</span>
-              </div>
-              <span class="promo-card-sub">Formatted dispatch ready for WhatsApp &amp; Slack</span>
+          <!-- Clean Refined Handover Dispatch Card -->
+          <div class="handover-action-card" id="btn-promo-handover" title="Click to copy handover dispatch for messaging">
+            <div class="handover-action-content">
+              <span class="handover-action-title">Today's handover brief</span>
+              <span class="handover-action-desc">Click to copy formatted dispatch for WhatsApp</span>
             </div>
-            <span class="promo-card-arrow">${ICONS.arrowUpRight}</span>
+            <div class="handover-copy-pill">
+              ${ICONS.copy}
+              <span>Copy</span>
+            </div>
           </div>
         </div>
       </div>
@@ -2661,7 +2647,7 @@ function renderRosterView() {
       <div class="acme-subbar">
         <div class="acme-subbar-left">
           <span style="font-weight:700;font-size:14px;color:var(--text-main);letter-spacing:-0.2px;">
-            ${isCurrentMonth ? `Active: Today (${formatMonth(month)} ${todayDay})` : `${formatMonth(month)} Schedule`}
+            ${isCurrentMonth ? `Active: Today (${todayObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})` : `${formatMonth(month)} Schedule`}
           </span>
           <span class="acme-status-pill ${!coreStaff.length ? 'neutral' : issues.length ? 'warning' : 'success'}">
             ${!coreStaff.length ? 'Awaiting Roster' : issues.length ? `${issues.length} Conflicts` : 'All Clear · 100% Coverage'}
@@ -4789,7 +4775,13 @@ function bindEvents() {
   // Navigation
   document.querySelectorAll('[data-nav]').forEach(el => {
     el.onclick = () => {
-      activePage = el.dataset.nav;
+      const targetNav = el.dataset.nav;
+      if (targetNav === 'overview' || (targetNav === 'roster' && activePage !== 'roster')) {
+        const currentRealMonth = new Date().toISOString().slice(0, 7);
+        month = currentRealMonth < '2026-11' ? '2026-11' : currentRealMonth;
+        localStorage.setItem('shift-roster-month', month);
+      }
+      activePage = targetNav;
       render();
     };
   });
@@ -5744,6 +5736,22 @@ window.addEventListener('keydown', (e) => {
   } else if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
     e.preventDefault();
     toggleCopilot();
+  }
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    const realMonth = new Date().toISOString().slice(0, 7);
+    if (activePage === 'overview' && month !== realMonth) {
+      month = realMonth < '2026-11' ? '2026-11' : realMonth;
+      render();
+    }
+  }
+});
+window.addEventListener('focus', () => {
+  const realMonth = new Date().toISOString().slice(0, 7);
+  if (activePage === 'overview' && month !== realMonth) {
+    month = realMonth < '2026-11' ? '2026-11' : realMonth;
+    render();
   }
 });
 if (window.shiftDexDesktop?.updates) {
