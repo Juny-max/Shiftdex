@@ -287,8 +287,10 @@ function getTodayInfo() {
   const todayStr = now.toISOString().slice(0, 10);
   const hour = now.getHours();
   const isMorningTime = (hour >= 6 && hour < 18);
+  const isSupportActive = (hour >= 8 && hour < 17);
 
   const core = activeStaff().filter(s => s.podId);
+  const supportStaff = activeStaff().filter(person => !person.podId);
 
   // Today's real rotational pods based on 8-day rotation cycle on real-world todayStr
   const morningPodObj = pods.find(p => cycle(todayStr, p.anchor) === 'M') || pods[0];
@@ -312,8 +314,10 @@ function getTodayInfo() {
     todayKeyStr: todayStr,
     hour,
     isMorningTime,
+    isSupportActive,
     morningStaff,
     nightStaff,
+    supportStaff,
     morningPod: morningPodObj,
     nightPod: nightPodObj,
     activeStaff: activeShiftStaff,
@@ -2460,18 +2464,22 @@ function renderOverviewView() {
           </div>
 
           <!-- Day Support Row -->
-          <div class="roster-shift-row support-row">
+          <div class="roster-shift-row ${todayInfo.isSupportActive ? 'active-shift' : ''}">
             <div class="roster-shift-main">
               <div class="roster-shift-title-line">
                 <span class="roster-shift-name">Support Team</span>
                 <span class="roster-shift-hours">08:00 – 17:00</span>
               </div>
-              <div class="roster-shift-personnel muted">
-                ${activeStaff().filter(person => !person.podId).map(person => escapeHtml(person.displayName || person.name)).join(' · ') || 'Support personnel on call'}
+              <div class="roster-shift-personnel">
+                ${todayInfo.supportStaff.length
+                  ? todayInfo.supportStaff.map(person => escapeHtml(person.displayName || person.name)).join(' · ')
+                  : 'Day support personnel (08:00 – 17:00)'}
               </div>
             </div>
             <div class="roster-shift-badge-wrap">
-              <span class="roster-shift-status-pill status-support">On Call</span>
+              <span class="roster-shift-status-pill ${todayInfo.isSupportActive ? 'status-active' : 'status-closed'}">
+                ${todayInfo.isSupportActive ? '<span class="status-dot-green"></span>Active' : 'Closed'}
+              </span>
             </div>
           </div>
         </div>

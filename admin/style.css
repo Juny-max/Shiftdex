@@ -851,18 +851,20 @@ button, input, select {
   background: #f8fafc;
   border: 1px solid #f1f5f9;
   transition: all 0.15s ease;
+  opacity: 0.85;
 }
 
 .roster-shift-row:hover {
   background: #f1f5f9;
   border-color: #e2e8f0;
+  opacity: 1;
 }
 
 .roster-shift-row.active-shift {
   background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.05);
-  border-left: 3.5px solid #10b981;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 3px 10px -2px rgba(15, 23, 42, 0.05);
+  opacity: 1;
 }
 
 .roster-shift-main {
@@ -946,6 +948,12 @@ button, input, select {
   background: #f8fafc;
   color: #94a3b8;
   border: 1px solid #f1f5f9;
+}
+
+.roster-shift-status-pill.status-closed {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
 }
 
 /* Next Upgrades / Handover Timeline Hub */
