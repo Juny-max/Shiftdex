@@ -441,21 +441,10 @@ function renderDashboard() {
             <span class="card-edge-cut cut-bottom"></span>
           </div>
 
-          <!-- 2. 24/7 FACILITY LIVE DESK (Clean White Card with Ticket Cutout) -->
+          <!-- 2. ON-DUTY CREW CARD (Clean White Card with Ticket Cutout) -->
           <section class="neo-white-card neo-desk-card">
             <!-- Top Edge Cut Notch -->
             <span class="card-edge-cut cut-top"></span>
-
-            <div class="desk-card-top-row">
-              <div class="desk-card-kicker">
-                <span class="kicker-pulse-dot"></span>
-                <span>24/7 Facility Desk</span>
-              </div>
-              <span class="desk-live-pill">
-                <span class="desk-live-dot"></span>
-                Live on Duty
-              </span>
-            </div>
 
             <div class="desk-card-main-content">
               <h3>${currentDuty === 'M' ? 'Morning Shift Crew' : 'Night Shift Crew'}</h3>
@@ -498,7 +487,10 @@ function renderDashboard() {
                 <span class="neo-panel-kicker">YOUR WEEK</span>
                 <h2>Upcoming shifts</h2>
               </div>
-              <button type="button" class="neo-panel-link" data-tab="calendar">See calendar</button>
+              <button type="button" class="neo-panel-link" data-tab="calendar">
+                <span>See calendar</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+              </button>
             </div>
             <div class="home-agenda-list">${upcomingCards}</div>
 
