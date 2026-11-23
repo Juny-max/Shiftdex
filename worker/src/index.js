@@ -126,7 +126,7 @@ async function auth(req, env, db, admin = false) {
   const account = await db.prepare(`SELECT a.id account_id,a.staff_id,a.email,a.full_name,s.role_tag,s.pod_id,s.effective_from
     FROM worker_sessions ws JOIN worker_accounts a ON a.id=ws.account_id
     JOIN staff s ON s.id=a.staff_id
-    WHERE ws.token_hash=? AND ws.expires_at>? AND a.status='active' AND s.status='active'`)
+    WHERE ws.token_hash=? AND ws.expires_at>? AND a.status='active' AND s.status IN ('active', 'pending')`)
     .bind(tokenHash, new Date().toISOString()).first();
   return account ? { id: account.staff_id, accountId: account.account_id, email: account.email, name: account.full_name, admin: false } : null;
 }
@@ -1112,6 +1112,7 @@ export default {
           await db.prepare('UPDATE worker_accounts SET password_salt=?,password_hash=?,password_iterations=?,updated_at=CURRENT_TIMESTAMP WHERE id=?')
             .bind(salt, upgradedHash, CURRENT_PASSWORD_ITERATIONS, account.id).run();
         }
+        await db.prepare("UPDATE staff SET status='active' WHERE id=? AND status='pending'").bind(account.staff_id).run();
         const session = await createSession(db, account.id);
         await audit(db, account.id, 'login', 'worker_account', account.id);
         return json({ token: session.token, expiresAt: session.expiresAt, staffId: account.staff_id, fullName: account.full_name, email: account.email, staff: staffMember });
@@ -1164,7 +1165,7 @@ export default {
       if (url.pathname === '/api/me' && req.method === 'GET') {
         const actor = await auth(req, env, db);
         if (!actor) return json({ error: 'Sign in required.' }, 401);
-        const person = await db.prepare('SELECT id,full_name,role_tag,pod_id,effective_from FROM staff WHERE id=? AND status=\'active\'').bind(actor.id).first();
+        const person = await db.prepare("SELECT id,full_name,role_tag,pod_id,effective_from FROM staff WHERE id=? AND status IN ('active', 'pending')").bind(actor.id).first();
         return person ? json({ ...actor, staff: person }) : json({ error: 'Staff profile is unavailable.' }, 404);
       }
 

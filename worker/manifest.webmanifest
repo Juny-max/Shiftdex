@@ -1,6 +1,6 @@
 {
-  "name": "Shift Desk Worker Portal",
-  "short_name": "Shift Desk",
+  "name": "ShiftDex Worker Portal",
+  "short_name": "ShiftDex",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f3f6f8",

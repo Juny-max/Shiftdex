@@ -77,7 +77,7 @@ async function apiRequest(path, options = {}) {
     },
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Could not connect to Shift Desk.');
+  if (!response.ok) throw new Error(data.error || 'Could not connect to ShiftDex.');
   return data;
 }
 
@@ -93,18 +93,39 @@ function renderLogin() {
   });
 }
 
-function showMessage(message) {
-  let toast = document.querySelector('#toast');
+function showWorkerToast(message, type = 'success') {
+  let toast = document.querySelector('#worker-toast');
   if (!toast) {
     toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.id = 'toast';
+    toast.className = 'worker-toast';
+    toast.id = 'worker-toast';
     document.body.appendChild(toast);
   }
-  toast.innerHTML = `<span class="toast-dot"></span><span>${escapeHtml(message)}</span>`;
+  const isErr = (type === 'error');
+  toast.className = `worker-toast ${isErr ? 'error' : 'success'}`;
+  toast.innerHTML = `
+    <span class="worker-toast-icon ${isErr ? 'error' : ''}">
+      ${isErr 
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`}
+    </span>
+    <span class="worker-toast-text">${escapeHtml(message)}</span>
+    <button type="button" class="worker-toast-close" aria-label="Dismiss">&times;</button>
+  `;
+  const closeBtn = toast.querySelector('.worker-toast-close');
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      toast.classList.remove('show');
+    };
+  }
+  void toast.offsetWidth;
   toast.classList.add('show');
   clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => toast.classList.remove('show'), 3200);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), 3500);
+}
+
+function showMessage(message) {
+  showWorkerToast(message, /error|invalid|fail|choose|earlier/i.test(message) ? 'error' : 'success');
 }
 
 function renderDashboard() {
@@ -294,8 +315,8 @@ function renderDashboard() {
     <!-- Top Navigation Bar -->
     <header class="app-header">
       <div class="brand-wrap">
-        <img src="${shiftDeskMark}" alt="Shift Desk logo">
-        <b>shift desk<span style="color:var(--blue-primary);">.</span></b>
+        <img src="${shiftDeskMark}" alt="ShiftDex logo">
+        <b>shiftdex<span style="color:var(--blue-primary);">.</span></b>
       </div>
 
       <!-- Desktop User Profile Controls -->
@@ -321,8 +342,8 @@ function renderDashboard() {
       <div>
         <div class="drawer-head">
           <div class="brand-wrap">
-            <img src="${shiftDeskMark}" alt="Shift Desk logo">
-            <b>shift desk<span style="color:var(--blue-primary);">.</span></b>
+            <img src="${shiftDeskMark}" alt="ShiftDex logo">
+            <b>shiftdex<span style="color:var(--blue-primary);">.</span></b>
           </div>
           <button type="button" id="btn-close-drawer" style="border:none;background:none;font-size:20px;cursor:pointer;color:var(--text-light);">&times;</button>
         </div>
@@ -702,25 +723,26 @@ function renderDashboard() {
   // Submit Unavailable Dates Handler (Reusable for in-page and modal forms)
   const submitUnavailable = async (startDate, endDate, reason, btnEl, formEl) => {
     if (!startDate || !endDate) {
-      showMessage('Please choose both start and end dates.');
+      showWorkerToast('Please choose both start and end dates.', 'error');
       return;
     }
     if (endDate < startDate) {
-      showMessage('End date cannot be earlier than start date.');
+      showWorkerToast('End date cannot be earlier than start date.', 'error');
       return;
     }
 
+    const originalText = btnEl.textContent;
     btnEl.disabled = true;
-    btnEl.textContent = 'Submitting…';
+    btnEl.innerHTML = '<span class="btn-spinner"></span> Submitting…';
 
     try {
       const res = await apiRequest('/api/unavailability', {
         method: 'POST',
         body: JSON.stringify({ startDate, endDate, reason }),
       });
-      showMessage('Unavailable dates submitted to administrator.');
+      showWorkerToast('Unavailable dates submitted to operations.');
       btnEl.disabled = false;
-      btnEl.textContent = 'Submit Unavailability';
+      btnEl.textContent = originalText;
       if (formEl) formEl.reset();
 
       // Add to local requests list
@@ -731,11 +753,34 @@ function renderDashboard() {
         reason,
         status: 'pending',
       });
-      renderDashboard();
+
+      // Update the requests list in-place without reloading the entire dashboard!
+      const requestsWrap = document.querySelector('.requests-list-wrap');
+      if (requestsWrap) {
+        requestsWrap.innerHTML = workerRequests.map(req => {
+          const isPending = req.status === 'pending';
+          const isApproved = req.status === 'approved';
+          return `
+            <div class="my-request-card" style="animation: fade-in-up 0.25s ease;">
+              <div>
+                <b>${req.start_date} &rarr; ${req.end_date}</b>
+                ${req.reason ? `<span class="meta">Note: ${escapeHtml(req.reason)}</span>` : '<span class="meta">No note provided</span>'}
+              </div>
+              <div>
+                <span class="req-status-pill ${isPending ? 'pending' : isApproved ? 'approved' : 'rejected'}">
+                  ${isPending ? 'Pending Operations Review' : isApproved ? 'Approved · Off Scheduled' : 'Rejected'}
+                </span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        renderDashboard();
+      }
     } catch (error) {
-      showMessage(error.message);
+      showWorkerToast(error.message || 'Failed to submit request', 'error');
       btnEl.disabled = false;
-      btnEl.textContent = 'Submit Unavailability';
+      btnEl.textContent = originalText;
     }
   };
 
@@ -929,8 +974,8 @@ async function boot() {
         <div class="login-wrap">
           <div class="login-card" style="text-align:center;">
             <div class="login-brand-row" style="justify-content:center;">
-              <img src="${shiftDeskMark}" alt="Shift Desk logo">
-              <span>Shift Desk</span>
+              <img src="${shiftDeskMark}" alt="ShiftDex logo">
+              <span>ShiftDex</span>
             </div>
             <h2 class="hero-title" style="font-size:20px;">Could not connect to roster</h2>
             <p class="hero-subtitle" style="margin-bottom:18px;">${escapeHtml(error.message)}</p>

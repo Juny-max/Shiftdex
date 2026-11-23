@@ -31,8 +31,8 @@ export function mountLogin(app, api, onLogin) {
         <div class="login-wrap">
           <div class="login-card">
             <div class="login-brand-row">
-              <img src="${shiftDeskMark}" alt="Shift Desk logo">
-              <span>shift desk<span style="color:var(--blue-primary);">.</span></span>
+              <img src="${shiftDeskMark}" alt="ShiftDex logo">
+              <span>shiftdex<span style="color:var(--blue-primary);">.</span></span>
             </div>
             <div class="hero-eyebrow">FIRST-TIME SIGN IN</div>
             <h2 class="hero-title" style="font-size:22px;">Set permanent password</h2>
@@ -115,8 +115,8 @@ export function mountLogin(app, api, onLogin) {
       <div class="login-wrap">
         <div class="login-card">
           <div class="login-brand-row">
-            <img src="${shiftDeskMark}" alt="Shift Desk logo">
-            <span>shift desk<span style="color:var(--blue-primary);">.</span></span>
+            <img src="${shiftDeskMark}" alt="ShiftDex logo">
+            <span>shiftdex<span style="color:var(--blue-primary);">.</span></span>
           </div>
           <div class="hero-eyebrow">WORKER PORTAL</div>
           <h2 class="hero-title" style="font-size:24px;">Sign in to your schedule</h2>
