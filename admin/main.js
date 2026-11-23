@@ -4382,9 +4382,16 @@ function renderRequestsListHtml() {
                 ${r.reason ? `<div style="font-size:12px;color:var(--text-light);margin-top:2px;">Reason: <em>${escapeHtml(r.reason)}</em></div>` : ''}
                 <div style="margin-top:8px;">
                   ${affected.length ? `
-                    <span style="font-size:11.5px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:3px 8px;border-radius:6px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
-                      ${affected.length} scheduled working shift(s) affected (${affected.map(a => `${a.date}: ${a.shift}`).join(', ')})
-                    </span>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                      <span style="font-size:11.5px;color:#dc2626;background:#fef2f2;border:1px solid #fecaca;padding:3px 8px;border-radius:6px;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+                        ${affected.length} scheduled working shift${affected.length > 1 ? 's' : ''} affected
+                      </span>
+                      <span style="font-size:11.5px;color:var(--text-light);font-weight:500;">
+                        ${affected.length <= 4 
+                          ? `(${affected.map(a => `${a.date}: ${a.shift === 'M' ? 'Day' : 'Night'}`).join(', ')})` 
+                          : `(${affected.length} total: ${affected.filter(x => x.shift === 'M').length} Day, ${affected.filter(x => x.shift === 'N').length} Night &middot; ${affected[0].date} to ${affected[affected.length - 1].date})`}
+                      </span>
+                    </div>
                   ` : `
                     <span style="font-size:11.5px;color:#16a34a;background:#f0fdf4;border:1px solid #bbf7d0;padding:3px 8px;border-radius:6px;font-weight:600;">
                       Worker is already scheduled OFF for these dates
@@ -4509,8 +4516,20 @@ function openResolveUnavailabilityDialog(r) {
         Approving this request will set <strong>${escapeHtml(r.name)}</strong> to <strong>OFF (Rest Day)</strong> on the calendar for these dates. For any shift requiring coverage, select an available colleague below.
       </div>
 
-      <div style="display:flex;flex-direction:column;gap:12px;max-height:280px;overflow-y:auto;padding-right:4px;">
-        ${affected.length ? affected.map(item => {
+      ${affected.length > 5 ? `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;font-size:12px;color:var(--text-main);display:flex;justify-content:space-between;align-items:center;gap:12px;">
+          <div>
+            <strong>${affected.length} shifts requiring coverage</strong>
+            <div style="font-size:11px;color:var(--text-light);margin-top:2px;">
+              ${affected.filter(x => x.shift === 'M').length} Morning &middot; ${affected.filter(x => x.shift === 'N').length} Night
+            </div>
+          </div>
+          <button type="button" class="btn-clean small" id="btn-clear-standins" style="font-size:11.5px;font-weight:600;">Leave all without stand-in</button>
+        </div>
+      ` : ''}
+
+      <div style="display:flex;flex-direction:column;gap:12px;max-height:290px;overflow-y:auto;padding-right:4px;">
+        ${affected.length ? affected.slice(0, 15).map(item => {
           const availableColleagues = allActive.filter(s => {
             if (s.id === r.staffId) return false;
             return cellFor(state, s.id, item.date) === 'OFF';
@@ -4522,13 +4541,17 @@ function openResolveUnavailabilityDialog(r) {
                 <span class="shift-pill-badge ${item.shift === 'M' ? 'morning' : 'night'}">${item.shift}</span>
               </div>
               <label style="font-size:11px;color:var(--text-light);display:block;margin-bottom:4px;font-weight:600;">Assign Stand-in / Cover Colleague:</label>
-              <select class="account-staff-link" id="standin-${item.date}" style="width:100%;">
+              <select class="account-staff-link standin-select" id="standin-${item.date}" style="width:100%;">
                 <option value="">(Leave shift uncovered / no stand-in)</option>
                 ${availableColleagues.map(c => `<option value="${c.id}">${escapeHtml(c.name)} (${escapeHtml(c.role)}) &mdash; Available (OFF)</option>`).join('')}
               </select>
             </div>
           `;
-        }).join('') : `
+        }).join('') + (affected.length > 15 ? `
+          <div style="padding:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;font-size:12px;color:#92400e;text-align:center;">
+            Showing upcoming 15 shifts for individual stand-in assignment. All remaining ${affected.length - 15} shifts will be scheduled as OFF without stand-in.
+          </div>
+        ` : '') : `
           <div style="padding:20px;text-align:center;color:var(--text-light);font-size:13px;">
             ${escapeHtml(r.name)} is already scheduled OFF on all requested dates. No working shifts need stand-in coverage.
           </div>
@@ -4543,6 +4566,13 @@ function openResolveUnavailabilityDialog(r) {
   `;
 
   dialog.showModal();
+
+  const clearBtn = document.getElementById('btn-clear-standins');
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      document.querySelectorAll('.standin-select').forEach(sel => sel.value = '');
+    };
+  }
 
   document.getElementById('btn-close-resolve').onclick = () => dialog.close();
   document.getElementById('btn-cancel-resolve').onclick = () => dialog.close();

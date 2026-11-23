@@ -1253,6 +1253,9 @@ export default {
         if (!actor) return json({ error: 'Sign in required.' }, 401);
         const body = await req.json();
         if (!/^\d{4}-\d{2}-\d{2}$/.test(body.startDate || '') || !/^\d{4}-\d{2}-\d{2}$/.test(body.endDate || '') || body.endDate < body.startDate) return json({ error: 'Invalid request' }, 400);
+        const diffMs = new Date(body.endDate + 'T00:00:00Z') - new Date(body.startDate + 'T00:00:00Z');
+        const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000)) + 1;
+        if (diffDays > 60) return json({ error: 'Unavailability requests cannot exceed 60 consecutive days. For extended leaves, contact operations.' }, 400);
         const id = crypto.randomUUID();
         await db.prepare('INSERT INTO unavailability_flags(id,staff_id,start_date,end_date,reason) VALUES(?,?,?,?,?)').bind(id, actor.id, body.startDate, body.endDate, (body.reason || '').slice(0, 500)).run();
         await audit(db, actor.id, 'create', 'unavailability', id);

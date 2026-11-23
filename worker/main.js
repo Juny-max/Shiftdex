@@ -488,17 +488,17 @@ function renderDashboard() {
           <!-- Unavailable Dates Submission Form -->
           <section class="unavailability-card">
             <h2 class="card-heading">Mark Unavailable Dates</h2>
-            <p class="card-desc">Notify the operations administrator of upcoming dates you cannot work before monthly shifts are finalized.</p>
+            <p class="card-desc">Notify operations of upcoming dates you cannot work before monthly shifts are finalized (up to 60 consecutive days per request).</p>
 
             <form id="unavailability-form" class="unavail-form">
               <div class="form-grid-2">
                 <div class="form-field">
                   <label for="unavailable-start">First Unavailable Day</label>
-                  <input id="unavailable-start" type="date" required value="${todayIso}">
+                  <input id="unavailable-start" type="date" required min="${todayIso}" value="${todayIso}">
                 </div>
                 <div class="form-field">
                   <label for="unavailable-end">Last Unavailable Day</label>
-                  <input id="unavailable-end" type="date" required value="${todayIso}">
+                  <input id="unavailable-end" type="date" required min="${todayIso}" value="${todayIso}">
                 </div>
               </div>
 
@@ -728,6 +728,14 @@ function renderDashboard() {
     }
     if (endDate < startDate) {
       showWorkerToast('End date cannot be earlier than start date.', 'error');
+      return;
+    }
+
+    const startObj = new Date(startDate + 'T00:00:00Z');
+    const endObj = new Date(endDate + 'T00:00:00Z');
+    const diffDays = Math.round((endObj - startObj) / (24 * 60 * 60 * 1000)) + 1;
+    if (diffDays > 60) {
+      showWorkerToast('Unavailability requests cannot exceed 60 consecutive days. For extended leaves, contact operations.', 'error');
       return;
     }
 
