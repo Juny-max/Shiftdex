@@ -102,3 +102,8 @@ The installer is named `ShiftDex-Setup-<version>.exe`. Windows installs `ShiftDe
 ## Workbook and roster model
 
 The supplied workbook uses orange `#FFC000`, green `#92D050`, blue `#00B0F0`, and red `#FF0000` pod colors. The continuous pod anchors are Orange `2026-11-03`, Green `2026-11-01`, Blue `2026-11-05`, and Red `2026-10-30`. Import reads the sheet’s staff names, role tags, pod colors, and shift cells; blank shift cells become rest days. These values are not included as staff seed data in the public source.
+
+## Contributors
+
+- **Shift Desk** (Lead & Product Operations)
+- **Antigravity** (Google DeepMind) - System architecture, Cloudflare Workers & D1 API, AI scheduling copilot, security hardening, and Electron desktop development.

@@ -5,6 +5,13 @@
   "packageManager": "pnpm@12.15.0",
   "description": "24/7 shift roster admin desktop and worker portal",
   "author": "Shift Desk",
+  "contributors": [
+    {
+      "name": "Antigravity",
+      "email": "antigravity@google.com",
+      "url": "https://deepmind.google"
+    }
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/Juny-max/Shiftdex.git"
