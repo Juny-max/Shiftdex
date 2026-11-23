@@ -162,7 +162,7 @@ async function sendRawBrevo(env, { toEmail, toName, subject, htmlContent, textCo
   }
   const senderEmail = env.BREVO_SENDER_EMAIL;
   if (!senderEmail) return { success: false, error: 'BREVO_SENDER_EMAIL is not configured' };
-  const senderName = env.BREVO_SENDER_NAME || 'Shift Desk';
+  const senderName = env.BREVO_SENDER_NAME || 'ShiftDex';
 
   try {
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
@@ -203,7 +203,7 @@ async function sendBrevoEmail(env, { email, fullName, tempPassword }) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to Shift Desk</title>
+  <title>Welcome to ShiftDex</title>
 </head>
 <body style="margin: 0; padding: 32px 16px; background-color: #f6f8fb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; color: #111827;">
   <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -218,11 +218,11 @@ async function sendBrevoEmail(env, { email, fullName, tempPassword }) {
               <table border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td style="vertical-align: middle; padding-right: 14px;">
-                    <img src="${logoUrl}" width="44" height="44" alt="Shift Desk" style="display: block; width: 44px; height: 44px; border-radius: 11px; border: 1px solid rgba(0, 0, 0, 0.06); object-fit: contain;">
+                    <img src="${logoUrl}" width="44" height="44" alt="ShiftDex" style="display: block; width: 44px; height: 44px; border-radius: 11px; border: 1px solid rgba(0, 0, 0, 0.06); object-fit: contain;">
                   </td>
                   <td style="vertical-align: middle;">
                     <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; line-height: 1.1;">
-                      shift desk<span style="color: #2563eb;">.</span>
+                      shiftdex<span style="color: #2563eb;">.</span>
                     </div>
                     <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: #2563eb; text-transform: uppercase; margin-top: 3px;">
                       24/7 Operations Hub
@@ -240,7 +240,7 @@ async function sendBrevoEmail(env, { email, fullName, tempPassword }) {
                 Welcome to the team, ${esc(fullName)}
               </h1>
               <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: #4b5563;">
-                An operations administrator has added you to the company shift roster on <strong>Shift Desk</strong>. Your account has been provisioned and is ready for activation below.
+                An operations administrator has added you to the company shift roster on <strong>ShiftDex</strong>. Your account has been provisioned and is ready for activation below.
               </p>
 
               <!-- Credentials Card (OpenAI / Google Security style) -->
@@ -318,7 +318,7 @@ async function sendBrevoEmail(env, { email, fullName, tempPassword }) {
 
               <!-- Footer (Apple Style) -->
               <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 12px; color: #94a3b8; line-height: 1.6; text-align: center;">
-                <strong>Shift Desk</strong> · 24/7 Operations Hub<br>
+                <strong>ShiftDex</strong> · 24/7 Operations Hub<br>
                 Automated operational notification sent to ${esc(email)}.<br>
                 If you did not expect this invitation, please contact your shift supervisor.
               </div>
@@ -331,12 +331,12 @@ async function sendBrevoEmail(env, { email, fullName, tempPassword }) {
 </body>
 </html>`;
 
-  const textContent = `Welcome to Shift Desk, ${fullName}!\n\nAn operations administrator has added you to the company shift roster.\n\nPortal: ${portalUrl}\nLogin Email: ${email}\nTemporary Password: ${tempPassword}\n\nPlease visit the portal to set your new permanent password and access your schedule.\n\nShift Desk Operations Hub`;
+  const textContent = `Welcome to ShiftDex, ${fullName}!\n\nAn operations administrator has added you to the company shift roster.\n\nPortal: ${portalUrl}\nLogin Email: ${email}\nTemporary Password: ${tempPassword}\n\nPlease visit the portal to set your new permanent password and access your schedule.\n\nShiftDex Operations Hub`;
 
   return sendRawBrevo(env, {
     toEmail: email,
     toName: fullName,
-    subject: 'Welcome to Shift Desk — Your Account Details',
+    subject: 'Welcome to ShiftDex — Your Account Details',
     htmlContent,
     textContent
   });
@@ -352,7 +352,7 @@ async function sendPasswordResetEmail(env, { email, fullName, tempPassword }) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Shift Desk Password Reset</title>
+  <title>ShiftDex Password Reset</title>
 </head>
 <body style="margin: 0; padding: 32px 16px; background-color: #f6f8fb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; color: #111827;">
   <table width="100%" border="0" cellspacing="0" cellpadding="0">
@@ -364,11 +364,11 @@ async function sendPasswordResetEmail(env, { email, fullName, tempPassword }) {
               <table border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td style="vertical-align: middle; padding-right: 14px;">
-                    <img src="${logoUrl}" width="44" height="44" alt="Shift Desk" style="display: block; width: 44px; height: 44px; border-radius: 11px; border: 1px solid rgba(0, 0, 0, 0.06); object-fit: contain;">
+                    <img src="${logoUrl}" width="44" height="44" alt="ShiftDex" style="display: block; width: 44px; height: 44px; border-radius: 11px; border: 1px solid rgba(0, 0, 0, 0.06); object-fit: contain;">
                   </td>
                   <td style="vertical-align: middle;">
                     <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; line-height: 1.1;">
-                      shift desk<span style="color: #2563eb;">.</span>
+                      shiftdex<span style="color: #2563eb;">.</span>
                     </div>
                     <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: #2563eb; text-transform: uppercase; margin-top: 3px;">
                       24/7 Operations Hub
@@ -385,7 +385,7 @@ async function sendPasswordResetEmail(env, { email, fullName, tempPassword }) {
                 Password Reset for ${esc(fullName)}
               </h1>
               <p style="margin: 0 0 24px; font-size: 15px; line-height: 1.6; color: #4b5563;">
-                An operations administrator has reset the password for your <strong>Shift Desk</strong> account. Use the temporary credentials below to sign in.
+                An operations administrator has reset the password for your <strong>ShiftDex</strong> account. Use the temporary credentials below to sign in.
               </p>
 
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; margin-bottom: 26px;">
@@ -423,7 +423,7 @@ async function sendPasswordResetEmail(env, { email, fullName, tempPassword }) {
                       <tr>
                         <td align="center" style="border-radius: 10px; background-color: #2563eb; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);">
                           <a href="${portalUrl}" target="_blank" style="display: inline-block; padding: 14px 34px; font-size: 15px; font-weight: 600; color: #ffffff; text-decoration: none; letter-spacing: -0.2px; border-radius: 10px;">
-                            Sign In to Shift Desk &rarr;
+                            Sign In to ShiftDex &rarr;
                           </a>
                         </td>
                       </tr>
@@ -433,7 +433,7 @@ async function sendPasswordResetEmail(env, { email, fullName, tempPassword }) {
               </table>
 
               <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 12px; color: #94a3b8; line-height: 1.6; text-align: center;">
-                <strong>Shift Desk</strong> · 24/7 Operations Hub<br>
+                <strong>ShiftDex</strong> · 24/7 Operations Hub<br>
                 Automated security notification sent to ${esc(email)}.<br>
                 If you did not expect this password reset, please contact your shift supervisor immediately.
               </div>
@@ -446,12 +446,12 @@ async function sendPasswordResetEmail(env, { email, fullName, tempPassword }) {
 </body>
 </html>`;
 
-  const textContent = `Shift Desk Password Reset\n\nHello ${fullName},\n\nAn operations administrator has reset your password for Shift Desk.\n\nPortal: ${portalUrl}\nAccount Email: ${email}\nTemporary Password: ${tempPassword}\n\nPlease sign in with this temporary password to create your new permanent password.\n\nShift Desk Operations Hub`;
+  const textContent = `ShiftDex Password Reset\n\nHello ${fullName},\n\nAn operations administrator has reset your password for ShiftDex.\n\nPortal: ${portalUrl}\nAccount Email: ${email}\nTemporary Password: ${tempPassword}\n\nPlease sign in with this temporary password to create your new permanent password.\n\nShiftDex Operations Hub`;
 
   return sendRawBrevo(env, {
     toEmail: email,
     toName: fullName,
-    subject: 'Shift Desk — Your Password Has Been Reset',
+    subject: 'ShiftDex — Your Password Has Been Reset',
     htmlContent,
     textContent
   });
@@ -478,11 +478,11 @@ async function sendEmailVerificationEmail(env, { newEmail, currentEmail, fullNam
               <table border="0" cellspacing="0" cellpadding="0">
                 <tr>
                   <td style="vertical-align: middle; padding-right: 14px;">
-                    <img src="${logoUrl}" width="44" height="44" alt="Shift Desk" style="display: block; width: 44px; height: 44px; border-radius: 11px; border: 1px solid rgba(0, 0, 0, 0.06); object-fit: contain;">
+                    <img src="${logoUrl}" width="44" height="44" alt="ShiftDex" style="display: block; width: 44px; height: 44px; border-radius: 11px; border: 1px solid rgba(0, 0, 0, 0.06); object-fit: contain;">
                   </td>
                   <td style="vertical-align: middle;">
                     <div style="font-size: 20px; font-weight: 800; letter-spacing: -0.5px; color: #0f172a; line-height: 1.1;">
-                      shift desk<span style="color: #2563eb;">.</span>
+                      shiftdex<span style="color: #2563eb;">.</span>
                     </div>
                     <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: #2563eb; text-transform: uppercase; margin-top: 3px;">
                       24/7 Operations Hub
@@ -499,7 +499,7 @@ async function sendEmailVerificationEmail(env, { newEmail, currentEmail, fullNam
                 Confirm Your New Email Address
               </h1>
               <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #4b5563;">
-                Hello <strong>${esc(fullName)}</strong>, an operations administrator has requested to update your Shift Desk login email address to:
+                Hello <strong>${esc(fullName)}</strong>, an operations administrator has requested to update your ShiftDex login email address to:
               </p>
 
               <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;">
@@ -508,7 +508,7 @@ async function sendEmailVerificationEmail(env, { newEmail, currentEmail, fullNam
               </div>
 
               <p style="margin: 0 0 24px; font-size: 14px; line-height: 1.6; color: #64748b;">
-                To activate this email address for your Shift Desk account and start using it to sign in, please confirm your email address by clicking the button below:
+                To activate this email address for your ShiftDex account and start using it to sign in, please confirm your email address by clicking the button below:
               </p>
 
               <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 26px;">
@@ -532,7 +532,7 @@ async function sendEmailVerificationEmail(env, { newEmail, currentEmail, fullNam
               </div>
 
               <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; font-size: 12px; color: #94a3b8; line-height: 1.6; text-align: center;">
-                <strong>Shift Desk</strong> · 24/7 Operations Hub<br>
+                <strong>ShiftDex</strong> · 24/7 Operations Hub<br>
                 Automated security verification sent to ${esc(newEmail)}.<br>
                 Direct link: <a href="${verifyUrl}" style="color: #2563eb; word-break: break-all;">${verifyUrl}</a>
               </div>
@@ -545,12 +545,12 @@ async function sendEmailVerificationEmail(env, { newEmail, currentEmail, fullNam
 </body>
 </html>`;
 
-  const textContent = `Confirm Your New Email Address — Shift Desk\n\nHello ${fullName},\n\nAn operations administrator has requested to update your Shift Desk email to: ${newEmail}.\n\nUntil you verify this new email, your current email (${currentEmail}) remains active for signing in.\n\nTo verify, open this link:\n${verifyUrl}\n\nThis link is valid for 48 hours.\n\nShift Desk Operations Hub`;
+  const textContent = `Confirm Your New Email Address — ShiftDex\n\nHello ${fullName},\n\nAn operations administrator has requested to update your ShiftDex email to: ${newEmail}.\n\nUntil you verify this new email, your current email (${currentEmail}) remains active for signing in.\n\nTo verify, open this link:\n${verifyUrl}\n\nThis link is valid for 48 hours.\n\nShiftDex Operations Hub`;
 
   return sendRawBrevo(env, {
     toEmail: newEmail,
     toName: fullName,
-    subject: 'Confirm Your New Email Address — Shift Desk',
+    subject: 'Confirm Your New Email Address — ShiftDex',
     htmlContent,
     textContent
   });
@@ -563,7 +563,7 @@ function renderVerificationHtml({ success, title, message, portalUrl, logoUrl, n
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${esc(title)} — Shift Desk</title>
+  <title>${esc(title)} — ShiftDex</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -676,8 +676,8 @@ function renderVerificationHtml({ success, title, message, portalUrl, logoUrl, n
 <body>
   <div class="card">
     <div class="logo-row">
-      <img src="${logoUrl}" alt="Shift Desk" class="logo-img" />
-      <div class="logo-text">shift desk<span class="logo-dot">.</span></div>
+      <img src="${logoUrl}" alt="ShiftDex" class="logo-img" />
+      <div class="logo-text">shiftdex<span class="logo-dot">.</span></div>
     </div>
 
     <div class="badge ${success ? 'badge-success' : 'badge-error'}">
@@ -692,10 +692,10 @@ function renderVerificationHtml({ success, title, message, portalUrl, logoUrl, n
 
     ${newEmail ? `<div class="email-box">${esc(newEmail)}</div>` : ''}
 
-    <a href="${portalUrl}" class="cta-btn">Proceed to Shift Desk Portal &rarr;</a>
+    <a href="${portalUrl}" class="cta-btn">Proceed to ShiftDex Portal &rarr;</a>
 
     <div class="footer-note">
-      Shift Desk · 24/7 Operations Hub<br>
+      ShiftDex · 24/7 Operations Hub<br>
       Automated account security verification
     </div>
   </div>
@@ -823,7 +823,7 @@ Calculated 8-Day Rotation on ${targetDateInfo.weekday}, ${targetDateInfo.formatt
 - Off Duty (Rest days): ${targetDateInfo.offPods.map(p => p.name).join(', ')}`;
   }
 
-  const systemPrompt = `You are ShiftDesk AI, an intelligent, helpful, and operationally proficient AI assistant for ShiftDesk, an enterprise 24/7 mission-critical shift scheduling platform.
+  const systemPrompt = `You are ShiftDex AI, an intelligent, helpful, and operationally proficient AI assistant for ShiftDex, an enterprise 24/7 mission-critical shift scheduling platform.
 
 Platform Context:
 - Active Month: ${month || '2026-11'}.
@@ -1501,7 +1501,7 @@ export default {
         return new Response(renderVerificationHtml({
           success: true,
           title: 'Email Address Verified!',
-          message: `Your Shift Desk account email has been successfully updated to <strong>${newEmail}</strong>. You can now use this email to sign in to your schedule and operational hub.`,
+          message: `Your ShiftDex account email has been successfully updated to <strong>${newEmail}</strong>. You can now use this email to sign in to your schedule and operational hub.`,
           portalUrl,
           logoUrl,
           newEmail

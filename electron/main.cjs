@@ -72,7 +72,7 @@ ipcMain.handle('app:uninstall', async event => {
 
 app.setName(app.isPackaged ? 'ShiftDex' : 'ShiftDex Development');
 if (process.platform === 'win32') {
-  app.setAppUserModelId(app.isPackaged ? 'com.shiftdesk.roster' : 'com.shiftdesk.roster.dev');
+  app.setAppUserModelId(app.isPackaged ? 'com.shiftdex.roster' : 'com.shiftdex.roster.dev');
 }
 
 function createWindow(port) {
@@ -101,14 +101,14 @@ function createWindow(port) {
     if (details.level >= 2) console.error(`Renderer console: ${details.message}`);
   });
   win.webContents.on('render-process-gone', (_event, details) => {
-    console.error('Shift Desk renderer stopped:', details.reason, details.exitCode);
+    console.error('ShiftDex renderer stopped:', details.reason, details.exitCode);
   });
   win.webContents.once('did-finish-load', async () => {
     try {
       const snapshot = await win.webContents.executeJavaScript(`(() => { const root = document.querySelector('#app'); return { url: location.href, title: document.title, mounted: !!root && root.children.length > 0, text: root?.innerText?.slice(0, 160) || '' }; })()`);
-      console.log('Shift Desk renderer status:', JSON.stringify(snapshot));
+      console.log('ShiftDex renderer status:', JSON.stringify(snapshot));
       if (!snapshot.mounted) {
-        await win.webContents.executeJavaScript(`document.querySelector('#app').innerHTML = '<div style="font:16px Segoe UI,Arial,sans-serif;margin:48px auto;max-width:640px;padding:24px;color:#233248;background:#fff;border:1px solid #dbe2ec;border-radius:14px"><h2>Shift Desk did not finish loading</h2><p>Check the terminal running pnpm dev for the renderer error, then restart the app.</p><button onclick="location.reload()" style="padding:9px 14px;background:#2864e8;color:#fff;border:0;border-radius:7px">Reload</button></div>'`);
+        await win.webContents.executeJavaScript(`document.querySelector('#app').innerHTML = '<div style="font:16px Segoe UI,Arial,sans-serif;margin:48px auto;max-width:640px;padding:24px;color:#233248;background:#fff;border:1px solid #dbe2ec;border-radius:14px"><h2>ShiftDex did not finish loading</h2><p>Check the terminal running pnpm dev for the renderer error, then restart the app.</p><button onclick="location.reload()" style="padding:9px 14px;background:#2864e8;color:#fff;border:0;border-radius:7px">Reload</button></div>'`);
       }
     } catch (error) {
       console.error('Renderer status capture failed:', error.message);
@@ -161,8 +161,8 @@ app.whenReady().then(async () => {
       await createWindow();
     }
   } catch (error) {
-    console.error('Shift Desk startup failed:', error);
-    dialog.showErrorBox('Shift Desk could not start', error.message || String(error));
+    console.error('ShiftDex startup failed:', error);
+    dialog.showErrorBox('ShiftDex could not start', error.message || String(error));
     app.quit();
   }
   if (app.isPackaged) {

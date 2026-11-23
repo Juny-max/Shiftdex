@@ -4,7 +4,7 @@ compatibility_date = "2026-11-01"
 
 [vars]
 PORTAL_URL = "https://YOUR-PAGES-PROJECT.pages.dev"
-BREVO_SENDER_NAME = "Shift Desk"
+BREVO_SENDER_NAME = "ShiftDex"
 BREVO_SENDER_EMAIL = "your-verified-sender@example.com"
 
 [[d1_databases]]

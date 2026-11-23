@@ -622,7 +622,7 @@ function openCopilot() {
     widget.id = 'copilot-floating-widget';
     widget.className = 'copilot-floating-widget';
     widget.setAttribute('role', 'complementary');
-    widget.setAttribute('aria-label', 'ShiftDesk AI Assistant');
+    widget.setAttribute('aria-label', 'ShiftDex AI Assistant');
     document.body.appendChild(widget);
   }
   widget.style.display = 'flex';
@@ -643,7 +643,7 @@ function renderCopilotWidget() {
       <div class="copilot-widget-title-area">
         <div class="copilot-avatar-badge">${ICONS.spark}</div>
         <div class="copilot-widget-heading">
-          <div class="copilot-widget-name">ShiftDesk AI</div>
+          <div class="copilot-widget-name">ShiftDex AI</div>
           <div class="copilot-status-indicator">
             <span class="copilot-status-dot"></span>
             <span>Online</span>
@@ -663,7 +663,7 @@ function renderCopilotWidget() {
     <div class="copilot-messages-body" id="copilot-messages-body">
       ${copilotMessages.length === 0 ? `
         <div class="copilot-welcome-card">
-          <div class="copilot-welcome-title">ShiftDesk Copilot</div>
+          <div class="copilot-welcome-title">ShiftDex Copilot</div>
           <div class="copilot-welcome-desc">Ask questions about shift rotations, coverage, or instruct natural language schedule swaps and leave allocations.</div>
           <div class="copilot-chips-label">Suggested Prompts</div>
           <div class="copilot-chips-wrap">
@@ -680,7 +680,7 @@ function renderCopilotWidget() {
             <div class="copilot-msg-bubble assistant">
               <div class="copilot-lottie-wrap">
                 <div id="copilot-lottie-container" class="copilot-lottie-container"></div>
-                <div class="copilot-loading-text">ShiftDesk AI is analyzing roster…</div>
+                <div class="copilot-loading-text">ShiftDex AI is analyzing roster…</div>
                 <div class="copilot-loading-sub">Checking shift rotation rules &amp; constraints</div>
               </div>
             </div>
@@ -1553,7 +1553,7 @@ function requireCloudflareConnection(onConnected) {
       render();
       onConnected();
     }).catch(error => {
-      dialog.querySelector('#cloudflare-login-error').textContent = error.message || 'Could not reach Shift Desk.';
+      dialog.querySelector('#cloudflare-login-error').textContent = error.message || 'Could not reach ShiftDex.';
       submit.disabled = false;
     });
   };
@@ -2094,12 +2094,12 @@ function renderAdminLogin() {
     <div class="admin-login-screen">
       <div class="admin-login-card">
         <div class="admin-login-brand">
-          <img class="brand-logo-mark" src="${shiftDeskMark}" alt="Shift Desk logo">
-          <div class="brand-text">shift desk<span>.</span></div>
+          <img class="brand-logo-mark" src="${shiftDeskMark}" alt="ShiftDex logo">
+          <div class="brand-text">shiftdex<span>.</span></div>
         </div>
         <div class="admin-login-header">
           <span class="shift-edit-eyebrow">ADMINISTRATOR PORTAL</span>
-          <h2>Sign in to Shift Desk</h2>
+          <h2>Sign in to ShiftDex</h2>
           <p>Enter your administrator credentials to access the roster dashboard, manage schedules, and review requests.</p>
         </div>
 
@@ -2122,7 +2122,7 @@ function renderAdminLogin() {
         </form>
 
         <div class="admin-login-footer">
-          <span>Shift Desk · 24/7 Operations Hub</span>
+          <span>ShiftDex · 24/7 Operations Hub</span>
         </div>
       </div>
       <div class="minimal-toast" id="toast"></div>
@@ -2156,7 +2156,7 @@ function renderAdminLogin() {
         syncDirectory();
         toast('Welcome back, ' + (data.fullName || data.email.split('@')[0]));
       } catch (err) {
-        adminLoginError = err.message || 'Could not connect to Shift Desk.';
+        adminLoginError = err.message || 'Could not connect to ShiftDex.';
         adminLoginEmail = email;
         renderAdminLogin();
       }
@@ -2196,7 +2196,7 @@ function render() {
       <aside class="sidebar">
         <div class="brand-row">
           <img class="brand-logo-mark" src="${shiftDeskMark}" alt="">
-          <span class="brand-text">shift desk<span>.</span></span>
+          <span class="brand-text">shiftdex<span>.</span></span>
         </div>
 
         <div class="sidebar-caption">Workspace</div>
@@ -2242,7 +2242,7 @@ function render() {
         <!-- Payday Style Header -->
         <header class="topbar-header">
           <div class="topbar-greeting">
-            <span>${admin.loggedIn ? `Hello, welcome back, ${escapeHtml(admin.name)}` : 'Welcome to Shift Desk'}</span>
+            <span>${admin.loggedIn ? `Hello, welcome back, ${escapeHtml(admin.name)}` : 'Welcome to ShiftDex'}</span>
           </div>
 
           <div class="topbar-controls">
