@@ -1,4 +1,11 @@
 import { LOGO_PNG_BASE64 } from './logo-base64.js';
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} from '@simplewebauthn/server';
+import { isoBase64URL } from '@simplewebauthn/server/helpers';
 
 function validatePasswordComplexity(pw) {
   if (typeof pw !== 'string' || pw.length < 10) {
@@ -111,6 +118,34 @@ async function recordAuthFailure(db, scope, email, ipHash, now) {
 
 async function clearAuthFailures(db, scope, email, ipHash) {
   await db.prepare('DELETE FROM worker_auth_limits WHERE scope=? AND email=? AND ip_hash=?').bind(scope, email, ipHash).run();
+}
+
+function getWebAuthnConfig(req, env) {
+  const originHeader = req.headers.get('origin') || '';
+  const portalUrl = env.PORTAL_URL || 'https://shiftdex-workers.pages.dev';
+  let expectedOrigin = portalUrl;
+  let rpID = 'shiftdex-workers.pages.dev';
+
+  if (originHeader) {
+    try {
+      const u = new URL(originHeader);
+      if (
+        u.hostname === 'shiftdex-workers.pages.dev' ||
+        u.hostname.endsWith('.shiftdex-workers.pages.dev') ||
+        u.hostname === 'localhost' ||
+        u.hostname === '127.0.0.1'
+      ) {
+        expectedOrigin = originHeader;
+        rpID = u.hostname;
+      }
+    } catch {}
+  }
+
+  return {
+    rpName: 'ShiftDex',
+    rpID,
+    expectedOrigin,
+  };
 }
 
 async function auth(req, env, db, admin = false) {
@@ -983,7 +1018,9 @@ You MUST return ONLY a valid JSON object matching this schema:
 export default {
   async fetch(req, env) {
     const origin = req.headers.get('origin');
-    const isAllowedOrigin = !origin || origin === 'null' || origin === 'https://shiftdex-workers.pages.dev' || /^https?:\/\/(localhost|127\.0\.0\.1):(5173|5174|5175|5176|5177|5178|5179|5180|5181|5182|5183)$/.test(origin);
+    const isAllowedOrigin = !origin || origin === 'null' || origin === 'https://shiftdex-workers.pages.dev' ||
+      (origin.startsWith('https://') && origin.endsWith('.shiftdex-workers.pages.dev')) ||
+      /^https?:\/\/(localhost|127\.0\.0\.1):(5173|5174|5175|5176|5177|5178|5179|5180|5181|5182|5183)$/.test(origin);
     if (!isAllowedOrigin) {
       return new Response(JSON.stringify({ error: 'Origin not allowed by security policy.' }), {
         status: 403,
@@ -1116,6 +1153,242 @@ export default {
         const session = await createSession(db, account.id);
         await audit(db, account.id, 'login', 'worker_account', account.id);
         return json({ token: session.token, expiresAt: session.expiresAt, staffId: account.staff_id, fullName: account.full_name, email: account.email, staff: staffMember });
+      }
+
+      // ========================================================
+      // WEBAUTHN / FIDO2 PASSKEY ENDPOINTS
+      // ========================================================
+
+      // 1. Generate challenge for passkey sign-in
+      if (url.pathname === '/api/auth/passkey/login-challenge' && req.method === 'POST') {
+        const body = await req.json().catch(() => ({}));
+        const email = String(body.email || '').trim().toLowerCase();
+        const ipHash = await hashText(req.headers.get('cf-connecting-ip') || 'unknown');
+        const rateLimit = await checkApiRateLimit(db, `pk_login_chal:${ipHash}`, 30, 60);
+        if (!rateLimit.allowed) return json({ error: 'Too many authentication attempts. Please wait.' }, 429);
+
+        const { rpID } = getWebAuthnConfig(req, env);
+        let allowCredentials = undefined;
+        let accountId = null;
+
+        if (email) {
+          const acc = await db.prepare("SELECT id FROM worker_accounts WHERE email=? AND status='active'").bind(email).first();
+          if (acc) {
+            accountId = acc.id;
+            const pks = await db.prepare("SELECT credential_id, transports FROM worker_passkeys WHERE account_id=?").bind(acc.id).all();
+            if (pks.results?.length) {
+              allowCredentials = pks.results.map(p => ({
+                id: p.credential_id,
+                transports: JSON.parse(p.transports || '[]')
+              }));
+            }
+          }
+        }
+
+        const options = await generateAuthenticationOptions({
+          rpID,
+          allowCredentials,
+          userVerification: 'preferred'
+        });
+
+        const challengeId = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        await db.prepare("DELETE FROM worker_auth_challenges WHERE expires_at < CURRENT_TIMESTAMP").run();
+        await db.prepare("INSERT INTO worker_auth_challenges (challenge_id, challenge, account_id, flow_type, expires_at) VALUES (?, ?, ?, 'authentication', ?)").bind(challengeId, options.challenge, accountId, expiresAt).run();
+
+        return json({ ok: true, options, challengeId });
+      }
+
+      // 2. Verify passkey sign-in assertion
+      if (url.pathname === '/api/auth/passkey/login-verify' && req.method === 'POST') {
+        const body = await req.json();
+        const { challengeId, response: authResponse } = body;
+        if (!challengeId || !authResponse) return json({ error: 'Missing challenge or passkey assertion response.' }, 400);
+
+        const ipHash = await hashText(req.headers.get('cf-connecting-ip') || 'unknown');
+        const rateLimit = await checkApiRateLimit(db, `pk_login_verify:${ipHash}`, 15, 60);
+        if (!rateLimit.allowed) return json({ error: 'Too many verification attempts. Please wait.' }, 429);
+
+        const storedChallenge = await db.prepare("SELECT challenge, expires_at FROM worker_auth_challenges WHERE challenge_id=? AND flow_type='authentication'").bind(challengeId).first();
+        if (!storedChallenge) return json({ error: 'Authentication challenge expired or invalid. Please try again.' }, 400);
+        if (new Date(storedChallenge.expires_at) < new Date()) {
+          await db.prepare("DELETE FROM worker_auth_challenges WHERE challenge_id=?").bind(challengeId).run();
+          return json({ error: 'Sign-in timed out. Please try again.' }, 400);
+        }
+
+        const passkey = await db.prepare("SELECT * FROM worker_passkeys WHERE credential_id=?").bind(authResponse.id).first();
+        if (!passkey) return json({ error: 'Passkey not recognized or revoked on this system.' }, 401);
+
+        const account = await db.prepare("SELECT id,email,full_name,staff_id,status,must_change_password FROM worker_accounts WHERE id=?").bind(passkey.account_id).first();
+        if (!account || account.status !== 'active' || !account.staff_id) {
+          return json({ error: 'This worker account is not active. Contact your administrator.' }, 403);
+        }
+
+        const staffMember = await db.prepare("SELECT id,full_name,role_tag,pod_id,effective_from,status FROM staff WHERE id=? AND status IN ('active','pending')").bind(account.staff_id).first();
+        if (!staffMember) return json({ error: 'Your linked staff profile is inactive. Contact your administrator.' }, 403);
+
+        const { rpID, expectedOrigin } = getWebAuthnConfig(req, env);
+        let verification;
+        try {
+          verification = await verifyAuthenticationResponse({
+            response: authResponse,
+            expectedChallenge: storedChallenge.challenge,
+            expectedOrigin,
+            expectedRPID: rpID,
+            credential: {
+              id: passkey.credential_id,
+              publicKey: isoBase64URL.toBuffer(passkey.public_key),
+              counter: Number(passkey.counter || 0),
+              transports: JSON.parse(passkey.transports || '[]')
+            },
+            requireUserVerification: false
+          });
+        } catch (err) {
+          return json({ error: err.message || 'Passkey signature verification failed.' }, 400);
+        }
+
+        if (!verification.verified || !verification.authenticationInfo) {
+          return json({ error: 'Passkey signature could not be verified.' }, 401);
+        }
+
+        const { newCounter } = verification.authenticationInfo;
+        if (newCounter > 0 && newCounter <= Number(passkey.counter)) {
+          await audit(db, account.id, 'passkey_counter_clone_detected', 'worker_passkey', passkey.id, { credentialId: passkey.credential_id });
+          return json({ error: 'Authenticator security anomaly detected. Please sign in with password.' }, 403);
+        }
+
+        await db.prepare("UPDATE worker_passkeys SET counter=?, last_used_at=CURRENT_TIMESTAMP WHERE id=?").bind(newCounter, passkey.id).run();
+        await db.prepare("DELETE FROM worker_auth_challenges WHERE challenge_id=?").bind(challengeId).run();
+        await db.prepare("UPDATE staff SET status='active' WHERE id=? AND status='pending'").bind(account.staff_id).run();
+
+        const session = await createSession(db, account.id);
+        await audit(db, account.id, 'passkey_login', 'worker_account', account.id, { passkeyId: passkey.id });
+
+        return json({
+          ok: true,
+          token: session.token,
+          expiresAt: session.expiresAt,
+          staffId: account.staff_id,
+          fullName: account.full_name,
+          email: account.email,
+          staff: staffMember
+        });
+      }
+
+      // 3. Generate challenge for passkey enrollment (Registration)
+      if (url.pathname === '/api/auth/passkey/register-challenge' && req.method === 'POST') {
+        const actor = await auth(req, env, db);
+        if (!actor) return json({ error: 'Sign in required.' }, 401);
+        const account = await db.prepare("SELECT id,email,full_name FROM worker_accounts WHERE id=?").bind(actor.accountId).first();
+        if (!account) return json({ error: 'Account not found.' }, 404);
+
+        const { rpName, rpID } = getWebAuthnConfig(req, env);
+        const existingPasskeys = await db.prepare("SELECT credential_id, transports FROM worker_passkeys WHERE account_id=?").bind(account.id).all();
+        const excludeCredentials = (existingPasskeys.results || []).map(p => ({
+          id: p.credential_id,
+          transports: JSON.parse(p.transports || '[]')
+        }));
+
+        const options = await generateRegistrationOptions({
+          rpName,
+          rpID,
+          userID: new TextEncoder().encode(account.id),
+          userName: account.email,
+          userDisplayName: account.full_name,
+          attestationType: 'none',
+          excludeCredentials,
+          authenticatorSelection: {
+            residentKey: 'preferred',
+            userVerification: 'preferred'
+          }
+        });
+
+        const challengeId = crypto.randomUUID();
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+        await db.prepare("DELETE FROM worker_auth_challenges WHERE expires_at < CURRENT_TIMESTAMP").run();
+        await db.prepare("INSERT INTO worker_auth_challenges (challenge_id, challenge, account_id, flow_type, expires_at) VALUES (?, ?, ?, 'registration', ?)").bind(challengeId, options.challenge, account.id, expiresAt).run();
+
+        return json({ ok: true, options, challengeId });
+      }
+
+      // 4. Verify passkey registration (Enrollment)
+      if (url.pathname === '/api/auth/passkey/register-verify' && req.method === 'POST') {
+        const actor = await auth(req, env, db);
+        if (!actor) return json({ error: 'Sign in required.' }, 401);
+        const body = await req.json();
+        const { challengeId, response: regResponse, deviceName } = body;
+        if (!challengeId || !regResponse) return json({ error: 'Missing challenge or response.' }, 400);
+
+        const storedChallenge = await db.prepare("SELECT challenge, expires_at FROM worker_auth_challenges WHERE challenge_id=? AND account_id=? AND flow_type='registration'").bind(challengeId, actor.accountId).first();
+        if (!storedChallenge) return json({ error: 'Passkey registration challenge expired or not found. Please try again.' }, 400);
+        if (new Date(storedChallenge.expires_at) < new Date()) {
+          await db.prepare("DELETE FROM worker_auth_challenges WHERE challenge_id=?").bind(challengeId).run();
+          return json({ error: 'Registration timed out. Please try again.' }, 400);
+        }
+
+        const { rpID, expectedOrigin } = getWebAuthnConfig(req, env);
+        let verification;
+        try {
+          verification = await verifyRegistrationResponse({
+            response: regResponse,
+            expectedChallenge: storedChallenge.challenge,
+            expectedOrigin,
+            expectedRPID: rpID,
+            requireUserVerification: false
+          });
+        } catch (err) {
+          return json({ error: err.message || 'Passkey verification failed.' }, 400);
+        }
+
+        if (!verification.verified || !verification.registrationInfo) {
+          return json({ error: 'Could not verify passkey credentials.' }, 400);
+        }
+
+        const { credential, credentialDeviceType, credentialBackedUp } = verification.registrationInfo;
+        const passkeyId = crypto.randomUUID();
+        const pubKeyBase64 = isoBase64URL.fromBuffer(credential.publicKey);
+        const transportsJson = JSON.stringify(credential.transports || regResponse.response?.transports || []);
+        const friendlyName = (typeof deviceName === 'string' && deviceName.trim()) ? deviceName.trim().slice(0, 80) : 'Personal Device (Passkey)';
+
+        await db.prepare(`
+          INSERT INTO worker_passkeys (id, account_id, credential_id, public_key, counter, device_name, transports, backup_eligible, backup_status, created_at, last_used_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `).bind(
+          passkeyId,
+          actor.accountId,
+          credential.id,
+          pubKeyBase64,
+          credential.counter,
+          friendlyName,
+          transportsJson,
+          credentialDeviceType === 'multiDevice' ? 1 : 0,
+          credentialBackedUp ? 1 : 0
+        ).run();
+
+        await db.prepare("DELETE FROM worker_auth_challenges WHERE challenge_id=?").bind(challengeId).run();
+        await audit(db, actor.id, 'register_passkey', 'worker_passkey', passkeyId, { device: friendlyName });
+
+        return json({ ok: true, passkeyId, deviceName: friendlyName });
+      }
+
+      // 5. List passkeys for the logged-in worker
+      if (url.pathname === '/api/auth/passkey/list' && req.method === 'GET') {
+        const actor = await auth(req, env, db);
+        if (!actor) return json({ error: 'Sign in required.' }, 401);
+        const list = await db.prepare("SELECT id, device_name, created_at, last_used_at FROM worker_passkeys WHERE account_id=? ORDER BY created_at DESC").bind(actor.accountId).all();
+        return json({ ok: true, passkeys: list.results || [] });
+      }
+
+      // 6. Delete / Revoke passkey
+      if (url.pathname === '/api/auth/passkey/delete' && req.method === 'POST') {
+        const actor = await auth(req, env, db);
+        if (!actor) return json({ error: 'Sign in required.' }, 401);
+        const body = await req.json();
+        const passkeyId = String(body.passkeyId || '');
+        if (!passkeyId) return json({ error: 'Passkey ID is required.' }, 400);
+        await db.prepare("DELETE FROM worker_passkeys WHERE id=? AND account_id=?").bind(passkeyId, actor.accountId).run();
+        await audit(db, actor.id, 'delete_passkey', 'worker_passkey', passkeyId);
+        return json({ ok: true, passkeyId });
       }
 
       if (url.pathname === '/api/auth/change-password' && req.method === 'POST') {

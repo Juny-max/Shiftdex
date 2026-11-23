@@ -1,4 +1,5 @@
 import shiftDeskMark from './shift-desk-mark.svg';
+import { startAuthentication, browserSupportsWebAuthn, browserSupportsWebAuthnAutofill } from '@simplewebauthn/browser';
 
 const esc = value => String(value || '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
@@ -110,7 +111,9 @@ export function mountLogin(app, api, onLogin) {
       return;
     }
 
-    // Default: Clean Sign In
+    // Default: Clean Sign In with Passkey Support
+    const canUsePasskeys = browserSupportsWebAuthn();
+
     app.innerHTML = `
       <div class="login-wrap">
         <div class="login-card">
@@ -120,18 +123,33 @@ export function mountLogin(app, api, onLogin) {
           </div>
           <div class="hero-eyebrow">WORKER PORTAL</div>
           <h2 class="hero-title" style="font-size:24px;">Sign in to your schedule</h2>
-          <p class="hero-subtitle" style="margin-bottom:18px;">Enter your company email and password.</p>
+          <p class="hero-subtitle" style="margin-bottom:18px;">Sign in with your biometric passkey or company password.</p>
           ${notice ? `<div class="auth-notice" role="status">${esc(notice)}</div>` : ''}
+
+          ${canUsePasskeys ? `
+            <div style="margin-bottom:16px;">
+              <button type="button" class="btn-passkey-hero" id="btn-passkey-login" style="width:100%;height:46px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:14px;border:1.5px solid var(--blue-primary, #2563eb);background:#eff6ff;color:#1d4ed8;font-weight:750;font-size:13.5px;cursor:pointer;transition:all 0.18s ease;box-shadow:0 2px 6px rgba(37,99,235,0.08);">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a4 4 0 1 0 4 4"/><circle cx="12" cy="12" r="9"/><path d="m14 10 5-5"/><path d="m17 7 2 2"/></svg>
+                <span>Sign in with Passkey (Face ID / Fingerprint)</span>
+              </button>
+              <div style="display:flex;align-items:center;margin:16px 0 4px;gap:10px;">
+                <span style="flex:1;height:1px;background:#e2e8f0;"></span>
+                <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.04em;">or password</span>
+                <span style="flex:1;height:1px;background:#e2e8f0;"></span>
+              </div>
+            </div>
+          ` : ''}
+
           <form id="worker-auth-form" style="display:flex;flex-direction:column;gap:14px;">
             <div class="action-field">
               <label for="auth-email">Company Email</label>
-              <input id="auth-email" name="email" type="email" autocomplete="email" required maxlength="254" placeholder="you@company.com" value="${esc(prefillEmail)}">
+              <input id="auth-email" name="email" type="email" autocomplete="username webauthn" required maxlength="254" placeholder="you@company.com" value="${esc(prefillEmail)}">
             </div>
             <div class="action-field">
               <label for="auth-password">Password</label>
               <input id="auth-password" name="password" type="password" autocomplete="current-password" required maxlength="256" placeholder="Your password">
             </div>
-            <button class="btn-primary-action" id="auth-submit" type="submit" style="width:100%;justify-content:center;height:44px;margin-top:4px;">Sign In</button>
+            <button class="btn-primary-action" id="auth-submit" type="submit" style="width:100%;justify-content:center;height:44px;margin-top:4px;">Sign In with Password</button>
           </form>
           <p style="margin:20px 0 0;font-size:12px;color:var(--text-light);text-align:center;line-height:1.45;">
             Your operations administrator provisions your account and emails your credentials.
@@ -139,6 +157,96 @@ export function mountLogin(app, api, onLogin) {
         </div>
       </div>
     `;
+
+    // 1-Tap Passkey Authentication
+    const passkeyBtn = document.querySelector('#btn-passkey-login');
+    if (passkeyBtn) {
+      passkeyBtn.onclick = async () => {
+        if (!api) {
+          notice = 'The portal is not connected yet. Please contact your roster administrator.';
+          draw();
+          return;
+        }
+        const emailInput = document.querySelector('#auth-email');
+        const emailVal = emailInput ? String(emailInput.value || '').trim() : '';
+        passkeyBtn.disabled = true;
+        passkeyBtn.innerHTML = '<span style="font-size:13px;font-weight:700;color:#2563eb;">Verifying biometric passkey…</span>';
+
+        try {
+          const chalRes = await fetch(`${api}/api/auth/passkey/login-challenge`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email: emailVal })
+          });
+          const chalData = await chalRes.json();
+          if (!chalRes.ok || !chalData.ok) {
+            throw new Error(chalData.error || 'Could not initiate passkey sign in.');
+          }
+
+          const assertionResponse = await startAuthentication({ optionsJSON: chalData.options });
+
+          const verifyRes = await fetch(`${api}/api/auth/passkey/login-verify`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ challengeId: chalData.challengeId, response: assertionResponse })
+          });
+          const verifyData = await verifyRes.json();
+          if (!verifyRes.ok || !verifyData.ok) {
+            throw new Error(verifyData.error || 'Passkey verification failed.');
+          }
+
+          onLogin(verifyData);
+        } catch (err) {
+          passkeyBtn.disabled = false;
+          passkeyBtn.innerHTML = `
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a4 4 0 1 0 4 4"/><circle cx="12" cy="12" r="9"/><path d="m14 10 5-5"/><path d="m17 7 2 2"/></svg>
+            <span>Sign in with Passkey (Face ID / Fingerprint)</span>
+          `;
+          if (err.name === 'NotAllowedError') {
+            notice = 'Passkey sign in was cancelled or timed out.';
+          } else {
+            notice = err.message || 'Passkey authentication failed.';
+          }
+          draw();
+        }
+      };
+    }
+
+    // Passkey Autofill / Conditional UI
+    if (mode === 'login' && canUsePasskeys) {
+      (async () => {
+        try {
+          const isAutofillAvailable = await browserSupportsWebAuthnAutofill();
+          if (isAutofillAvailable) {
+            const chalRes = await fetch(`${api}/api/auth/passkey/login-challenge`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({})
+            });
+            const chalData = await chalRes.json();
+            if (chalData.ok && mode === 'login') {
+              const assertion = await startAuthentication({
+                optionsJSON: chalData.options,
+                useBrowserAutofill: true
+              });
+              if (assertion) {
+                const verifyRes = await fetch(`${api}/api/auth/passkey/login-verify`, {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ challengeId: chalData.challengeId, response: assertion })
+                });
+                const verifyData = await verifyRes.json();
+                if (verifyData.ok) {
+                  onLogin(verifyData);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          // Conditional autofill is passive; ignore when not used
+        }
+      })();
+    }
 
     document.querySelector('#worker-auth-form').onsubmit = async event => {
       event.preventDefault();

@@ -2,6 +2,7 @@ import { staff as seedStaff, pods, cellFor, cycle, initialState } from './roster
 import { API_BASE_URL } from './api-config.js';
 import shiftDeskMark from './shift-desk-mark.svg';
 import { mountLogin } from './login.js';
+import { startRegistration, browserSupportsWebAuthn } from '@simplewebauthn/browser';
 
 const api = API_BASE_URL.replace(/\/$/, '');
 const app = document.querySelector('#app');
@@ -348,7 +349,7 @@ function renderDashboard() {
           <span class="user-badge-name">${escapeHtml(me.name)}</span>
           <span class="user-team-chip" style="border-color:${teamColor};">${escapeHtml(teamName)}</span>
         </div>
-        <button class="btn-signout" id="btn-worker-change-pw" type="button" style="border-color:var(--border-card);color:var(--text-main);background:#ffffff;">Change password</button>
+        <button class="btn-signout" id="btn-worker-change-pw" type="button" style="border-color:var(--border-card);color:var(--text-main);background:#ffffff;">Security &amp; Passkeys</button>
         <button class="btn-signout" id="logout" type="button">Sign out</button>
       </div>
 
@@ -379,9 +380,16 @@ function renderDashboard() {
             </div>
           </div>
         </div>
+        <div style="margin:14px 0 4px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a4 4 0 1 0 4 4"/><circle cx="12" cy="12" r="9"/><path d="m14 10 5-5"/><path d="m17 7 2 2"/></svg>
+            <span style="font-size:12px;font-weight:700;color:#1e40af;">Biometric Passkeys</span>
+          </div>
+          <button type="button" id="drawer-manage-passkeys" style="border:none;background:#2563eb;color:#fff;border-radius:9999px;padding:5px 12px;font-size:11px;font-weight:750;cursor:pointer;">Set Up</button>
+        </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;">
-        <button class="btn-signout" id="drawer-worker-change-pw" type="button" style="width:100%;height:46px;border-radius:14px;border-color:var(--border-card);color:var(--text-main);background:#ffffff;font-weight:600;">Change password</button>
+        <button class="btn-signout" id="drawer-worker-change-pw" type="button" style="width:100%;height:46px;border-radius:14px;border-color:var(--border-card);color:var(--text-main);background:#ffffff;font-weight:600;">Security &amp; Passkeys</button>
         <button class="btn-signout" id="drawer-logout" type="button" style="width:100%;height:46px;border-radius:14px;background:#121316;color:#ffffff;font-weight:700;">Sign out</button>
       </div>
     </div>
@@ -915,18 +923,26 @@ function renderDashboard() {
   if (drawerLogoutBtn) drawerLogoutBtn.onclick = handleLogout;
 
   const workerChangePwBtn = document.querySelector('#btn-worker-change-pw');
-  if (workerChangePwBtn) workerChangePwBtn.onclick = openWorkerChangePasswordModal;
+  if (workerChangePwBtn) workerChangePwBtn.onclick = () => openWorkerSecurityModal('passkeys');
   const drawerWorkerChangePwBtn = document.querySelector('#drawer-worker-change-pw');
   if (drawerWorkerChangePwBtn) {
     drawerWorkerChangePwBtn.onclick = () => {
       isMobileNavOpen = false;
       renderDashboard();
-      openWorkerChangePasswordModal();
+      openWorkerSecurityModal('passkeys');
+    };
+  }
+  const drawerManagePasskeysBtn = document.querySelector('#drawer-manage-passkeys');
+  if (drawerManagePasskeysBtn) {
+    drawerManagePasskeysBtn.onclick = () => {
+      isMobileNavOpen = false;
+      renderDashboard();
+      openWorkerSecurityModal('passkeys');
     };
   }
 }
 
-function openWorkerChangePasswordModal() {
+async function openWorkerSecurityModal(initialTab = 'passkeys') {
   let modalWrap = document.querySelector('#worker-pw-modal-wrap');
   if (!modalWrap) {
     modalWrap = document.createElement('div');
@@ -934,90 +950,265 @@ function openWorkerChangePasswordModal() {
     document.body.appendChild(modalWrap);
   }
 
-  modalWrap.innerHTML = `
-    <div class="day-modal-backdrop" id="worker-pw-modal-backdrop">
-      <div class="day-modal-card" style="max-width:390px;animation:modalPop 0.18s cubic-bezier(0.16,1,0.3,1);">
-        <div class="day-modal-header">
-          <div>
-            <div style="font-size:11px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;color:var(--blue-primary);margin-bottom:2px;">SECURITY</div>
-            <h3 style="margin:0;">Change password</h3>
-          </div>
-          <button type="button" class="day-modal-close-btn" id="btn-close-worker-pw-modal">&times;</button>
-        </div>
-        <form id="worker-change-pw-form" style="padding:20px;display:flex;flex-direction:column;gap:14px;">
-          <div id="worker-pw-error" style="display:none;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:12.5px;font-weight:600;line-height:1.4;"></div>
-          <div class="action-field">
-            <label for="worker-cur-pw">Current Password</label>
-            <input id="worker-cur-pw" name="currentPassword" type="password" required autocomplete="current-password" placeholder="Enter current password">
-          </div>
-          <div class="action-field">
-            <label for="worker-new-pw">New Password</label>
-            <input id="worker-new-pw" name="newPassword" type="password" required minlength="10" autocomplete="new-password" placeholder="At least 10 characters (letters & numbers/symbols)">
-          </div>
-          <div class="action-field">
-            <label for="worker-conf-pw">Confirm New Password</label>
-            <input id="worker-conf-pw" name="confirmPassword" type="password" required minlength="10" autocomplete="new-password" placeholder="Repeat new password">
-          </div>
-          <div style="display:flex;gap:10px;margin-top:6px;">
-            <button type="button" class="btn-signout" id="btn-cancel-worker-pw" style="flex:1;height:42px;border-color:var(--border-card);color:var(--text-main);background:#fff;">Cancel</button>
-            <button type="submit" class="btn-primary-action" id="btn-save-worker-pw" style="flex:1;height:42px;">Save Password</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  `;
+  let currentTab = initialTab; // 'passkeys' | 'password'
+  let passkeys = [];
+  let isLoadingPasskeys = true;
+  let passkeyNotice = '';
+  let passkeyError = '';
+
+  const loadPasskeys = async () => {
+    isLoadingPasskeys = true;
+    try {
+      const res = await apiRequest('/api/auth/passkey/list');
+      passkeys = res.passkeys || [];
+    } catch (e) {
+      passkeys = [];
+    } finally {
+      isLoadingPasskeys = false;
+      render();
+    }
+  };
 
   const close = () => { modalWrap.innerHTML = ''; };
-  modalWrap.querySelector('#btn-close-worker-pw-modal').onclick = close;
-  modalWrap.querySelector('#btn-cancel-worker-pw').onclick = close;
-  modalWrap.querySelector('#worker-pw-modal-backdrop').onclick = (e) => {
-    if (e.target.id === 'worker-pw-modal-backdrop') close();
+
+  const render = () => {
+    const isWebAuthnAvailable = browserSupportsWebAuthn();
+
+    modalWrap.innerHTML = `
+      <div class="day-modal-backdrop" id="worker-pw-modal-backdrop">
+        <div class="day-modal-card" style="max-width:440px;animation:modalPop 0.18s cubic-bezier(0.16,1,0.3,1);overflow:hidden;">
+          <div class="day-modal-header">
+            <div>
+              <div style="font-size:11px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;color:var(--blue-primary);margin-bottom:2px;">ACCOUNT SECURITY</div>
+              <h3 style="margin:0;">Security &amp; Passkeys</h3>
+            </div>
+            <button type="button" class="day-modal-close-btn" id="btn-close-worker-pw-modal">&times;</button>
+          </div>
+
+          <!-- Tab Bar -->
+          <div style="display:flex;border-bottom:1px solid #e2e8f0;padding:0 20px;background:#f8fafc;">
+            <button type="button" id="tab-btn-passkeys" style="padding:11px 14px;border:none;background:none;font-weight:750;font-size:12.5px;cursor:pointer;color:${currentTab === 'passkeys' ? 'var(--blue-primary, #2563eb)' : '#64748b'};border-bottom:${currentTab === 'passkeys' ? '2.5px solid var(--blue-primary, #2563eb)' : '2.5px solid transparent'};margin-bottom:-1px;">
+              Passkeys (Biometrics)
+            </button>
+            <button type="button" id="tab-btn-password" style="padding:11px 14px;border:none;background:none;font-weight:750;font-size:12.5px;cursor:pointer;color:${currentTab === 'password' ? 'var(--blue-primary, #2563eb)' : '#64748b'};border-bottom:${currentTab === 'password' ? '2.5px solid var(--blue-primary, #2563eb)' : '2.5px solid transparent'};margin-bottom:-1px;">
+              Password
+            </button>
+          </div>
+
+          <!-- Content Body -->
+          <div style="padding:20px;">
+            ${currentTab === 'passkeys' ? `
+              ${passkeyNotice ? `<div style="padding:10px 12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;color:#1d4ed8;font-size:12px;font-weight:600;margin-bottom:12px;">${escapeHtml(passkeyNotice)}</div>` : ''}
+              ${passkeyError ? `<div style="padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#b91c1c;font-size:12px;font-weight:600;margin-bottom:12px;">${escapeHtml(passkeyError)}</div>` : ''}
+
+              <div style="font-size:12px;color:#475569;line-height:1.5;margin-bottom:16px;">
+                Passkeys let you sign in with one tap using <strong>Face ID</strong>, <strong>fingerprint</strong>, or device screen lock. They are stored securely in your device hardware and are 100% phishing-resistant.
+              </div>
+
+              ${isWebAuthnAvailable ? `
+                <button type="button" class="btn-primary-action" id="btn-add-passkey" style="width:100%;height:44px;justify-content:center;gap:8px;font-size:13px;border-radius:12px;margin-bottom:18px;">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a4 4 0 1 0 4 4"/><circle cx="12" cy="12" r="9"/><path d="m14 10 5-5"/><path d="m17 7 2 2"/></svg>
+                  <span>Register this Device (Face ID / Passkey)</span>
+                </button>
+              ` : `
+                <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:12px;color:#64748b;margin-bottom:16px;">
+                  Your current browser does not support WebAuthn passkeys. Please use Safari (iOS/macOS), Chrome, or Edge to register a passkey.
+                </div>
+              `}
+
+              <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">
+                Enrolled Devices (${passkeys.length})
+              </div>
+
+              ${isLoadingPasskeys ? `
+                <div style="padding:16px;text-align:center;font-size:12px;color:#94a3b8;">Loading passkeys…</div>
+              ` : passkeys.length === 0 ? `
+                <div style="padding:18px;border:1px dashed #cbd5e1;border-radius:12px;text-align:center;font-size:12px;color:#94a3b8;">
+                  No passkeys registered yet. Tap above to enable 1-tap sign-in!
+                </div>
+              ` : `
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                  ${passkeys.map(pk => `
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
+                      <div>
+                        <div style="font-weight:750;font-size:13px;color:#0f172a;">${escapeHtml(pk.device_name || 'Passkey Device')}</div>
+                        <div style="font-size:10.5px;color:#64748b;margin-top:2px;">Added ${new Date(pk.created_at).toLocaleDateString()}</div>
+                      </div>
+                      <button type="button" class="btn-delete-passkey" data-pk-id="${pk.id}" style="border:none;background:#fee2e2;color:#dc2626;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;">
+                        Remove
+                      </button>
+                    </div>
+                  `).join('')}
+                </div>
+              `}
+            ` : `
+              <!-- Change Password Form -->
+              <form id="worker-change-pw-form" style="display:flex;flex-direction:column;gap:14px;">
+                <div id="worker-pw-error" style="display:none;padding:10px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;color:#b91c1c;font-size:12.5px;font-weight:600;line-height:1.4;"></div>
+                <div class="action-field">
+                  <label for="worker-cur-pw">Current Password</label>
+                  <input id="worker-cur-pw" name="currentPassword" type="password" required autocomplete="current-password" placeholder="Enter current password">
+                </div>
+                <div class="action-field">
+                  <label for="worker-new-pw">New Password</label>
+                  <input id="worker-new-pw" name="newPassword" type="password" required minlength="10" autocomplete="new-password" placeholder="At least 10 characters (letters & numbers/symbols)">
+                </div>
+                <div class="action-field">
+                  <label for="worker-conf-pw">Confirm New Password</label>
+                  <input id="worker-conf-pw" name="confirmPassword" type="password" required minlength="10" autocomplete="new-password" placeholder="Repeat new password">
+                </div>
+                <div style="display:flex;gap:10px;margin-top:6px;">
+                  <button type="button" class="btn-signout" id="btn-cancel-worker-pw" style="flex:1;height:42px;border-color:var(--border-card);color:var(--text-main);background:#fff;">Cancel</button>
+                  <button type="submit" class="btn-primary-action" id="btn-save-worker-pw" style="flex:1;height:42px;">Save Password</button>
+                </div>
+              </form>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Bind Close
+    modalWrap.querySelector('#btn-close-worker-pw-modal').onclick = close;
+    const cancelBtn = modalWrap.querySelector('#btn-cancel-worker-pw');
+    if (cancelBtn) cancelBtn.onclick = close;
+    modalWrap.querySelector('#worker-pw-modal-backdrop').onclick = (e) => {
+      if (e.target.id === 'worker-pw-modal-backdrop') close();
+    };
+
+    // Bind Tab Switching
+    modalWrap.querySelector('#tab-btn-passkeys').onclick = () => {
+      currentTab = 'passkeys';
+      passkeyNotice = '';
+      passkeyError = '';
+      render();
+    };
+    modalWrap.querySelector('#tab-btn-password').onclick = () => {
+      currentTab = 'password';
+      render();
+    };
+
+    // Bind Add Passkey
+    const addPkBtn = modalWrap.querySelector('#btn-add-passkey');
+    if (addPkBtn) {
+      addPkBtn.onclick = async () => {
+        passkeyNotice = '';
+        passkeyError = '';
+        addPkBtn.disabled = true;
+        addPkBtn.innerHTML = '<span style="font-size:12.5px;">Registering biometric passkey…</span>';
+
+        try {
+          const chalRes = await apiRequest('/api/auth/passkey/register-challenge', { method: 'POST' });
+          if (!chalRes.ok) throw new Error(chalRes.error || 'Failed to start registration.');
+
+          const regResponse = await startRegistration({ optionsJSON: chalRes.options });
+
+          let deviceName = 'My Device';
+          const ua = navigator.userAgent;
+          if (/iPhone/i.test(ua)) deviceName = 'iPhone (Face ID)';
+          else if (/iPad/i.test(ua)) deviceName = 'iPad (Touch ID)';
+          else if (/Macintosh/i.test(ua)) deviceName = 'Mac (Touch ID)';
+          else if (/Android/i.test(ua)) deviceName = 'Android (Biometrics)';
+          else if (/Windows/i.test(ua)) deviceName = 'Windows PC (Hello)';
+          else deviceName = 'Device Passkey';
+
+          const verifyRes = await apiRequest('/api/auth/passkey/register-verify', {
+            method: 'POST',
+            body: JSON.stringify({
+              challengeId: chalRes.challengeId,
+              response: regResponse,
+              deviceName
+            })
+          });
+
+          if (!verifyRes.ok) throw new Error(verifyRes.error || 'Verification failed.');
+
+          passkeyNotice = `Passkey registered for ${verifyRes.deviceName}! You can now sign in with one tap.`;
+          showWorkerToast('Passkey registered successfully!');
+          await loadPasskeys();
+        } catch (err) {
+          if (err.name === 'NotAllowedError') {
+            passkeyError = 'Registration was cancelled or timed out.';
+          } else {
+            passkeyError = err.message || 'Passkey registration failed.';
+          }
+          render();
+        }
+      };
+    }
+
+    // Bind Delete Passkey
+    modalWrap.querySelectorAll('.btn-delete-passkey').forEach(btn => {
+      btn.onclick = async () => {
+        const pkId = btn.dataset.pkId;
+        if (!confirm('Remove this passkey from your account?')) return;
+        btn.disabled = true;
+        btn.textContent = '…';
+        try {
+          await apiRequest('/api/auth/passkey/delete', {
+            method: 'POST',
+            body: JSON.stringify({ passkeyId: pkId })
+          });
+          showWorkerToast('Passkey removed.');
+          await loadPasskeys();
+        } catch (e) {
+          alert(e.message || 'Could not remove passkey.');
+          btn.disabled = false;
+          btn.textContent = 'Remove';
+        }
+      };
+    });
+
+    // Bind Change Password Form
+    const pwForm = modalWrap.querySelector('#worker-change-pw-form');
+    if (pwForm) {
+      const errorBox = modalWrap.querySelector('#worker-pw-error');
+      const submitBtn = modalWrap.querySelector('#btn-save-worker-pw');
+
+      pwForm.onsubmit = async (e) => {
+        e.preventDefault();
+        errorBox.style.display = 'none';
+        const curPw = pwForm.currentPassword.value;
+        const newPw = pwForm.newPassword.value;
+        const confPw = pwForm.confirmPassword.value;
+
+        if (newPw.length < 10) {
+          errorBox.textContent = 'New password must be at least 10 characters.';
+          errorBox.style.display = 'block';
+          return;
+        }
+        if (!/[A-Za-z]/.test(newPw) || !/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPw)) {
+          errorBox.textContent = 'Password must include both letters and numbers/symbols.';
+          errorBox.style.display = 'block';
+          return;
+        }
+        if (newPw !== confPw) {
+          errorBox.textContent = 'New passwords do not match.';
+          errorBox.style.display = 'block';
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving…';
+
+        try {
+          await apiRequest('/api/worker/change-password', {
+            method: 'POST',
+            body: JSON.stringify({ currentPassword: curPw, newPassword: newPw })
+          });
+          close();
+          showWorkerToast('Password updated successfully!');
+        } catch (err) {
+          errorBox.textContent = err.message || 'Could not update password.';
+          errorBox.style.display = 'block';
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Save Password';
+        }
+      };
+    }
   };
 
-  const form = modalWrap.querySelector('#worker-change-pw-form');
-  const errorBox = modalWrap.querySelector('#worker-pw-error');
-  const submitBtn = modalWrap.querySelector('#btn-save-worker-pw');
-
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    errorBox.style.display = 'none';
-    const curPw = form.currentPassword.value;
-    const newPw = form.newPassword.value;
-    const confPw = form.confirmPassword.value;
-
-    if (newPw.length < 10) {
-      errorBox.textContent = 'New password must be at least 10 characters.';
-      errorBox.style.display = 'block';
-      return;
-    }
-    if (!/[A-Za-z]/.test(newPw) || !/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPw)) {
-      errorBox.textContent = 'Password must include both letters and numbers/symbols.';
-      errorBox.style.display = 'block';
-      return;
-    }
-    if (newPw !== confPw) {
-      errorBox.textContent = 'New passwords do not match.';
-      errorBox.style.display = 'block';
-      return;
-    }
-
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Saving…';
-
-    try {
-      await apiRequest('/api/worker/change-password', {
-        method: 'POST',
-        body: JSON.stringify({ currentPassword: curPw, newPassword: newPw })
-      });
-      close();
-      showMessage('Password updated successfully!');
-    } catch (err) {
-      errorBox.textContent = err.message || 'Could not update password.';
-      errorBox.style.display = 'block';
-      submitBtn.disabled = false;
-      submitBtn.textContent = 'Save Password';
-    }
-  };
+  loadPasskeys();
 }
 
 async function boot() {

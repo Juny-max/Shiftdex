@@ -32,6 +32,8 @@
     "admin:reset-password": "node scripts/reset-admin-password.cjs"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^14.0.0",
+    "@simplewebauthn/server": "^14.1.0",
     "electron-updater": "^6.8.11",
     "lottie-web": "^5.13.0"
   },
