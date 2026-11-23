@@ -23,6 +23,8 @@
     "build": "vite build admin --base=./ --outDir ../dist/admin --emptyOutDir",
     "dist": "pnpm run build && node scripts/package-windows.cjs && node scripts/write-update-manifest.cjs",
     "web": "vite --host 0.0.0.0 --root worker",
+    "worker:build": "vite build worker --base=./ --outDir dist --emptyOutDir",
+    "worker:pages-deploy": "pnpm run worker:build && wrangler pages deploy worker/dist --project-name shiftdex-workers",
     "worker:dev": "wrangler dev --config worker/wrangler.toml",
     "worker:deploy": "wrangler deploy --config worker/wrangler.toml",
     "set-brevo-key": "wrangler secret put BREVO_API_KEY --config worker/wrangler.toml",
