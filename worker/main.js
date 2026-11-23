@@ -302,14 +302,26 @@ function renderDashboard() {
     `;
   }).join('');
 
-  const homeMonthDays = Array.from({ length: firstDayOfWeek }, () => '<span class="home-month-day empty" aria-hidden="true"></span>');
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = `${currentMonth}-${String(d).padStart(2, '0')}`;
-    const code = shiftFor(staffId, date);
-    const marker = code === 'M' ? 'Morning shift' : code === 'N' ? 'Night shift' : code === 'LEAVE' ? 'Leave' : 'Rest day';
-    homeMonthDays.push(`<button class="home-month-day ${date === todayIso ? 'today' : ''} ${code.toLowerCase()}" data-date="${date}" type="button" aria-label="${fullDate(date)} · ${marker}"><span>${d}</span>${['M', 'N'].includes(code) ? `<i class="${code.toLowerCase()}" aria-hidden="true"></i>` : code === 'LEAVE' ? '<i class="leave" aria-hidden="true"></i>' : ''}</button>`);
-  }
-  while (homeMonthDays.length % 7) homeMonthDays.push('<span class="home-month-day empty" aria-hidden="true"></span>');
+  // 8-Day Continuous Rotation Cycle Calculation
+  const anchorDate = myPod?.anchor || '2026-11-01';
+  const dayDiffFromAnchor = Math.floor(Date.parse(todayIso + 'T00:00:00Z') / 86400000) - Math.floor(Date.parse(anchorDate + 'T00:00:00Z') / 86400000);
+  const currentRotationPhase = ((dayDiffFromAnchor % 8) + 8) % 8; // 0 to 7
+
+  const rotationSteps = [
+    { phase: 0, code: 'M', title: 'Day 1', label: 'Day Shift' },
+    { phase: 1, code: 'M', title: 'Day 2', label: 'Day Shift' },
+    { phase: 2, code: 'N', title: 'Night 1', label: 'Night Shift' },
+    { phase: 3, code: 'N', title: 'Night 2', label: 'Night Shift' },
+    { phase: 4, code: 'OFF', title: 'Rest 1', label: 'Rest Day' },
+    { phase: 5, code: 'OFF', title: 'Rest 2', label: 'Rest Day' },
+    { phase: 6, code: 'OFF', title: 'Rest 3', label: 'Rest Day' },
+    { phase: 7, code: 'OFF', title: 'Rest 4', label: 'Rest Day' },
+  ];
+
+  const currentStep = rotationSteps[currentRotationPhase];
+  const morningPct = Math.round((morningShiftsCount / daysInMonth) * 100);
+  const nightPct = Math.round((nightShiftsCount / daysInMonth) * 100);
+  const restPct = Math.max(0, 100 - morningPct - nightPct);
 
   app.innerHTML = `
     <!-- Top Navigation Bar -->
@@ -394,12 +406,104 @@ function renderDashboard() {
           </div>
 
           <div class="home-planner-grid">
-            <section class="home-panel home-month-panel">
-              <div class="home-panel-heading"><div><span class="home-section-kicker">YOUR ROSTER</span><h2>${formatMonthHeader(currentMonth)}</h2></div>
-                <div class="home-month-controls"><button type="button" id="home-prev-month" aria-label="Previous month">‹</button><button type="button" id="home-next-month" aria-label="Next month">›</button></div>
+            <section class="home-panel home-workload-panel">
+              <div class="home-panel-heading">
+                <div>
+                  <span class="home-section-kicker">MONTHLY WORKLOAD & ROTATION</span>
+                  <h2>${formatMonthHeader(currentMonth)}</h2>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <div class="home-month-controls">
+                    <button type="button" id="home-prev-month" aria-label="Previous month" title="Previous month">‹</button>
+                    <button type="button" id="home-next-month" aria-label="Next month" title="Next month">›</button>
+                  </div>
+                  <button type="button" class="home-text-link" data-tab="calendar">Full calendar &rarr;</button>
+                </div>
               </div>
-              <div class="home-month-grid" aria-label="Monthly shift calendar"><div class="home-weekday">Sun</div><div class="home-weekday">Mon</div><div class="home-weekday">Tue</div><div class="home-weekday">Wed</div><div class="home-weekday">Thu</div><div class="home-weekday">Fri</div><div class="home-weekday">Sat</div>${homeMonthDays.join('')}</div>
-              <div class="home-month-footer"><span><i class="m"></i>Morning</span><span><i class="n"></i>Night</span><span><i class="leave"></i>Leave</span><span>${monthlyShiftsCount} shifts · ${monthlyShiftsCount * 12} hours</span></div>
+
+              <!-- Live 8-Day Rotation Cycle Tracker -->
+              <div class="cadence-tracker-box">
+                <div class="cadence-tracker-header">
+                  <div class="cadence-team-tag">
+                    <span class="cadence-team-dot" style="background:${teamColor};"></span>
+                    <span>${escapeHtml(teamName)} &middot; 8-Day Rotation Cadence</span>
+                  </div>
+                  <span class="cadence-today-badge">
+                    Today: Step ${currentStep.phase + 1} of 8 &middot; ${currentStep.title} (${currentStep.code})
+                  </span>
+                </div>
+                <div class="cadence-steps-row">
+                  ${rotationSteps.map((step) => {
+                    const isCurrent = step.phase === currentRotationPhase;
+                    const isM = step.code === 'M';
+                    const isN = step.code === 'N';
+                    return `
+                      <div class="cadence-step-pip ${isCurrent ? 'is-active' : ''} ${isM ? 'step-m' : isN ? 'step-n' : 'step-off'}">
+                        <span class="cadence-step-code">${step.code}</span>
+                        <span class="cadence-step-name">${step.title}</span>
+                        ${isCurrent ? '<span class="cadence-today-pip">Today</span>' : ''}
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
+              <!-- Key Workload Breakdown Stats (3 Metric Cards) -->
+              <div class="workload-stats-grid">
+                <div class="workload-stat-card m">
+                  <div class="stat-card-top">
+                    <span class="stat-badge m">M</span>
+                    <span class="stat-label">Day Shifts</span>
+                  </div>
+                  <div class="stat-value-row">
+                    <span class="stat-num">${morningShiftsCount}</span>
+                    <span class="stat-unit">shifts</span>
+                  </div>
+                  <span class="stat-subtext">${morningShiftsCount * 12} hrs (06:00 – 18:00)</span>
+                </div>
+
+                <div class="workload-stat-card n">
+                  <div class="stat-card-top">
+                    <span class="stat-badge n">N</span>
+                    <span class="stat-label">Night Shifts</span>
+                  </div>
+                  <div class="stat-value-row">
+                    <span class="stat-num">${nightShiftsCount}</span>
+                    <span class="stat-unit">shifts</span>
+                  </div>
+                  <span class="stat-subtext">${nightShiftsCount * 12} hrs (18:00 – 06:00)</span>
+                </div>
+
+                <div class="workload-stat-card off">
+                  <div class="stat-card-top">
+                    <span class="stat-badge off">OFF</span>
+                    <span class="stat-label">Rest Days</span>
+                  </div>
+                  <div class="stat-value-row">
+                    <span class="stat-num">${restDaysCount}</span>
+                    <span class="stat-unit">days</span>
+                  </div>
+                  <span class="stat-subtext">${restDaysCount * 24} hrs recovery</span>
+                </div>
+              </div>
+
+              <!-- Proportional Balance Multi-Segment Progress Bar -->
+              <div class="workload-bar-wrap">
+                <div class="workload-bar-labels">
+                  <span>Shift Distribution (${daysInMonth} Days)</span>
+                  <strong>${monthlyShiftsCount * 12} Total Hours</strong>
+                </div>
+                <div class="workload-multi-bar" role="progressbar" aria-label="Monthly shift balance">
+                  <div class="bar-slice bar-m" style="width:${morningPct}%;" title="Morning Shifts: ${morningPct}% (${morningShiftsCount} shifts)"></div>
+                  <div class="bar-slice bar-n" style="width:${nightPct}%;" title="Night Shifts: ${nightPct}% (${nightShiftsCount} shifts)"></div>
+                  <div class="bar-slice bar-off" style="width:${restPct}%;" title="Rest Days: ${restPct}% (${restDaysCount} days)"></div>
+                </div>
+                <div class="workload-bar-legend">
+                  <span><i class="legend-dot m"></i>Morning (${morningPct}%)</span>
+                  <span><i class="legend-dot n"></i>Night (${nightPct}%)</span>
+                  <span><i class="legend-dot off"></i>Rest / Off (${restPct}%)</span>
+                </div>
+              </div>
             </section>
             <section class="home-panel home-agenda-panel">
               <div class="home-panel-heading"><div><span class="home-section-kicker">YOUR WEEK</span><h2>Upcoming shifts</h2></div><button type="button" class="home-text-link" data-tab="calendar">See calendar</button></div>

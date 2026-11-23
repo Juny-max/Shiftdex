@@ -1790,6 +1790,300 @@ button, input, select, textarea {
 .home-panel { padding: 19px 20px 14px; }
 .home-panel-heading { margin-bottom: 16px; }
 .home-panel-heading h2 { font-size: 17px; }
+/* ========================================================
+   WORKER DASHBOARD: ROTATION CADENCE & MONTHLY WORKLOAD
+======================================================== */
+.home-workload-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 8-Day Rotation Cycle Tracker Box */
+.cadence-tracker-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 13px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.cadence-tracker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cadence-team-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.cadence-team-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cadence-today-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  padding: 2.5px 9px;
+  border-radius: 9999px;
+  letter-spacing: -0.1px;
+}
+
+/* 8 Steps Track */
+.cadence-steps-row {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.cadence-step-pip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 3px 6px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  transition: all 0.2s ease;
+  min-height: 50px;
+}
+
+.cadence-step-pip.step-m {
+  background: #fffdf5;
+  border-color: #fef3c7;
+}
+
+.cadence-step-pip.step-n {
+  background: #f8faff;
+  border-color: #dbeafe;
+}
+
+.cadence-step-pip.step-off {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.cadence-step-pip.is-active {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.14), inset 0 0 0 1.5px #2563eb;
+  transform: translateY(-2px);
+}
+
+.cadence-step-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.cadence-step-pip.step-m .cadence-step-code { color: #d97706; }
+.cadence-step-pip.step-n .cadence-step-code { color: #2563eb; }
+.cadence-step-pip.step-off .cadence-step-code { color: #64748b; }
+
+.cadence-step-name {
+  font-size: 9px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.2px;
+}
+
+.cadence-step-pip.is-active .cadence-step-name {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.cadence-today-pip {
+  position: absolute;
+  top: -7px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 7.5px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+}
+
+/* Workload Stats Grid (3 Stat Cards) */
+.workload-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.workload-stat-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 13px 13px 11px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.workload-stat-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+}
+
+.stat-card-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 7px;
+}
+
+.stat-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.stat-badge.m { background: #fef3c7; color: #b45309; }
+.stat-badge.n { background: #eff6ff; color: #1d4ed8; }
+.stat-badge.off { background: #f1f5f9; color: #475569; font-size: 8.5px; }
+
+.stat-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.stat-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.stat-num {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #0f172a;
+  line-height: 1.1;
+}
+
+.stat-unit {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.stat-subtext {
+  font-size: 10.5px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* Multi-Segment Proportional Workload Bar */
+.workload-bar-wrap {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 13px 15px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.workload-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.workload-bar-labels strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.workload-multi-bar {
+  display: flex;
+  height: 9px;
+  width: 100%;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: #f1f5f9;
+  gap: 2px;
+}
+
+.bar-slice {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.bar-slice.bar-m { background: #f59e0b; border-radius: 9999px 0 0 9999px; }
+.bar-slice.bar-n { background: #3b82f6; }
+.bar-slice.bar-off { background: #cbd5e1; border-radius: 0 9999px 9999px 0; }
+
+.workload-bar-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: #64748b;
+  font-weight: 550;
+  padding-top: 1px;
+}
+
+.workload-bar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-dot {
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-dot.m { background: #f59e0b; }
+.legend-dot.n { background: #3b82f6; }
+.legend-dot.off { background: #cbd5e1; }
+
+@media (max-width: 680px) {
+  .workload-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .cadence-steps-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 .home-month-controls { display: flex; gap: 5px; }
 .home-month-controls button {
   width: 30px; height: 30px; display: grid; place-items: center;
