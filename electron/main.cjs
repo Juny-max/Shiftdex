@@ -84,6 +84,10 @@ function createWindow(port) {
   win.on('closed', () => { if (mainWindow === win) mainWindow = null; });
   win.setMenu(null);
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  win.webContents.on('will-attach-webview', event => event.preventDefault());
+  if (app.isPackaged) {
+    win.webContents.on('devtools-opened', () => win.webContents.closeDevTools());
+  }
   win.webContents.on('will-navigate', (event, url) => {
     const allowed = app.isPackaged
       ? url.startsWith('file://') && url.includes('/dist/admin/index.html')
@@ -118,6 +122,18 @@ function createWindow(port) {
 app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self' file:; script-src 'self' 'unsafe-inline' file:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.cdnfonts.com; font-src 'self' data: https://fonts.gstatic.com https://fonts.cdnfonts.com; img-src 'self' data: blob: file:; connect-src 'self' https://shift-roster-api.maxgrip500.workers.dev; object-src 'none'; base-uri 'self';"
+        ],
+        'X-Content-Type-Options': ['nosniff'],
+        'X-Frame-Options': ['DENY']
+      }
+    });
+  });
   try {
     if (!app.isPackaged) {
       const { createServer } = await import('vite');

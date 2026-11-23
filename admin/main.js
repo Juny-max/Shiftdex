@@ -1394,6 +1394,29 @@ function currentAdmin() {
   return { session, expires, email, name: displayName, initial, loggedIn };
 }
 
+// Security: Inactivity auto-logout watchdog (60 minutes)
+let lastUserActivity = Date.now();
+const INACTIVITY_TIMEOUT_MS = 60 * 60 * 1000;
+['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(evt => {
+  window.addEventListener(evt, () => { lastUserActivity = Date.now(); }, { passive: true });
+});
+setInterval(() => {
+  const admin = currentAdmin();
+  if (admin.loggedIn && Date.now() - lastUserActivity > INACTIVITY_TIMEOUT_MS) {
+    const token = sessionStorage.getItem('admin-session') || '';
+    if (token) {
+      fetch(API + '/api/admin/auth/logout', {
+        method: 'POST',
+        headers: { authorization: 'Bearer ' + token }
+      }).catch(() => {});
+    }
+    sessionStorage.removeItem('admin-session');
+    sessionStorage.removeItem('admin-session-expires');
+    adminLoginError = 'Session expired due to inactivity. Please sign in again.';
+    render();
+  }
+}, 30000);
+
 function updateGhanaClock() {
   const svg = document.querySelector('.analog-clock-icon');
   if (!svg) return;
@@ -3489,13 +3512,13 @@ function openChangePasswordDialog(staffId) {
           <input type="radio" name="pw_method" value="custom" checked style="margin-top:3px;">
           <div>
             <strong style="color:var(--text-main);">Type custom password</strong>
-            <div style="color:var(--text-light);font-size:12px;">Directly assign a new password (min 8 characters).</div>
+            <div style="color:var(--text-light);font-size:12px;">Directly assign a new password (min 10 characters).</div>
           </div>
         </label>
 
         <div id="custom-pw-box" style="padding-left:24px;">
           <div style="display:flex;gap:8px;align-items:center;">
-            <input type="text" id="input-custom-pw" placeholder="Enter new password" minlength="8" style="flex:1;height:40px;padding:0 12px;border:1px solid #cbd5e1;border-radius:8px;font-family:var(--font-mono);font-size:13.5px;" value="${generateStrongPassword()}" required>
+            <input type="text" id="input-custom-pw" placeholder="Enter new password" minlength="10" style="flex:1;height:40px;padding:0 12px;border:1px solid #cbd5e1;border-radius:8px;font-family:var(--font-mono);font-size:13.5px;" value="${generateStrongPassword()}" required>
             <button type="button" class="btn-clean" id="btn-regen-pw" style="font-size:12px;padding:0 12px;height:40px;white-space:nowrap;">Regenerate</button>
           </div>
         </div>

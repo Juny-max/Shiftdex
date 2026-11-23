@@ -1,13 +1,59 @@
 import { LOGO_PNG_BASE64 } from './logo-base64.js';
 
-const cors = {
-  'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET,POST,OPTIONS',
-  'access-control-allow-headers': 'authorization,content-type',
+function validatePasswordComplexity(pw) {
+  if (typeof pw !== 'string' || pw.length < 10) {
+    return 'Password must be at least 10 characters long.';
+  }
+  if (pw.length > 256) {
+    return 'Password cannot exceed 256 characters.';
+  }
+  if (!/[A-Za-z]/.test(pw) || !/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(pw)) {
+    return 'Password must contain both letters and at least one number or special character.';
+  }
+  return null;
+}
+
+async function checkApiRateLimit(db, key, maxRequests = 15, windowSeconds = 60) {
+  const now = Date.now();
+  const resetAt = new Date(now + windowSeconds * 1000).toISOString();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS api_rate_limits (
+      rate_key TEXT PRIMARY KEY,
+      request_count INTEGER NOT NULL,
+      reset_at TEXT NOT NULL
+    )
+  `).run();
+
+  const existing = await db.prepare('SELECT request_count, reset_at FROM api_rate_limits WHERE rate_key=?').bind(key).first();
+  if (existing) {
+    if (Date.parse(existing.reset_at) > now) {
+      if (existing.request_count >= maxRequests) {
+        return { allowed: false, retryAfter: Math.ceil((Date.parse(existing.reset_at) - now) / 1000) };
+      }
+      await db.prepare('UPDATE api_rate_limits SET request_count = request_count + 1 WHERE rate_key=?').bind(key).run();
+      return { allowed: true };
+    }
+  }
+  await db.prepare(`
+    INSERT INTO api_rate_limits (rate_key, request_count, reset_at) VALUES (?, 1, ?)
+    ON CONFLICT(rate_key) DO UPDATE SET request_count = 1, reset_at = excluded.reset_at
+  `).bind(key, resetAt).run();
+  return { allowed: true };
+}
+
+const defaultSecurityHeaders = {
+  'content-type': 'application/json; charset=utf-8',
+  'cache-control': 'no-store, no-cache, must-revalidate',
+  'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'strict-origin-when-cross-origin',
+  'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
 };
-const json = (data, status = 200) => new Response(JSON.stringify(data), {
+
+const json = (data, status = 200, extra = {}) => new Response(JSON.stringify(data), {
   status,
-  headers: { ...cors, 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY' },
+  headers: { ...defaultSecurityHeaders, ...extra },
 });
 const encoder = new TextEncoder();
 // Cloudflare Workers rejects PBKDF2 iteration counts above 100,000.
@@ -927,9 +973,40 @@ You MUST return ONLY a valid JSON object matching this schema:
 export default {
   async fetch(req, env) {
     const origin = req.headers.get('origin');
-    const allowedOrigin = !origin || origin === 'null' || origin === 'https://shiftdex-workers.pages.dev' || /^https?:\/\/(localhost|127\.0\.0\.1):(5173|5174|5175|5176|5177|5178|5179|5180|5181|5182|5183)$/.test(origin);
-    if (!allowedOrigin) return json({ error: 'Origin not allowed.' }, 403);
-    if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
+    const isAllowedOrigin = !origin || origin === 'null' || origin === 'https://shiftdex-workers.pages.dev' || /^https?:\/\/(localhost|127\.0\.0\.1):(5173|5174|5175|5176|5177|5178|5179|5180|5181|5182|5183)$/.test(origin);
+    if (!isAllowedOrigin) {
+      return new Response(JSON.stringify({ error: 'Origin not allowed by security policy.' }), {
+        status: 403,
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'x-content-type-options': 'nosniff',
+          'x-frame-options': 'DENY'
+        }
+      });
+    }
+
+    const allowOriginHeader = origin || (isAllowedOrigin ? 'https://shiftdex-workers.pages.dev' : 'null');
+    const secHeaders = {
+      'access-control-allow-origin': allowOriginHeader,
+      'access-control-allow-methods': 'GET,POST,OPTIONS',
+      'access-control-allow-headers': 'authorization,content-type,x-requested-with,x-client-platform',
+      'access-control-max-age': '86400',
+      'vary': 'Origin',
+      'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store, no-cache, must-revalidate',
+      'strict-transport-security': 'max-age=31536000; includeSubDomains; preload',
+      'x-content-type-options': 'nosniff',
+      'x-frame-options': 'DENY',
+      'referrer-policy': 'strict-origin-when-cross-origin',
+      'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=()',
+    };
+
+    const json = (data, status = 200, extra = {}) => new Response(JSON.stringify(data), {
+      status,
+      headers: { ...secHeaders, ...extra },
+    });
+
+    if (req.method === 'OPTIONS') return new Response(null, { headers: secHeaders });
     const contentLength = Number(req.headers.get('content-length') || 0);
     if (contentLength > 65536) return json({ error: 'Request is too large.' }, 413);
     const url = new URL(req.url), db = env.DB;
@@ -942,7 +1019,9 @@ export default {
           headers: {
             'content-type': 'image/png',
             'cache-control': 'public, max-age=31536000, immutable',
-            'access-control-allow-origin': '*',
+            'access-control-allow-origin': allowOriginHeader,
+            'vary': 'Origin',
+            'x-content-type-options': 'nosniff',
           }
         });
       }
@@ -1033,9 +1112,11 @@ export default {
         const email = String(body.email || '').trim().toLowerCase();
         const tempPassword = String(body.tempPassword || '');
         const newPassword = String(body.newPassword || '');
-        if (!email || !tempPassword || !newPassword || newPassword.length < 12 || newPassword.length > 256) {
-          return json({ error: 'Choose a new password between 12 and 256 characters.' }, 400);
+        if (!email || !tempPassword || !newPassword) {
+          return json({ error: 'Email, temporary password, and new password are required.' }, 400);
         }
+        const complexityError = validatePasswordComplexity(newPassword);
+        if (complexityError) return json({ error: complexityError }, 400);
         const ipHash = await hashText(req.headers.get('cf-connecting-ip') || 'unknown');
         const now = new Date();
         if (await isAuthBlocked(db, 'password-change', email, ipHash, now)) return json({ error: 'Too many attempts. Try again in 15 minutes.' }, 429);
@@ -1491,9 +1572,11 @@ export default {
         const body = await req.json();
         const currentPassword = String(body.currentPassword || '');
         const newPassword = String(body.newPassword || '');
-        if (!currentPassword || !newPassword || newPassword.length < 8) {
-          return json({ error: 'New password must be at least 8 characters.' }, 400);
+        if (!currentPassword || !newPassword) {
+          return json({ error: 'Current password and new password are required.' }, 400);
         }
+        const complexityError = validatePasswordComplexity(newPassword);
+        if (complexityError) return json({ error: complexityError }, 400);
         const account = await db.prepare("SELECT id, password_salt, password_hash, password_iterations FROM worker_accounts WHERE id=?").bind(actor.accountId).first();
         if (!account) return json({ error: 'Account not found.' }, 404);
         const digest = await passwordDigest(currentPassword, account.password_salt, safePasswordIterations(account.password_iterations));
@@ -1519,7 +1602,10 @@ export default {
 
         let finalPassword = body.newPassword ? String(body.newPassword).trim() : '';
         let mustChange = 0;
-        if (!finalPassword) {
+        if (finalPassword) {
+          const complexityError = validatePasswordComplexity(finalPassword);
+          if (complexityError) return json({ error: complexityError }, 400);
+        } else {
           const chars = '23456789abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ';
           const randomBytes = crypto.getRandomValues(new Uint8Array(12));
           let code = '';
@@ -1753,6 +1839,19 @@ export default {
       if (url.pathname === '/api/admin/ai/copilot' && req.method === 'POST') {
         const actor = await auth(req, env, db, true);
         if (!actor) return json({ error: 'Admin token required' }, 401);
+
+        const rateCheck = await checkApiRateLimit(db, `ai:${actor.id}`, 15, 60);
+        if (!rateCheck.allowed) {
+          return json({
+            ok: false,
+            error: `Security Rate Limit: Maximum 15 AI prompts per minute reached. Please retry in ${rateCheck.retryAfter} seconds.`,
+            summary: `Rate limit reached to protect system resources. Please wait ${rateCheck.retryAfter}s before sending another prompt.`,
+            type: 'answer',
+            changes: [],
+            warnings: ['AI rate limit reached to safeguard operational systems and Cloudflare quotas.']
+          }, 429, { 'retry-after': String(rateCheck.retryAfter) });
+        }
+
         const body = await req.json().catch(() => ({}));
         const prompt = String(body.prompt || '').trim();
         if (!prompt) return json({ error: 'Prompt is required' }, 400);

@@ -808,11 +808,11 @@ function openWorkerChangePasswordModal() {
           </div>
           <div class="action-field">
             <label for="worker-new-pw">New Password</label>
-            <input id="worker-new-pw" name="newPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="Minimum 8 characters">
+            <input id="worker-new-pw" name="newPassword" type="password" required minlength="10" autocomplete="new-password" placeholder="At least 10 characters (letters & numbers/symbols)">
           </div>
           <div class="action-field">
             <label for="worker-conf-pw">Confirm New Password</label>
-            <input id="worker-conf-pw" name="confirmPassword" type="password" required minlength="8" autocomplete="new-password" placeholder="Repeat new password">
+            <input id="worker-conf-pw" name="confirmPassword" type="password" required minlength="10" autocomplete="new-password" placeholder="Repeat new password">
           </div>
           <div style="display:flex;gap:10px;margin-top:6px;">
             <button type="button" class="btn-signout" id="btn-cancel-worker-pw" style="flex:1;height:42px;border-color:var(--border-card);color:var(--text-main);background:#fff;">Cancel</button>
@@ -841,8 +841,13 @@ function openWorkerChangePasswordModal() {
     const newPw = form.newPassword.value;
     const confPw = form.confirmPassword.value;
 
-    if (newPw.length < 8) {
-      errorBox.textContent = 'New password must be at least 8 characters.';
+    if (newPw.length < 10) {
+      errorBox.textContent = 'New password must be at least 10 characters.';
+      errorBox.style.display = 'block';
+      return;
+    }
+    if (!/[A-Za-z]/.test(newPw) || !/[0-9!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/.test(newPw)) {
+      errorBox.textContent = 'Password must include both letters and numbers/symbols.';
       errorBox.style.display = 'block';
       return;
     }
