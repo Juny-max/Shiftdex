@@ -528,24 +528,37 @@ button, input, select {
   height: 18px;
 }
 
-/* Payday Card 2: Deep Obsidian / Slate Desk Card (Aesthetic, Non-AI) */
+/* Payday Card 2: Obsidian Luminous Card (Exact Figma Spec) */
 .payday-hero-blue {
-  background: linear-gradient(150deg, #090d16 0%, #0f172a 55%, #1e293b 100%);
+  background: linear-gradient(180deg, #0A0909 0%, #09101F 100%);
   color: #ffffff;
   border-radius: var(--radius-lg);
   padding: 26px 28px;
-  box-shadow: 0 10px 28px -4px rgba(15, 23, 42, 0.28);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   position: relative;
   min-height: 220px;
-  border: 1px solid #1e293b;
-  transition: box-shadow 0.16s ease;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 -80px 60px -30px #144CCD,
+    inset 0 -40px 30px -8px rgba(102, 148, 255, 0.5),
+    inset 0 -20px 20px -6px rgba(255, 255, 255, 0.4),
+    inset 0 6px 6px -2px rgba(35, 101, 255, 0.15),
+    0 18px 40px -10px rgba(0, 0, 0, 0.6),
+    0 8px 18px -4px rgba(20, 76, 205, 0.25);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .payday-hero-blue:hover {
-  box-shadow: 0 14px 34px -4px rgba(15, 23, 42, 0.35);
+  box-shadow:
+    inset 0 -85px 65px -30px #144CCD,
+    inset 0 -45px 35px -8px rgba(102, 148, 255, 0.55),
+    inset 0 -20px 20px -6px rgba(255, 255, 255, 0.45),
+    inset 0 6px 6px -2px rgba(35, 101, 255, 0.2),
+    0 22px 46px -10px rgba(0, 0, 0, 0.65),
+    0 10px 22px -4px rgba(20, 76, 205, 0.35);
 }
 
 .blue-card-inner {
@@ -560,27 +573,28 @@ button, input, select {
   margin-bottom: 12px;
 }
 
-.blue-tag-pill {
+/* Plain label directly on the card surface (no background box, no borders) */
+.blue-plain-label {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 10.5px;
+  gap: 8px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  color: #e2e8f0;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
 .desk-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #10b981;
   display: inline-block;
   flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
 .blue-arrow-corner {
@@ -628,23 +642,23 @@ button, input, select {
   margin: 0;
 }
 
+/* Team label directly on the card surface */
 .deck-team-chip {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
-  border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  font-size: 11px;
-  font-weight: 600;
-  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #60a5fa;
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
-/* On-Desk Avatar Strip */
+/* On-Desk Avatar Strip directly on card */
 .deck-avatars-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: wrap;
   margin-bottom: 16px;
 }
@@ -652,33 +666,28 @@ button, input, select {
 .deck-avatar-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 3px 9px 3px 4px;
-  border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  transition: background 0.15s ease;
-}
-
-.deck-avatar-chip:hover {
-  background: rgba(255, 255, 255, 0.12);
+  gap: 7px;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 
 .deck-avatar-bubble {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #ffffff;
-  color: #090d16;
+  color: #0a0909;
   font-size: 10px;
   font-weight: 800;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 .deck-avatar-name {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   color: #f1f5f9;
 }
@@ -686,32 +695,31 @@ button, input, select {
 .blue-sub-metrics-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 16px;
   padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.blue-sub-metric-box {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-md);
-  padding: 10px 14px;
+.blue-sub-metric-item {
+  background: transparent;
+  border: none;
+  padding: 0;
 }
 
-.blue-sub-metric-box small {
+.blue-sub-metric-item small {
   display: block;
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
   color: #94a3b8;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
-.blue-sub-metric-box b {
-  font-size: 13px;
+.blue-sub-metric-item b {
+  font-size: 13.5px;
   font-weight: 700;
-  color: #f8fafc;
+  color: #ffffff;
 }
 
 /* ========================================================

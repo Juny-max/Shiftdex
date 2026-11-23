@@ -2310,14 +2310,14 @@ function renderOverviewView() {
         </button>
       </div>
 
-      <!-- Card 2: Active Shift Deck (Deep Obsidian / Slate Card - Non-AI Aesthetic) -->
+      <!-- Card 2: Active Shift Deck (Deep Obsidian / Figma Luminous Bottom Glow) -->
       <div class="payday-hero-blue">
         <div class="blue-card-inner">
           <div class="blue-card-top-row">
-            <span class="blue-tag-pill">
+            <div class="blue-plain-label">
               <span class="desk-dot"></span>
-              CURRENT ON-DUTY SHIFT
-            </span>
+              <span>CURRENT ON-DUTY SHIFT</span>
+            </div>
             <span class="blue-arrow-corner" data-nav="roster" title="Go to roster">${ICONS.arrowUpRight}</span>
           </div>
 
@@ -2343,11 +2343,11 @@ function renderOverviewView() {
         </div>
 
         <div class="blue-sub-metrics-row">
-          <div class="blue-sub-metric-box">
+          <div class="blue-sub-metric-item">
             <small>Upcoming handover</small>
             <b>${todayInfo.isMorningTime ? '18:00 (Night Shift)' : '06:00 (Day Shift)'}</b>
           </div>
-          <div class="blue-sub-metric-box">
+          <div class="blue-sub-metric-item">
             <small>Shift compliance</small>
             <b>All clear ✓</b>
           </div>
