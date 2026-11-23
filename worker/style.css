@@ -1,7 +1,7 @@
 :root {
   --bg-page: #f5f4ef;
   --bg-card: #ffffff;
-  --bg-amber-card: #fed854;
+  --bg-blue-card: #2563eb;
   --bg-dark-pill: #121316;
   --border-card: #e5e3da;
   --border-subtle: #eae8df;
@@ -13,9 +13,6 @@
   --blue-hover: #1d4ed8;
   --blue-soft: #eff6ff;
   --emerald-live: #10b981;
-  --amber-soft: #fffbeb;
-  --amber-text: #92400e;
-  --amber-border: #fef08a;
   --night-soft: #eff6ff;
   --night-text: #1d4ed8;
   --night-border: #bfdbfe;
@@ -25,7 +22,6 @@
   --leave-soft: #fef2f2;
   --leave-text: #991b1b;
   --leave-border: #fecaca;
-  --yellow-brand: #fed854;
   /* Dual Font System:
      1. Apple SF Pro (iOS Native with Inter fallback): Clean UI controls, cards, tabs, body
      2. Geist (Top world-class modern software font): Expressive headings, brand, metrics */
@@ -1357,14 +1353,14 @@ button, input, select, textarea {
 }
 
 .liquid-dock-item.active {
-  background: #fed854 !important;
-  color: #121316 !important;
-  box-shadow: 0 4px 14px rgba(254, 216, 84, 0.45);
+  background: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.45);
 }
 
 .liquid-dock-item.active:hover {
-  background: #fecd36 !important;
-  color: #121316 !important;
+  background: #1d4ed8 !important;
+  color: #ffffff !important;
 }
 
 .liquid-dock-item span.dock-label {
@@ -2399,12 +2395,12 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   transform: translateY(-1px);
 }
 
-.neo-btn-icon-yellow {
+.neo-btn-icon-blue {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #fed854;
-  color: #121316;
+  background: #2563eb;
+  color: #ffffff;
   display: grid;
   place-items: center;
   flex-shrink: 0;
@@ -2443,134 +2439,66 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   flex-shrink: 0;
 }
 
-/* 2. Operations Lead & Category Pills */
-.neo-section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 4px 6px 0;
-}
-
-.neo-section-title {
-  font-size: 16px;
-  font-weight: 850;
-  color: #121316;
-  letter-spacing: -0.3px;
-}
-
-.neo-section-link {
-  font-size: 12px;
-  font-weight: 750;
-  color: #76746f;
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: color 0.15s ease;
-}
-
-.neo-section-link:hover {
-  color: #121316;
-}
-
-.neo-category-pills-row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 2px 4px 4px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.neo-category-pills-row::-webkit-scrollbar {
-  display: none;
-}
-
-.neo-cat-pill {
-  padding: 9px 18px;
-  border-radius: 9999px;
-  font-size: 12.5px;
-  font-weight: 750;
-  border: none;
-  background: #ffffff;
-  color: #5f5d56;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: all 0.18s ease;
-}
-
-.neo-cat-pill.active {
-  background: #ffffff;
-  color: #121316;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.neo-cat-pill:not(.active):hover {
-  background: #eae8df;
-  color: #121316;
-}
-
-.cat-pill-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #cbd5e1;
-}
-
-.cat-pill-dot.live {
-  background: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
-}
-
-/* 3. Featured Warm Honey-Amber Card (Image 2 Inspiration) */
-.neo-amber-card {
-  background: #fed854;
+/* 2. Featured 24/7 Facility Operations Desk (Signature ShiftDex Blue) */
+.neo-featured-blue-card {
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
   border-radius: var(--radius-card);
   padding: 24px 22px;
-  color: #121316;
-  box-shadow: 0 8px 28px -4px rgba(254, 216, 84, 0.45);
+  color: #ffffff;
+  box-shadow: 0 10px 30px -4px rgba(37, 99, 235, 0.35);
   display: flex;
   flex-direction: column;
   gap: 16px;
   position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
-.amber-card-top-row {
+.blue-card-top-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.amber-card-kicker {
-  font-size: 10.5px;
-  font-weight: 850;
-  letter-spacing: 0.07em;
-  color: #433703;
+.blue-card-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #dbeafe;
   text-transform: uppercase;
 }
 
-.amber-ongoing-pill {
-  background: #10b981;
+.kicker-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #60a5fa;
+  box-shadow: 0 0 8px #93c5fd;
+}
+
+.blue-ongoing-pill {
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   color: #ffffff;
   border-radius: 9999px;
-  padding: 4px 11px;
+  padding: 4px 12px;
   font-size: 11px;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.28);
+  gap: 6px;
 }
 
-.amber-live-dot {
-  width: 6px;
-  height: 6px;
+.blue-live-dot {
+  width: 6.5px;
+  height: 6.5px;
   border-radius: 50%;
-  background: #ffffff;
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.8);
   animation: pulseDot 1.6s infinite;
 }
 
@@ -2580,43 +2508,43 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   100% { transform: scale(0.9); opacity: 0.8; }
 }
 
-.amber-card-main-content h3 {
+.blue-card-main-content h3 {
   font-size: clamp(23px, 4vw, 27px);
   font-weight: 850;
-  color: #121316;
-  margin: 0 0 3px;
+  color: #ffffff;
+  margin: 0 0 4px;
   letter-spacing: -0.6px;
 }
 
-.amber-card-main-content p {
+.blue-card-main-content p {
   font-size: 13px;
-  font-weight: 650;
-  color: #504207;
+  font-weight: 600;
+  color: #e0e7ff;
   margin: 0;
 }
 
-.amber-card-main-content p span {
+.blue-card-main-content p span {
   padding: 0 4px;
   opacity: 0.6;
 }
 
-.amber-crew-pills-row {
+.blue-crew-pills-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 4px;
 }
 
-.amber-crew-chip {
+.blue-crew-chip {
   background: #ffffff;
   border-radius: 9999px;
-  padding: 7px 13px;
+  padding: 7px 14px;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.15);
   font-size: 12px;
-  color: #121316;
+  color: #0f172a;
   font-weight: 750;
 }
 
@@ -2633,7 +2561,7 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   color: #76746f;
 }
 
-/* 4. Rotation Cadence & Workload Statistics Panel */
+/* 3. Rotation Cadence & Workload Statistics Panel */
 .neo-white-panel {
   background: #ffffff;
   border-radius: var(--radius-card);
@@ -2650,6 +2578,7 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   justify-content: space-between;
   align-items: center;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .neo-panel-kicker {
@@ -2669,20 +2598,30 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   letter-spacing: -0.3px;
 }
 
-.neo-month-controls {
+.neo-panel-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
 }
 
-.neo-month-controls button {
-  width: 32px;
-  height: 32px;
+.neo-month-stepper {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: #f1f5f9;
+  padding: 3px;
+  border-radius: 9999px;
+  border: 1px solid #e2e8f0;
+}
+
+.neo-month-stepper button {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  border: 1.5px solid #e2e0d8;
-  background: #ffffff;
-  color: #121316;
-  font-size: 18px;
+  border: none;
+  background: transparent;
+  color: #0f172a;
+  font-size: 16px;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -2690,26 +2629,42 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   transition: all 0.15s ease;
 }
 
-.neo-month-controls button:hover {
-  background: #f5f4ef;
-  border-color: #d8d5cb;
+.neo-month-stepper button:hover {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-.neo-panel-link {
-  font-size: 12px;
-  font-weight: 750;
-  color: #121316;
-  background: #f5f4ef;
-  border: 1px solid #e2e0d8;
+.neo-btn-calendar-link {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1.5px solid #bfdbfe;
   border-radius: 9999px;
-  padding: 6px 14px;
+  height: 34px;
+  padding: 0 14px;
+  font-weight: 750;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
+  font-family: inherit;
   white-space: nowrap;
 }
 
-.neo-panel-link:hover {
-  background: #eae8df;
+.neo-btn-calendar-link:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.25);
+}
+
+.neo-btn-calendar-link svg {
+  transition: transform 0.15s ease;
+}
+
+.neo-btn-calendar-link:hover svg {
+  transform: translateX(2px);
 }
 
 /* Dark Contrast Cadence Box inside White Panel */
@@ -2747,7 +2702,7 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
   padding: 3px 11px;
   font-size: 10.5px;
   font-weight: 750;
-  color: #fed854;
+  color: #93c5fd;
 }
 
 .neo-cadence-pills-grid {
@@ -2782,23 +2737,23 @@ button:not(:disabled):active { animation: worker-button-press 160ms ease-out; }
 }
 
 .neo-step-chip.is-today {
-  background: #fed854 !important;
-  color: #121316 !important;
-  border-color: #fed854 !important;
-  box-shadow: 0 0 18px rgba(254, 216, 84, 0.45);
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #2563eb !important;
+  box-shadow: 0 0 18px rgba(37, 99, 235, 0.5) !important;
   transform: translateY(-1px);
 }
 
 .neo-step-chip.is-today .step-chip-name {
-  opacity: 0.9;
+  opacity: 0.95;
   font-weight: 750;
 }
 
 .step-chip-today-tag {
   font-size: 8px;
   font-weight: 900;
-  background: #121316;
-  color: #fed854;
+  background: #ffffff;
+  color: #2563eb;
   border-radius: 9999px;
   padding: 1px 6px;
   margin-top: 2px;

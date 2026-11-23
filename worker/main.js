@@ -338,7 +338,7 @@ function renderDashboard() {
 
       <div class="brand-wrap">
         <img src="${shiftDeskMark}" alt="ShiftDex logo">
-        <b>shiftdex<span style="color:#fed854;">.</span></b>
+        <b>shiftdex<span style="color:var(--blue-primary);">.</span></b>
       </div>
 
       <!-- Desktop User Profile Controls -->
@@ -365,7 +365,7 @@ function renderDashboard() {
         <div class="drawer-head">
           <div class="brand-wrap">
             <img src="${shiftDeskMark}" alt="ShiftDex logo">
-            <b>shiftdex<span style="color:#fed854;">.</span></b>
+            <b>shiftdex<span style="color:var(--blue-primary);">.</span></b>
           </div>
           <button type="button" id="btn-close-drawer" style="border:none;background:none;font-size:24px;cursor:pointer;color:var(--text-light);">&times;</button>
         </div>
@@ -387,7 +387,7 @@ function renderDashboard() {
     </div>
 
     <main class="page-wrap">
-      <!-- 1. OVERVIEW VIEW (Image 2 Neobrutalist Smooth Mobile Aesthetic) -->
+      <!-- 1. OVERVIEW VIEW (Image 2 Neobrutalist Smooth Mobile Aesthetic with System Blue) -->
       ${activeWorkerTab === 'overview' ? `
         <section class="worker-home neo-home">
           <!-- HERO CARD: Today's Shift & Next Duty (Modeled on "Balance" Card in Image 2) -->
@@ -416,7 +416,7 @@ function renderDashboard() {
             <!-- Dual Pill Buttons (like Deposit / Withdraw in Image 2) -->
             <div class="neo-hero-actions-row">
               <button type="button" class="neo-btn-primary-dark" data-tab="requests">
-                <span class="neo-btn-icon-yellow">${ICONS.swap}</span>
+                <span class="neo-btn-icon-blue">${ICONS.swap}</span>
                 <span>Request Off</span>
               </button>
               <button type="button" class="neo-btn-secondary" data-tab="calendar">
@@ -426,59 +426,37 @@ function renderDashboard() {
             </div>
           </div>
 
-          <!-- SECTION LEAD & CATEGORY HORIZONTAL PILLS (like Top Events / Football in Image 2) -->
-          <div class="neo-section-header">
-            <span class="neo-section-title">Operations Hub</span>
-            <button type="button" class="neo-section-link" data-tab="calendar">View Full Roster &rarr;</button>
-          </div>
-
-          <div class="neo-category-pills-row">
-            <button type="button" class="neo-cat-pill active">
-              <span class="cat-pill-dot live"></span>
-              <span>Live On Duty</span>
-            </button>
-            <button type="button" class="neo-cat-pill" data-tab="calendar">
-              <span class="cat-pill-dot"></span>
-              <span>8-Day Rotation</span>
-            </button>
-            <button type="button" class="neo-cat-pill" data-tab="calendar">
-              <span class="cat-pill-dot"></span>
-              <span>Monthly Stats</span>
-            </button>
-            <button type="button" class="neo-cat-pill" data-tab="requests">
-              <span class="cat-pill-dot"></span>
-              <span>Leave Desk</span>
-            </button>
-          </div>
-
-          <!-- FEATURED WARM HONEY-AMBER CARD (The Yellow "Premier League" Card from Image 2) -->
-          <section class="neo-amber-card">
-            <div class="amber-card-top-row">
-              <span class="amber-card-kicker">24/7 FACILITY DESK</span>
-              <span class="amber-ongoing-pill">
-                <span class="amber-live-dot"></span>
-                Ongoing
+          <!-- FEATURED 24/7 FACILITY LIVE DESK (Signature ShiftDex Blue) -->
+          <section class="neo-featured-blue-card">
+            <div class="blue-card-top-row">
+              <div class="blue-card-kicker">
+                <span class="kicker-pulse-dot"></span>
+                <span>24/7 FACILITY OPERATIONS DESK</span>
+              </div>
+              <span class="blue-ongoing-pill">
+                <span class="blue-live-dot"></span>
+                Live on Duty
               </span>
             </div>
 
-            <div class="amber-card-main-content">
+            <div class="blue-card-main-content">
               <h3>${currentDuty === 'M' ? 'Morning Shift Crew' : 'Night Shift Crew'}</h3>
               <p>${currentDuty === 'M' ? '06:00 – 18:00' : '18:00 – 06:00'} <span>&middot;</span> Handover at ${currentDuty === 'M' ? '18:00' : '06:00'}</p>
             </div>
 
-            <!-- Crew Member Rounded White Pills (like odds pills [1x 1.8] [x 2.0] [2x 6.0] in Image 2) -->
-            <div class="amber-crew-pills-row">
+            <!-- Crew Member Rounded White Pills -->
+            <div class="blue-crew-pills-row">
               ${onDesk.map(person => {
                 const pPod = pods.find(p => p.id === person.podId);
                 const pColor = pPod?.color || '#3b82f6';
                 return `
-                  <div class="amber-crew-chip">
+                  <div class="blue-crew-chip">
                     <span class="crew-chip-dot" style="background:${pColor};"></span>
                     <span class="crew-chip-name">${escapeHtml(person.name)}</span>
                     <span class="crew-chip-role">${escapeHtml(person.role)}</span>
                   </div>
                 `;
-              }).join('') || '<div class="amber-crew-chip"><span>Shift handover in progress</span></div>'}
+              }).join('') || '<div class="blue-crew-chip"><span>Shift handover in progress</span></div>'}
             </div>
           </section>
 
@@ -489,10 +467,15 @@ function renderDashboard() {
                 <span class="neo-panel-kicker">MONTHLY WORKLOAD & ROTATION</span>
                 <h2>${formatMonthHeader(currentMonth)}</h2>
               </div>
-              <div class="neo-month-controls">
-                <button type="button" id="home-prev-month" aria-label="Previous month">&lsaquo;</button>
-                <button type="button" id="home-next-month" aria-label="Next month">&rsaquo;</button>
-                <button type="button" class="neo-panel-link" data-tab="calendar">Calendar &rarr;</button>
+              <div class="neo-panel-actions">
+                <div class="neo-month-stepper">
+                  <button type="button" id="home-prev-month" aria-label="Previous month" title="Previous month">&lsaquo;</button>
+                  <button type="button" id="home-next-month" aria-label="Next month" title="Next month">&rsaquo;</button>
+                </div>
+                <button type="button" class="neo-btn-calendar-link" data-tab="calendar">
+                  <span>Full Calendar</span>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </button>
               </div>
             </div>
 
