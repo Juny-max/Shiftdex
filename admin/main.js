@@ -572,33 +572,37 @@ function getDynamicCopilotSuggestions() {
     const p2 = active[1].displayName || active[1].name;
     return {
       chips: [
-        "Who is on night shift tonight?",
+        "Who is on duty right now?",
+        "How do I add a new worker?",
         `Swap ${p1} and ${p2} this week`,
-        `Put ${p1} on leave for 2 days`,
-        "Duty schedule for today"
+        "How do I approve requests?",
+        "How do I publish to workers' phones?",
+        `Put ${p1} on leave for 2 days`
       ],
-      placeholder: `Ask AI or e.g. "Swap ${p1} and ${p2} on Friday"…`
+      placeholder: `Ask AI or e.g. "How do I add a worker?" or "Swap ${p1} and ${p2}"…`
     };
   } else if (active.length === 1) {
     const p1 = active[0].displayName || active[0].name;
     return {
       chips: [
+        "Who is on duty right now?",
+        "How do I add a new worker?",
         `What shifts does ${p1} have this week?`,
-        `Put ${p1} on leave tomorrow`,
-        "Explain the 24/7 rotation cycle",
-        "Show today's coverage"
+        "How do I approve requests?",
+        "How do I publish to workers' phones?",
+        `Put ${p1} on leave tomorrow`
       ],
       placeholder: `Ask AI or e.g. "What shifts does ${p1} have?"…`
     };
   } else {
     return {
       chips: [
+        "How do I add a new worker?",
+        "How do I import management Excel roster?",
         "Explain the 24/7 8-day rotation cycle",
-        "How do Morning (M) and Night (N) shifts work?",
-        "What are the 4 team color codes?",
-        "How to import management Excel roster"
+        "How do I publish the schedule?"
       ],
-      placeholder: "Ask anything about shift rotations, hours, or roster rules…"
+      placeholder: "Ask anything: 'How do I do X?', 'Where can I find Y?', or shift rules…"
     };
   }
 }
@@ -768,6 +772,19 @@ function renderCopilotWidget() {
       if (msg) {
         msg.dismissed = true;
         renderCopilotWidget();
+      }
+    };
+  });
+
+  // Bind interactive navigation buttons inside assistant answers
+  widget.querySelectorAll('[data-copilot-nav]').forEach(navBtn => {
+    navBtn.onclick = () => {
+      const target = navBtn.dataset.copilotNav;
+      if (['overview', 'roster', 'people', 'requests', 'settings'].includes(target)) {
+        activePage = target;
+        render();
+        if (target === 'requests') syncRequests();
+        toast(`Navigated to ${target.charAt(0).toUpperCase() + target.slice(1)} view`);
       }
     };
   });
@@ -948,6 +965,7 @@ function formatCopilotMessageText(text) {
   if (!text) return '';
   return escapeHtml(text)
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\[([^\]]+)\]\(#nav:(overview|roster|people|requests|settings)\)/g, '<button type="button" class="copilot-nav-link-btn" data-copilot-nav="$2"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>$1 &rarr;</button>')
     .replace(/\n/g, '<br>');
 }
 
