@@ -719,7 +719,7 @@ function calculatePodCycle(dateStr, anchorStr) {
   return phase < 2 ? 'M' : phase < 4 ? 'N' : 'OFF';
 }
 
-function extractDateFromPrompt(text, activeMonth = '2026-11') {
+function extractDateFromPrompt(text, activeMonth = '2026-11', history = []) {
   if (!text) return null;
   const [currY, currM] = (activeMonth || '2026-11').split('-');
   const now = new Date();
@@ -767,11 +767,21 @@ function extractDateFromPrompt(text, activeMonth = '2026-11') {
     return `${yr}-${mo}-${d}`;
   }
 
-  // 3. Just day of month: '25th', 'the 25th', 'what day is 25th', 'on 25th'
-  const m3 = text.match(/\b(?:(?:what\s+day\s+is\s+|is\s+|on\s+)?(?:the\s+)?)?([1-9]|[12]\d|3[01])(?:st|nd|rd|th)\b/i);
+  // 3. Just day of month / ordinals: '25th', 'the 25th', 'what day is 25th', 'on 25th', 'what day is 25'
+  const m3 = text.match(/\b(?:(?:what\s+day\s+is\s+|which\s+day\s+is\s+|what\s+date\s+is\s+|is\s+|on\s+(?:the\s+)?|the\s+)?([1-9]|[12]\d|3[01])(?:st|nd|rd|th))\b/i)
+    || text.match(/\b(?:what\s+day\s+is|which\s+day\s+is|what\s+date\s+is|on\s+the|on)\s+([1-9]|[12]\d|3[01])\b/i);
   if (m3) {
-    const d = m3[1].padStart(2, '0');
-    return `${currY}-${currM}-${d}`;
+    const num = m3[1] || m3[2] || m3[0].match(/\d+/)?.[0];
+    if (num && Number(num) >= 1 && Number(num) <= 31) {
+      return `${currY}-${currM}-${String(num).padStart(2, '0')}`;
+    }
+  }
+
+  // 4. Follow-up "what day is that / it" referring to previous assistant message
+  if (/\bwhat\s+day\s+is\s+(that|it|this)\b/i.test(lower) && Array.isArray(history) && history.length > 0) {
+    const lastMsg = [...history].reverse().find(m => m.role === 'assistant')?.text || '';
+    const extractedFromLast = extractDateFromPrompt(lastMsg, activeMonth, []);
+    if (extractedFromLast) return extractedFromLast;
   }
 
   return null;
@@ -800,7 +810,7 @@ async function runRosterAi(env, { prompt, month, staff, scheduleContext, history
   const activeStaffList = Array.isArray(staff) ? staff : [];
   const staffNames = activeStaffList.map(s => `${s.name || s.fullName} (id: "${s.id}", role: "${s.role || s.roleTag || 'NSP'}", team: "${s.podId || 'support'}")`).join('\n');
 
-  const detectedDate = extractDateFromPrompt(prompt, month);
+  const detectedDate = extractDateFromPrompt(prompt, month, history);
   let targetDateInfo = null;
   let dynamicDateContext = '';
   if (detectedDate) {
@@ -946,7 +956,7 @@ You MUST return ONLY a valid JSON object matching this schema:
     const containsWrong = wrongWeekdays.some(w => new RegExp(`\\b${w}\\b`, 'i').test(result.summary));
     const containsCorrect = new RegExp(`\\b${targetDateInfo.weekday}\\b`, 'i').test(result.summary);
 
-    if (containsWrong || !containsCorrect) {
+    if (containsWrong || !containsCorrect || result.summary.length < 80) {
       result.summary = `The ${targetDateInfo.formattedDate} is a ${targetDateInfo.weekday}.\n\n` +
         `On ${targetDateInfo.weekday}, ${targetDateInfo.formattedDate}:\n` +
         `• Morning Shift (06:00 – 18:00): ${targetDateInfo.morningPod.name}${targetDateInfo.morningStaff.length ? ` (${targetDateInfo.morningStaff.join(', ')})` : ''}\n` +

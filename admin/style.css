@@ -432,64 +432,139 @@ button, input, select {
 }
 
 /* ========================================================
-   OVERVIEW: PAYDAY HERO SECTION (Exact Image 6 layout)
+   OVERVIEW: EXECUTIVE OPERATIONS HERO SECTION
 ======================================================== */
 .hero-duo-grid {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
-  gap: 18px;
+  grid-template-columns: 1.18fr 0.82fr;
+  gap: 20px;
 }
 
-/* Payday Card 1: White Operations Card */
+/* Payday Card 1: Quartz White Operations Card */
 .payday-hero-white {
-  background-color: var(--bg-card);
+  background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-lg);
-  padding: 28px 30px;
-  box-shadow: var(--shadow-card);
+  padding: 26px 28px;
+  box-shadow: 0 4px 24px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   position: relative;
-  min-height: 220px;
+  min-height: 230px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.payday-hero-white:hover {
+  box-shadow: 0 10px 30px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.04);
+}
+
+.hero-white-content {
+  display: flex;
+  flex-direction: column;
 }
 
 .payday-tag-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 8px;
+  padding: 5px 12px;
   border-radius: var(--radius-pill);
-  background-color: var(--bg-muted);
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text-light);
-  margin-bottom: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: #475569;
+  margin-bottom: 14px;
   align-self: flex-start;
 }
 
-.payday-label-sub {
-  font-size: 13px;
-  color: var(--text-light);
-  margin: 0 0 4px;
+.pulse-radar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.pulse-radar-dot.green {
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+  animation: radarGreenPulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+.pulse-radar-dot.glowing {
+  background: #4ade80;
+  box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
+  animation: radarGreenPulse 1.8s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes radarGreenPulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 7px rgba(74, 222, 128, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
 }
 
 .payday-huge-number {
-  font-size: 42px;
-  font-weight: 700;
+  font-size: 40px;
+  font-weight: 800;
   color: var(--text-main);
-  letter-spacing: -1.2px;
-  line-height: 1.1;
-  margin: 0 0 10px;
+  letter-spacing: -1.4px;
+  line-height: 1.05;
+  margin: 0 0 6px;
 }
 
 .payday-date-line {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 8px;
+  font-size: 12.5px;
   color: var(--text-muted);
-  margin-bottom: 22px;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.bullet-sep {
+  opacity: 0.5;
+  font-weight: 700;
+}
+
+/* KPI Strip */
+.hero-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: var(--radius-md);
+}
+
+.hero-kpi-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hero-kpi-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.hero-kpi-val {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+}
+
+.hero-kpi-val.highlight {
+  color: var(--blue-primary);
 }
 
 .payday-hero-actions {
@@ -505,19 +580,21 @@ button, input, select {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: var(--blue-primary);
+  background: var(--blue-primary);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
   border: none;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
 }
 
 .payday-corner-circle:hover {
-  transform: scale(1.06);
-  background-color: var(--blue-hover);
+  transform: scale(1.08) rotate(4deg);
+  background: var(--blue-hover);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.45);
 }
 
 .payday-corner-circle svg {
@@ -525,37 +602,50 @@ button, input, select {
   height: 18px;
 }
 
-/* Payday Card 2: Solid Royal Blue Safety Net Card */
+/* Payday Card 2: Solid Midnight Royal Blue Gradient Card */
 .payday-hero-blue {
-  background-color: var(--blue-primary);
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 45%, #0f172a 100%);
   color: #ffffff;
   border-radius: var(--radius-lg);
-  padding: 28px 30px;
-  box-shadow: var(--shadow-blue);
+  padding: 26px 28px;
+  box-shadow: 0 10px 28px -4px rgba(30, 58, 138, 0.4), 0 4px 12px -2px rgba(15, 23, 42, 0.3);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   position: relative;
-  min-height: 220px;
+  min-height: 230px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.payday-hero-blue:hover {
+  box-shadow: 0 14px 34px -4px rgba(30, 58, 138, 0.5), 0 6px 16px -2px rgba(15, 23, 42, 0.35);
+}
+
+.blue-card-inner {
+  display: flex;
+  flex-direction: column;
 }
 
 .blue-card-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .blue-tag-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 8px;
+  padding: 4px 11px;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.4px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
   color: #ffffff;
 }
 
@@ -563,11 +653,15 @@ button, input, select {
   color: #ffffff;
   cursor: pointer;
   opacity: 0.85;
-  transition: opacity 0.12s ease;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .blue-arrow-corner:hover {
   opacity: 1;
+  transform: scale(1.15);
 }
 
 .blue-arrow-corner svg {
@@ -576,21 +670,88 @@ button, input, select {
 }
 
 .blue-pod-lead {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(255, 255, 255, 0.8);
-  margin-bottom: 2px;
+  letter-spacing: 0.6px;
+  color: rgba(255, 255, 255, 0.82);
+  margin-bottom: 3px;
+}
+
+.blue-deck-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
 .blue-huge-title {
-  font-size: 34px;
-  font-weight: 700;
-  letter-spacing: -0.8px;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.9px;
   color: #ffffff;
-  margin: 0 0 16px;
-  line-height: 1.15;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.deck-team-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.3px;
+}
+
+/* Live On-Desk Avatar Strip */
+.deck-avatars-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.deck-avatar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 4px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(6px);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.deck-avatar-chip:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.deck-avatar-bubble {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #1e3a8a;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.deck-avatar-name {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #ffffff;
 }
 
 .blue-sub-metrics-row {
@@ -598,28 +759,37 @@ button, input, select {
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   padding-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .blue-sub-metric-box {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: var(--radius-md);
   padding: 10px 14px;
+  transition: background 0.15s ease;
+}
+
+.blue-sub-metric-box:hover {
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .blue-sub-metric-box small {
   display: block;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.72);
   margin-bottom: 3px;
 }
 
 .blue-sub-metric-box b {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
   color: #ffffff;
+  letter-spacing: -0.2px;
 }
 
 /* ========================================================
@@ -627,18 +797,23 @@ button, input, select {
 ======================================================== */
 .tri-card-grid {
   display: grid;
-  grid-template-columns: 1fr 1.05fr 0.95fr;
-  gap: 18px;
+  grid-template-columns: 1fr 1.08fr 0.92fr;
+  gap: 20px;
 }
 
 .clean-card {
-  background-color: var(--bg-card);
+  background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-lg);
   padding: 24px 26px;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
   display: flex;
   flex-direction: column;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.clean-card:hover {
+  box-shadow: 0 10px 28px -4px rgba(15, 23, 42, 0.07), 0 4px 10px -2px rgba(15, 23, 42, 0.03);
 }
 
 .clean-card-header {
@@ -649,7 +824,7 @@ button, input, select {
 }
 
 .clean-card-title {
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 700;
   letter-spacing: -0.3px;
   color: var(--text-main);
@@ -660,19 +835,25 @@ button, input, select {
   font-size: 12px;
   color: var(--text-light);
   margin: 3px 0 0;
+  font-weight: 500;
 }
 
 .clean-card-arrow-link {
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.12s ease;
+  transition: color 0.14s ease, transform 0.14s ease;
   background: none;
   border: none;
-  padding: 0;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .clean-card-arrow-link:hover {
   color: var(--blue-primary);
+  transform: translate(2px, -2px);
 }
 
 .clean-card-arrow-link svg {
@@ -680,18 +861,18 @@ button, input, select {
   height: 16px;
 }
 
-/* Donut Ring (Payday Style) */
+/* Donut Ring with Elevated Progress Bars */
 .donut-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 6px 0 14px;
+  padding: 4px 0 8px;
 }
 
 .donut-svg-box {
   position: relative;
-  width: 130px;
-  height: 130px;
+  width: 126px;
+  height: 126px;
 }
 
 .donut-center-info {
@@ -703,35 +884,47 @@ button, input, select {
 }
 
 .donut-center-pct {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   color: var(--text-main);
-  letter-spacing: -0.5px;
-  line-height: 1.1;
+  letter-spacing: -0.6px;
+  line-height: 1.05;
 }
 
 .donut-center-text {
-  font-size: 10px;
+  font-size: 9.5px;
   color: var(--text-muted);
   text-transform: uppercase;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.6px;
 }
 
 .donut-legend-flat {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   margin-top: 14px;
   padding-top: 14px;
-  border-top: 1px solid var(--border-card);
+  border-top: 1px solid #f1f5f9;
 }
 
 .donut-legend-cell {
   display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.legend-meta {
+  display: flex;
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
+  color: var(--text-main);
+}
+
+.legend-meta b {
+  font-weight: 700;
 }
 
 .donut-dot {
@@ -739,33 +932,79 @@ button, input, select {
   height: 7px;
   border-radius: 50%;
   display: inline-block;
-  margin-right: 6px;
+  margin-right: 5px;
 }
 
-/* Account/Pod Breakdown Rows (Payday style) */
+.legend-bar-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: #f1f5f9;
+  overflow: hidden;
+}
+
+.legend-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* Account / Pod Breakdown Rows (Executive Linear Aesthetic) */
 .breakdown-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .breakdown-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 6px 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: #f8fafc;
+  transition: all 0.14s ease;
+}
+
+.breakdown-row:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+.breakdown-row.row-active {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
 }
 
 .breakdown-icon-box {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
-  font-weight: 700;
-  flex: none;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.breakdown-icon-box.morning {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1.5px solid #fde68a;
+}
+
+.breakdown-icon-box.night {
+  background: #1e3a8a;
+  color: #ffffff;
+  border: 1.5px solid #1e40af;
+}
+
+.breakdown-icon-box.support {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
 }
 
 .breakdown-row-details {
@@ -773,12 +1012,43 @@ button, input, select {
   flex-direction: column;
   flex: 1;
   min-width: 0;
+  gap: 4px;
+}
+
+.breakdown-header-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .breakdown-row-title {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 700;
   color: var(--text-main);
+  letter-spacing: -0.2px;
+}
+
+.breakdown-staff-chips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.roster-staff-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
+}
+
+.roster-staff-pill.muted {
+  color: #64748b;
+  background: #f8fafc;
 }
 
 .breakdown-row-sub {
@@ -787,29 +1057,34 @@ button, input, select {
 }
 
 .breakdown-status-tag {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
   border-radius: var(--radius-pill);
   white-space: nowrap;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
 }
 
 .breakdown-status-tag.active {
-  background-color: var(--pod-green-soft);
-  color: var(--pod-green-text);
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.breakdown-status-tag.upcoming {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
 }
 
 .breakdown-status-tag.resting {
-  background-color: var(--bg-muted);
-  color: var(--text-light);
+  background: #f8fafc;
+  color: #94a3b8;
+  border: 1px solid #f1f5f9;
 }
 
-.breakdown-status-tag.next {
-  background-color: var(--blue-soft);
-  color: var(--blue-primary);
-}
-
-/* Next Upgrades / Today's Handover Promo Card (Payday bottom right card) */
+/* Next Upgrades / Handover Timeline Hub */
 .handover-preview-box {
   display: flex;
   flex-direction: column;
@@ -817,50 +1092,128 @@ button, input, select {
   height: 100%;
 }
 
-.handover-slot-brief {
-  font-size: 13px;
-  color: var(--text-body);
-  line-height: 1.5;
-  margin: 6px 0 16px;
+.handover-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 16px;
+  padding: 6px 0;
+}
+
+.timeline-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+
+.timeline-dot.morning {
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px #fef3c7;
+}
+
+.timeline-dot.night {
+  background: #2563eb;
+  box-shadow: 0 0 0 3px #dbeafe;
+}
+
+.timeline-connector {
+  width: 2px;
+  height: 14px;
+  background: #e2e8f0;
+  margin-left: 4px;
+}
+
+.timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.timeline-time {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+}
+
+.timeline-staff {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-main);
+  line-height: 1.35;
 }
 
 .payday-promo-card {
-  background-color: var(--blue-soft);
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   border-radius: var(--radius-md);
-  padding: 14px 16px;
+  padding: 13px 15px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   cursor: pointer;
-  transition: all 0.12s ease;
-  border: 1px solid var(--blue-border);
+  transition: all 0.16s ease;
+  border: 1px solid #bfdbfe;
   margin-top: auto;
 }
 
 .payday-promo-card:hover {
-  background-color: #e2edff;
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
 }
 
 .promo-card-left {
   display: flex;
   flex-direction: column;
+  gap: 2px;
+}
+
+.promo-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .promo-card-title {
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 700;
-  color: var(--blue-primary);
+  color: #1e40af;
+}
+
+.promo-badge-tag {
+  font-size: 9px;
+  font-weight: 800;
+  background: #2563eb;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
 }
 
 .promo-card-sub {
   font-size: 11px;
-  color: var(--text-light);
-  margin-top: 2px;
+  color: #3b82f6;
+  font-weight: 500;
 }
 
 .promo-card-arrow {
-  color: var(--blue-primary);
+  color: #2563eb;
+  transition: transform 0.14s ease;
+}
+
+.payday-promo-card:hover .promo-card-arrow {
+  transform: translate(2px, -2px);
 }
 
 /* ========================================================

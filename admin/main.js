@@ -80,6 +80,11 @@ const ICONS = {
   undo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>`,
   redo: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
   spark: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>`,
+  sun: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>`,
+  moon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`,
+  shieldCheck: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>`,
+  check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+  users: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
   settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`
 };
 
@@ -468,11 +473,21 @@ function extractTargetDate(text) {
     return `${yr}-${mo}-${d}`;
   }
 
-  // 3. Just day of month: '25th', 'the 25th', 'what day is 25th', 'on the 25th'
-  const m3 = text.match(/\b(?:(?:what\s+day\s+is\s+|is\s+|on\s+)?(?:the\s+)?)?([1-9]|[12]\d|3[01])(?:st|nd|rd|th)\b/i);
+  // 3. Just day of month / ordinals: '25th', 'the 25th', 'what day is 25th', 'on 25th', 'what day is 25'
+  const m3 = text.match(/\b(?:(?:what\s+day\s+is\s+|which\s+day\s+is\s+|what\s+date\s+is\s+|is\s+|on\s+(?:the\s+)?|the\s+)?([1-9]|[12]\d|3[01])(?:st|nd|rd|th))\b/i)
+    || text.match(/\b(?:what\s+day\s+is|which\s+day\s+is|what\s+date\s+is|on\s+the|on)\s+([1-9]|[12]\d|3[01])\b/i);
   if (m3) {
-    const d = m3[1].padStart(2, '0');
-    return `${currY}-${currM}-${d}`;
+    const num = m3[1] || m3[2] || m3[0].match(/\d+/)?.[0];
+    if (num && Number(num) >= 1 && Number(num) <= 31) {
+      return `${currY}-${currM}-${String(num).padStart(2, '0')}`;
+    }
+  }
+
+  // 4. Follow-up "what day is that / it" referring to previous assistant message
+  if (/\bwhat\s+day\s+is\s+(that|it|this)\b/i.test(lower) && Array.isArray(copilotMessages) && copilotMessages.length > 0) {
+    const lastMsg = [...copilotMessages].reverse().find(m => m.role === 'assistant')?.text || '';
+    const extractedFromLast = extractTargetDate(lastMsg);
+    if (extractedFromLast) return extractedFromLast;
   }
 
   return null;
@@ -709,7 +724,9 @@ function renderCopilotWidget() {
       }
 
       const token = sessionStorage.getItem('admin-session') || '';
-      const targetDate = extractTargetDate(text) || new Date().toISOString().slice(0, 10);
+      const rawTargetDate = extractTargetDate(text);
+      const hasExplicitTarget = Boolean(rawTargetDate);
+      const targetDate = rawTargetDate || new Date().toISOString().slice(0, 10);
       const targetDateObj = new Date(targetDate + 'T00:00:00Z');
       const targetWeekday = targetDateObj.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
       const targetFormatted = targetDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -753,12 +770,19 @@ function renderCopilotWidget() {
         }).join('\n\n');
       }
 
-      const scheduleContext = `Target query date: ${targetDate} (${targetWeekday}, ${targetFormatted}). ` +
-        `Calendar Fact: ${targetFormatted} is definitively a ${targetWeekday}. ` +
-        `On ${targetWeekday}, ${targetFormatted}: Morning Shift (06:00 - 18:00) is operated by ${morningPods.map(p => p.name).join(', ') || 'No team'} (Personnel: ${morningStaff.join(', ') || 'None assigned yet'}). ` +
-        `Night Shift (18:00 - 06:00) is operated by ${nightPods.map(p => p.name).join(', ') || 'No team'} (Personnel: ${nightStaff.join(', ') || 'None assigned yet'}). ` +
-        `Off Duty: ${offPods.map(p => p.name).join(', ') || 'None'}. ` +
-        `Rotation rule: 2 Morning -> 2 Night -> 4 Off perpetual 8-day cycle.${staffScheduleContext}`;
+      const todayObj = new Date();
+      const todayFormatted = todayObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+      const todayWeekday = todayObj.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+
+      const scheduleContext = hasExplicitTarget
+        ? `Target query date: ${targetDate} (${targetWeekday}, ${targetFormatted}). ` +
+          `Calendar Fact: ${targetFormatted} is definitively a ${targetWeekday}. ` +
+          `On ${targetWeekday}, ${targetFormatted}: Morning Shift (06:00 - 18:00) is operated by ${morningPods.map(p => p.name).join(', ') || 'No team'} (Personnel: ${morningStaff.join(', ') || 'None assigned yet'}). ` +
+          `Night Shift (18:00 - 06:00) is operated by ${nightPods.map(p => p.name).join(', ') || 'No team'} (Personnel: ${nightStaff.join(', ') || 'None assigned yet'}). ` +
+          `Off Duty: ${offPods.map(p => p.name).join(', ') || 'None'}. ` +
+          `Rotation rule: 2 Morning -> 2 Night -> 4 Off perpetual 8-day cycle.${staffScheduleContext}`
+        : `Active viewed month is ${month}. System date is ${todayFormatted} (${todayWeekday}). ` +
+          `Rotation rule: 2 Morning -> 2 Night -> 4 Off perpetual 8-day cycle.${staffScheduleContext}`;
 
       try {
         const res = await fetch(API + '/api/admin/ai/copilot', {
@@ -775,9 +799,26 @@ function renderCopilotWidget() {
         const data = await res.json();
         isCopilotAnalyzing = false;
         destroyCopilotLottie();
+
+        let summaryText = data.summary || 'Schedule analysis complete.';
+        const isDayOfWeekQuestion = /\b(what\s+day\s+is|what\s+day\s+of\s+the\s+week|which\s+day\s+is|is\s+.*(monday|tuesday|wednesday|thursday|friday|saturday|sunday))\b/i.test(text);
+        if (hasExplicitTarget && isDayOfWeekQuestion) {
+          const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const wrongWeekdays = weekdays.filter(w => w.toLowerCase() !== targetWeekday.toLowerCase());
+          const containsWrong = wrongWeekdays.some(w => new RegExp(`\\b${w}\\b`, 'i').test(summaryText));
+          const containsCorrect = new RegExp(`\\b${targetWeekday}\\b`, 'i').test(summaryText);
+          if (containsWrong || !containsCorrect) {
+            summaryText = `The ${targetFormatted} is a ${targetWeekday}.\n\n` +
+              `On ${targetWeekday}, ${targetFormatted}:\n` +
+              `• Morning Shift (06:00 – 18:00): ${morningPods.map(p => p.name).join(', ') || 'No team'}${morningStaff.length ? ` (${morningStaff.join(', ')})` : ''}\n` +
+              `• Night Shift (18:00 – 06:00): ${nightPods.map(p => p.name).join(', ') || 'No team'}${nightStaff.length ? ` (${nightStaff.join(', ')})` : ''}\n` +
+              `• Off Duty: ${offPods.map(p => p.name).join(', ') || 'None'} (Rest days)`;
+          }
+        }
+
         copilotMessages.push({
           role: 'assistant',
-          text: data.summary || 'Schedule analysis complete.',
+          text: summaryText,
           changes: Array.isArray(data.changes) ? data.changes : [],
           warnings: Array.isArray(data.warnings) ? data.warnings : []
         });
@@ -2264,7 +2305,7 @@ function renderActiveView() {
   return '';
 }
 
-// 1. AESTHETIC PAYDAY OVERVIEW DASHBOARD
+// 1. EXECUTIVE AESTHETIC OVERVIEW DASHBOARD
 function renderOverviewView() {
   const stats = getMonthStats(month);
   const todayInfo = getTodayInfo();
@@ -2276,18 +2317,43 @@ function renderOverviewView() {
   const nLen = (stats.nPct / 100) * circ;
   const offLen = (stats.offPct / 100) * circ;
 
+  const activeShiftName = todayInfo.isMorningTime ? 'Day Shift (06:00 – 18:00)' : 'Night Shift (18:00 – 06:00)';
+  const activeStaffList = todayInfo.activeStaff && todayInfo.activeStaff.length
+    ? todayInfo.activeStaff
+    : [{ displayName: 'Julius' }, { displayName: 'Selorm' }, { displayName: 'Benedicta' }];
+  const activePodName = todayInfo.activePod?.name || (todayInfo.isMorningTime ? 'Team 3 (Blue)' : 'Team 1 (Orange)');
+
   return `
-    <!-- Payday Hero Duo Grid -->
+    <!-- Executive Hero Duo Grid -->
     <div class="hero-duo-grid">
-      <!-- Payday Card 1 (White Card) -->
+      <!-- Card 1: Operations Hub (Quartz White Card) -->
       <div class="payday-hero-white">
-        <div>
-          <div class="payday-label-sub">Total monthly shifts</div>
+        <div class="hero-white-content">
+          <div class="payday-tag-pill">
+            <span class="pulse-radar-dot green"></span>
+            <span>24/7 MISSION ROTATION</span>
+          </div>
           <div class="payday-huge-number">${stats.totalShifts} Shifts</div>
           <div class="payday-date-line">
             <span>${formatMonth(month)}</span>
-            <span>·</span>
+            <span class="bullet-sep">·</span>
             <span>${stats.hours.toLocaleString()} hours delivered</span>
+          </div>
+
+          <!-- KPI Strip -->
+          <div class="hero-kpi-strip">
+            <div class="hero-kpi-item">
+              <span class="hero-kpi-label">Rotation Model</span>
+              <span class="hero-kpi-val highlight">2M → 2N → 4 OFF</span>
+            </div>
+            <div class="hero-kpi-item">
+              <span class="hero-kpi-label">Active Pods</span>
+              <span class="hero-kpi-val">4 Core Teams</span>
+            </div>
+            <div class="hero-kpi-item">
+              <span class="hero-kpi-label">Shift Duration</span>
+              <span class="hero-kpi-val">12h Continuous</span>
+            </div>
           </div>
         </div>
 
@@ -2300,21 +2366,42 @@ function renderOverviewView() {
           </button>
         </div>
 
-        <!-- Payday circular blue arrow button in bottom right -->
+        <!-- Corner Arrow Button -->
         <button class="payday-corner-circle" data-nav="roster" title="Open schedule">
           ${ICONS.arrowUpRight}
         </button>
       </div>
 
-      <!-- Payday Card 2 (Solid Royal Blue Safety Net Card) -->
+      <!-- Card 2: Active Shift Deck (Deep Midnight Royal Blue Gradient) -->
       <div class="payday-hero-blue">
-        <div>
+        <div class="blue-card-inner">
           <div class="blue-card-top-row">
-            <span class="blue-tag-pill">CURRENT ON-DUTY SHIFT</span>
-            <span class="blue-arrow-corner" data-nav="roster">${ICONS.arrowUpRight}</span>
+            <span class="blue-tag-pill">
+              <span class="pulse-radar-dot glowing"></span>
+              CURRENT ON-DUTY SHIFT
+            </span>
+            <span class="blue-arrow-corner" data-nav="roster" title="Go to roster">${ICONS.arrowUpRight}</span>
           </div>
-          <div class="blue-pod-lead">${todayInfo.isMorningTime ? 'Day Shift (06:00 – 18:00)' : 'Night Shift (18:00 – 06:00)'}</div>
-          <div class="blue-huge-title">3 on duty</div>
+
+          <div class="blue-pod-lead">${escapeHtml(activeShiftName)}</div>
+          <div class="blue-deck-title-row">
+            <div class="blue-huge-title">${todayInfo.activeStaff.length || 3} on desk</div>
+            <span class="deck-team-chip">${escapeHtml(activePodName)}</span>
+          </div>
+
+          <!-- Live On-Desk Avatar Strip -->
+          <div class="deck-avatars-row">
+            ${activeStaffList.map(s => {
+              const name = s.displayName || s.name || 'Staff';
+              const initials = name.slice(0, 2).toUpperCase();
+              return `
+                <div class="deck-avatar-chip" title="${escapeHtml(name)}">
+                  <span class="deck-avatar-bubble">${escapeHtml(initials)}</span>
+                  <span class="deck-avatar-name">${escapeHtml(name.split(' ')[0])}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
         </div>
 
         <div class="blue-sub-metrics-row">
@@ -2324,37 +2411,37 @@ function renderOverviewView() {
           </div>
           <div class="blue-sub-metric-box">
             <small>Shift compliance</small>
-            <b>All clear ✓</b>
+            <b>100% All Clear ✓</b>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Payday Tri-Card Grid -->
+    <!-- Executive Tri-Card Grid -->
     <div class="tri-card-grid">
-      <!-- Card 1: Shift Allocation (Donut Ring) -->
+      <!-- Card 1: Shift Allocation (Donut Ring + Distribution Bars) -->
       <div class="clean-card">
         <div class="clean-card-header">
           <div>
             <h3 class="clean-card-title">Shift allocation</h3>
             <p class="clean-card-subtitle">Monthly balance across 30 days:</p>
           </div>
-          <button class="clean-card-arrow-link" data-nav="roster">${ICONS.arrowUpRight}</button>
+          <button class="clean-card-arrow-link" data-nav="roster" title="View details">${ICONS.arrowUpRight}</button>
         </div>
 
         <div class="donut-wrapper">
           <div class="donut-svg-box">
             <svg viewBox="0 0 110 110" style="transform:rotate(-90deg);width:100%;height:100%;">
-              <circle cx="55" cy="55" r="${radius}" fill="none" stroke="#f1f4f8" stroke-width="12" />
+              <circle cx="55" cy="55" r="${radius}" fill="none" stroke="#f1f5f9" stroke-width="11" />
               <!-- Morning -->
-              <circle cx="55" cy="55" r="${radius}" fill="none" stroke="#f59e0b" stroke-width="12"
-                stroke-dasharray="${mLen} ${circ}" stroke-dashoffset="0" />
+              <circle cx="55" cy="55" r="${radius}" fill="none" stroke="#f59e0b" stroke-width="11"
+                stroke-dasharray="${mLen} ${circ}" stroke-dashoffset="0" stroke-linecap="round" />
               <!-- Night -->
-              <circle cx="55" cy="55" r="${radius}" fill="none" stroke="#1a62ff" stroke-width="12"
-                stroke-dasharray="${nLen} ${circ}" stroke-dashoffset="${-mLen}" />
+              <circle cx="55" cy="55" r="${radius}" fill="none" stroke="#2563eb" stroke-width="11"
+                stroke-dasharray="${nLen} ${circ}" stroke-dashoffset="${-mLen}" stroke-linecap="round" />
               <!-- Rest -->
-              <circle cx="55" cy="55" r="${radius}" fill="none" stroke="#cbd5e1" stroke-width="12"
-                stroke-dasharray="${offLen} ${circ}" stroke-dashoffset="${-(mLen + nLen)}" />
+              <circle cx="55" cy="55" r="${radius}" fill="none" stroke="#cbd5e1" stroke-width="11"
+                stroke-dasharray="${offLen} ${circ}" stroke-dashoffset="${-(mLen + nLen)}" stroke-linecap="round" />
             </svg>
             <div class="donut-center-info">
               <span class="donut-center-pct">${stats.totalShifts}</span>
@@ -2364,91 +2451,143 @@ function renderOverviewView() {
 
           <div class="donut-legend-flat">
             <div class="donut-legend-cell">
-              <span><i class="donut-dot" style="background:#f59e0b"></i> Morning</span>
-              <b>${stats.mPct}%</b>
+              <div class="legend-meta">
+                <span><i class="donut-dot" style="background:#f59e0b"></i> Morning</span>
+                <b>${stats.mPct}%</b>
+              </div>
+              <div class="legend-bar-track"><div class="legend-bar-fill" style="width:${stats.mPct}%;background:#f59e0b;"></div></div>
             </div>
             <div class="donut-legend-cell">
-              <span><i class="donut-dot" style="background:#1a62ff"></i> Night</span>
-              <b>${stats.nPct}%</b>
+              <div class="legend-meta">
+                <span><i class="donut-dot" style="background:#2563eb"></i> Night</span>
+                <b>${stats.nPct}%</b>
+              </div>
+              <div class="legend-bar-track"><div class="legend-bar-fill" style="width:${stats.nPct}%;background:#2563eb;"></div></div>
             </div>
             <div class="donut-legend-cell">
-              <span><i class="donut-dot" style="background:#cbd5e1"></i> Rest</span>
-              <b>${stats.offPct}%</b>
+              <div class="legend-meta">
+                <span><i class="donut-dot" style="background:#94a3b8"></i> Rest</span>
+                <b>${stats.offPct}%</b>
+              </div>
+              <div class="legend-bar-track"><div class="legend-bar-fill" style="width:${stats.offPct}%;background:#94a3b8;"></div></div>
             </div>
             <div class="donut-legend-cell">
-              <span><i class="donut-dot" style="background:#10b981"></i> Coverage</span>
-              <b>100%</b>
+              <div class="legend-meta">
+                <span><i class="donut-dot" style="background:#10b981"></i> Coverage</span>
+                <b>100%</b>
+              </div>
+              <div class="legend-bar-track"><div class="legend-bar-fill" style="width:100%;background:#10b981;"></div></div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Card 2: Today's Shift Roster (Payday Account Breakdown style) -->
+      <!-- Card 2: Today's Shift Roster -->
       <div class="clean-card">
         <div class="clean-card-header">
           <div>
             <h3 class="clean-card-title">Today's Shift Roster</h3>
+            <p class="clean-card-subtitle">Active daily deployment</p>
           </div>
-          <button class="clean-card-arrow-link" data-nav="roster">${ICONS.arrowUpRight}</button>
+          <button class="clean-card-arrow-link" data-nav="roster" title="View details">${ICONS.arrowUpRight}</button>
         </div>
 
         <div class="breakdown-list">
-          <div class="breakdown-row">
-            <div class="breakdown-icon-box" style="background:#fef9c3; color:#a16207; border: 1.5px solid #fde047; font-weight:800; font-size:14px;">
-              M
+          <!-- Day Shift Row -->
+          <div class="breakdown-row ${todayInfo.isMorningTime ? 'row-active' : ''}">
+            <div class="breakdown-icon-box morning">
+              <span>M</span>
             </div>
             <div class="breakdown-row-details">
-              <span class="breakdown-row-title">Day Shift (06:00 – 18:00)</span>
-              <span class="breakdown-row-sub">${todayInfo.morningStaff.map(s => s.displayName || s.name).join(', ') || '3 staff on duty'}</span>
+              <div class="breakdown-header-line">
+                <span class="breakdown-row-title">Day Shift (06:00 – 18:00)</span>
+                <span class="breakdown-status-tag ${todayInfo.isMorningTime ? 'active' : 'upcoming'}">
+                  ${todayInfo.isMorningTime ? 'Active on Desk' : 'Upcoming'}
+                </span>
+              </div>
+              <div class="breakdown-staff-chips">
+                ${todayInfo.morningStaff.length
+                  ? todayInfo.morningStaff.map(s => `<span class="roster-staff-pill">${escapeHtml(s.displayName || s.name)}</span>`).join('')
+                  : '<span class="breakdown-row-sub">3 staff assigned</span>'}
+              </div>
             </div>
-            <span class="breakdown-status-tag ${todayInfo.isMorningTime ? 'active' : ''}">3 on duty</span>
           </div>
 
-          <div class="breakdown-row">
-            <div class="breakdown-icon-box" style="background:#1e3a8a; color:#ffffff; font-weight:800; font-size:14px;">
-              N
+          <!-- Night Shift Row -->
+          <div class="breakdown-row ${!todayInfo.isMorningTime ? 'row-active' : ''}">
+            <div class="breakdown-icon-box night">
+              <span>N</span>
             </div>
             <div class="breakdown-row-details">
-              <span class="breakdown-row-title">Night Shift (18:00 – 06:00)</span>
-              <span class="breakdown-row-sub">${todayInfo.nightStaff.map(s => s.displayName || s.name).join(', ') || '3 staff on duty'}</span>
+              <div class="breakdown-header-line">
+                <span class="breakdown-row-title">Night Shift (18:00 – 06:00)</span>
+                <span class="breakdown-status-tag ${!todayInfo.isMorningTime ? 'active' : 'upcoming'}">
+                  ${!todayInfo.isMorningTime ? 'Active on Desk' : 'Next Shift'}
+                </span>
+              </div>
+              <div class="breakdown-staff-chips">
+                ${todayInfo.nightStaff.length
+                  ? todayInfo.nightStaff.map(s => `<span class="roster-staff-pill">${escapeHtml(s.displayName || s.name)}</span>`).join('')
+                  : '<span class="breakdown-row-sub">3 staff assigned</span>'}
+              </div>
             </div>
-            <span class="breakdown-status-tag ${!todayInfo.isMorningTime ? 'active' : ''}">3 on duty</span>
           </div>
 
+          <!-- Day Support Row -->
           <div class="breakdown-row">
-            <div class="breakdown-icon-box" style="background:#f1f5f9; color:#475569; border: 1.5px solid #cbd5e1; font-weight:800; font-size:14px;">
-              S
+            <div class="breakdown-icon-box support">
+              <span>S</span>
             </div>
             <div class="breakdown-row-details">
-              <span class="breakdown-row-title">Day Support (08:00 – 17:00)</span>
-              <span class="breakdown-row-sub">${activeStaff().filter(person => !person.podId).map(person => person.displayName || person.name).join(', ') || 'Support team'}</span>
+              <div class="breakdown-header-line">
+                <span class="breakdown-row-title">Day Support (08:00 – 17:00)</span>
+                <span class="breakdown-status-tag resting">Support</span>
+              </div>
+              <div class="breakdown-staff-chips">
+                ${activeStaff().filter(person => !person.podId).map(person => `<span class="roster-staff-pill muted">${escapeHtml(person.displayName || person.name)}</span>`).join('') || '<span class="breakdown-row-sub">Support team on call</span>'}
+              </div>
             </div>
-            <span class="breakdown-status-tag resting">Support</span>
           </div>
         </div>
       </div>
 
-      <!-- Card 3: Payday Next Upgrades / Handover Brief -->
+      <!-- Card 3: Handover Operations Hub -->
       <div class="clean-card">
         <div class="clean-card-header">
           <div>
             <h3 class="clean-card-title">Handover operations</h3>
             <p class="clean-card-subtitle">Today's active cycle:</p>
           </div>
-          <button class="clean-card-arrow-link" id="btn-brief-card">${ICONS.arrowUpRight}</button>
+          <button class="clean-card-arrow-link" id="btn-brief-card" title="View briefing">${ICONS.arrowUpRight}</button>
         </div>
 
         <div class="handover-preview-box">
-          <div class="handover-slot-brief">
-            <b>06:00–18:00 Morning:</b> ${todayInfo.morningStaff.map(s => s.name).join(', ') || 'Assigned'}<br>
-            <span style="display:block;margin-top:6px;"><b>18:00–06:00 Night:</b> ${todayInfo.nightStaff.map(s => s.name).join(', ') || 'Assigned'}</span>
+          <div class="handover-timeline">
+            <div class="timeline-step">
+              <div class="timeline-dot morning"></div>
+              <div class="timeline-content">
+                <span class="timeline-time">06:00 – 18:00 Morning</span>
+                <span class="timeline-staff">${todayInfo.morningStaff.map(s => s.displayName || s.name).join(', ') || 'Julius, Selorm, Benedicta'}</span>
+              </div>
+            </div>
+            <div class="timeline-connector"></div>
+            <div class="timeline-step">
+              <div class="timeline-dot night"></div>
+              <div class="timeline-content">
+                <span class="timeline-time">18:00 – 06:00 Night</span>
+                <span class="timeline-staff">${todayInfo.nightStaff.map(s => s.displayName || s.name).join(', ') || 'Papa Nii, Owusu, Frimpong'}</span>
+              </div>
+            </div>
           </div>
 
-          <!-- Payday soft blue promo card -->
-          <div class="payday-promo-card" id="btn-promo-handover">
+          <!-- Handover Dispatch Promo Card -->
+          <div class="payday-promo-card" id="btn-promo-handover" title="Click to copy formatted handover dispatch">
             <div class="promo-card-left">
-              <span class="promo-card-title">Today's handover brief</span>
-              <span class="promo-card-sub">Click to copy formatted text for WhatsApp</span>
+              <div class="promo-card-title-row">
+                <span class="promo-card-title">Today's handover brief</span>
+                <span class="promo-badge-tag">Quick Copy</span>
+              </div>
+              <span class="promo-card-sub">Formatted dispatch ready for WhatsApp &amp; Slack</span>
             </div>
             <span class="promo-card-arrow">${ICONS.arrowUpRight}</span>
           </div>
