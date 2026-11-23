@@ -35,6 +35,14 @@ state.coverAssignments ||= {};
 state.coverTombstones ||= [];
 state.customStaff ||= [];
 state.inactiveStaffIds ||= [];
+state.customPods ||= [];
+const savedCustomPods = (state.customPods && state.customPods.length >= 4)
+  ? state.customPods
+  : JSON.parse(localStorage.getItem('shift-roster-custom-pods') || 'null');
+if (Array.isArray(savedCustomPods) && savedCustomPods.length >= 4) {
+  pods.splice(0, pods.length, ...savedCustomPods);
+  state.customPods = JSON.parse(JSON.stringify(pods));
+}
 for (const person of state.customStaff) {
   const existing = staff.find(existing => existing.id === person.id);
   if (!existing) staff.push(person);
@@ -217,6 +225,8 @@ function orderedPeople(key) {
 }
 
 function save() {
+  state.customPods = JSON.parse(JSON.stringify(pods));
+  localStorage.setItem('shift-roster-custom-pods', JSON.stringify(pods));
   localStorage.setItem('shift-roster', JSON.stringify(state));
   render();
 }
@@ -1123,50 +1133,14 @@ function openApplyRuleDialog() {
   const renderRuleForm = (ruleType) => {
     let specificFields = '';
 
-    if (ruleType === 'holiday') {
-      specificFields = `
-        <label class="shift-edit-field">Target Personnel
-          <select id="rule-target">
-            <option value="all">All Personnel (Core & Support · 17 members)</option>
-            <option value="support">Day Support Staff Only (5 members)</option>
-            <option value="core">Shift Crew (All 4 Teams · 12 members)</option>
-            <option value="orange">Team 1 Only</option>
-            <option value="green">Team 2 Only</option>
-            <option value="blue">Team 3 Only</option>
-            <option value="red">Team 4 Only</option>
-          </select>
-        </label>
-        <div class="leave-date-fields">
-          <label class="shift-edit-field">Start Date
-            <input id="rule-start" type="date" value="${firstDay}" required>
-          </label>
-          <label class="shift-edit-field">End Date
-            <input id="rule-end" type="date" value="${firstDay}" required>
-          </label>
-        </div>
-        <div class="leave-date-fields">
-          <label class="shift-edit-field">Assignment Type
-            <select id="rule-shift-code">
-              <option value="OFF">Rest / Day Off (OFF)</option>
-              <option value="LEAVE">Official Leave (LEAVE)</option>
-            </select>
-          </label>
-          <label class="shift-edit-field">Reason / Event Name
-            <input id="rule-note" type="text" placeholder="e.g. Public Holiday, Maintenance" value="Public Holiday">
-          </label>
-        </div>
-      `;
-    } else if (ruleType === 'bulk_shift') {
+    if (ruleType === 'bulk_shift') {
       specificFields = `
         <label class="shift-edit-field">Target Group / Role
           <select id="rule-target">
-            <option value="all">All Personnel</option>
-          <option value="leads">All Team Leads</option>
+            <option value="all">All Personnel (Core & Support)</option>
+            <option value="leads">All Team Leads</option>
             <option value="nsps">All NSP Personnel (NSP & NSP-Security)</option>
-            <option value="orange">Team 1 Only</option>
-            <option value="green">Team 2 Only</option>
-            <option value="blue">Team 3 Only</option>
-            <option value="red">Team 4 Only</option>
+            ${pods.map(p => `<option value="${p.id}">${escapeHtml(p.name)} Only</option>`).join('')}
             <option value="support">Day Support Staff</option>
           </select>
         </label>
@@ -1192,18 +1166,12 @@ function openApplyRuleDialog() {
         <div class="leave-date-fields">
           <label class="shift-edit-field">Primary Team
             <select id="rule-team-a">
-              <option value="orange" selected>Team 1</option>
-              <option value="green">Team 2</option>
-              <option value="blue">Team 3</option>
-              <option value="red">Team 4</option>
+              ${pods.map((p, i) => `<option value="${p.id}" ${i === 0 ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
             </select>
           </label>
           <label class="shift-edit-field">Trade Schedules With
             <select id="rule-team-b">
-              <option value="green" selected>Team 2</option>
-              <option value="orange">Team 1</option>
-              <option value="blue">Team 3</option>
-              <option value="red">Team 4</option>
+              ${pods.map((p, i) => `<option value="${p.id}" ${i === 1 ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
             </select>
           </label>
         </div>
@@ -1216,7 +1184,7 @@ function openApplyRuleDialog() {
           </label>
         </div>
         <p class="shift-edit-hint" style="color:var(--text-light);">
-          Both teams will exchange their 8-day rotation cycles across the selected range. Team 1 members will run Team 2's cycle and vice versa.
+          Both teams will exchange their 8-day rotation cycles across the selected range.
         </p>
       `;
     } else if (ruleType === 'cycle_offset') {
@@ -1224,10 +1192,7 @@ function openApplyRuleDialog() {
         <div class="leave-date-fields">
           <label class="shift-edit-field">Select Team
             <select id="rule-team-target">
-              <option value="orange">Team 1</option>
-              <option value="green">Team 2</option>
-              <option value="blue">Team 3</option>
-              <option value="red">Team 4</option>
+              ${pods.map((p, i) => `<option value="${p.id}" ${i === 0 ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
             </select>
           </label>
           <label class="shift-edit-field">Rotation Adjustment
@@ -1264,7 +1229,6 @@ function openApplyRuleDialog() {
 
         <label class="shift-edit-field">Rule Type
           <select id="rule-type-select">
-            <option value="holiday" ${ruleType === 'holiday' ? 'selected' : ''}>Company Holiday / Standdown (Set Day Off)</option>
             <option value="bulk_shift" ${ruleType === 'bulk_shift' ? 'selected' : ''}>Batch Shift Assignment (Role or Group)</option>
             <option value="swap_teams" ${ruleType === 'swap_teams' ? 'selected' : ''}>Swap Team Schedules (Trade 8-Day Cycles)</option>
             <option value="cycle_offset" ${ruleType === 'cycle_offset' ? 'selected' : ''}>Adjust Team Rotation Phase (Re-Anchor)</option>
@@ -1316,26 +1280,7 @@ function openApplyRuleDialog() {
       let count = 0;
       let membersAffected = 0;
 
-      if (currentType === 'holiday') {
-        const target = dialog.querySelector('#rule-target').value;
-        const shiftCode = dialog.querySelector('#rule-shift-code').value || 'OFF';
-        const members = activeStaff().filter(s => {
-          if (target === 'all') return true;
-          if (target === 'support') return !s.podId;
-          if (target === 'core') return Boolean(s.podId);
-          return s.podId === target;
-        });
-
-        for (let day = new Date(`${start}T00:00:00Z`); day <= new Date(`${end}T00:00:00Z`); day.setUTCDate(day.getUTCDate() + 1)) {
-          const dKey = day.toISOString().slice(0, 10);
-          for (const m of members) {
-            setCell(state, m.id, dKey, shiftCode);
-            count++;
-          }
-        }
-        membersAffected = members.length;
-        toast(`Holiday rule applied: ${count} shift updates across ${membersAffected} staff.`);
-      } else if (currentType === 'bulk_shift') {
+      if (currentType === 'bulk_shift') {
         const target = dialog.querySelector('#rule-target').value;
         const shiftCode = dialog.querySelector('#rule-shift-code').value;
         const members = activeStaff().filter(s => {
@@ -1414,7 +1359,7 @@ function openApplyRuleDialog() {
     };
   };
 
-  setupDialog('holiday');
+  setupDialog('bulk_shift');
   dialog.showModal();
 }
 
@@ -1592,6 +1537,13 @@ async function publishRoster() {
         coverAssignments,
         removedCoverIds,
         inactiveStaffIds: state.inactiveStaffIds || [],
+        pods: pods.map(p => ({
+          id: p.id,
+          name: p.name,
+          color_hex: p.color,
+          anchor_date: p.anchor,
+          cycle_offset: 0
+        })),
         podAssignments: activeStaff().map(person => personFor(person, month)).filter(person => person.podId).map(person => ({ staffId: person.id, podId: person.podId, rowOrder: person.rowOrder ?? staff.findIndex(item => item.id === person.id) })),
         staffRecords: activeStaff().map(person => ({
           id: person.id,
@@ -2628,7 +2580,6 @@ function renderRosterView() {
 
   const podSections = shownPods.map(p => {
     const members = coreStaff.filter(s => s.podId === p.id);
-    if (!members.length) return '';
     return `<section class="pod-schedule-section" data-pod-drop="${p.id}" style="--pod-color:${p.color}">
       <div class="pod-schedule-heading">
         <div class="pod-heading-sticky sticky-member-col">
@@ -2637,7 +2588,10 @@ function renderRosterView() {
         </div>
         <div class="pod-heading-bar"></div>
       </div>
-      ${members.map(s => renderHubstaffRow(s, startDay, daysInMonth, todayStr, yy, mm)).join('')}
+      ${members.length
+        ? members.map(s => renderHubstaffRow(s, startDay, daysInMonth, todayStr, yy, mm)).join('')
+        : `<div class="hubstaff-member-row" style="display:flex;align-items:center;padding:0 16px;font-size:12px;color:var(--text-light);background:#fcfdfd;border-bottom:1px solid #edf1f5;">No staff assigned yet. Drag personnel here to assign.</div>`
+      }
     </section>`;
   }).join('');
 
@@ -4501,7 +4455,179 @@ function openResolveUnavailabilityDialog(r) {
   };
 }
 
-let settingsRuleType = 'holiday';
+function openEditTeamDialog(podId) {
+  let dialog = document.querySelector('#team-edit-dialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'team-edit-dialog';
+    dialog.className = 'shift-edit-dialog';
+    document.body.appendChild(dialog);
+  }
+
+  const isNew = !podId;
+  const existingPod = isNew ? null : pods.find(p => p.id === podId);
+  const title = isNew ? 'Add Shift Team' : 'Edit Shift Team';
+  const subtitle = isNew ? 'Define a new shift team, color branding, and 8-day rotation anchor.' : 'Customize team name, color styling, and 8-day rotation anchor.';
+
+  const defaultColor = isNew ? '#8B5CF6' : (existingPod?.color || '#FFC000');
+  const defaultName = isNew ? `Team ${pods.length + 1}` : (existingPod?.name || '');
+  const defaultAnchor = isNew ? (pods[0]?.anchor || '2026-11-01') : (existingPod?.anchor || '2026-11-01');
+
+  const colorPresets = [
+    '#FFC000', '#92D050', '#00B0F0', '#FF0000',
+    '#8B5CF6', '#06B6D4', '#F97316', '#EC4899',
+    '#10B981', '#6366F1', '#14B8A6', '#64748B'
+  ];
+
+  dialog.innerHTML = `
+    <form method="dialog" class="shift-edit-form" id="team-edit-form">
+      <div class="shift-edit-head">
+        <div>
+          <span class="shift-edit-eyebrow">ROSTER TEAM CONFIGURATION</span>
+          <h2>${escapeHtml(title)}</h2>
+          <p>${escapeHtml(subtitle)}</p>
+        </div>
+        <button type="button" class="shift-edit-close" id="team-edit-close" aria-label="Close">✕</button>
+      </div>
+
+      <label class="shift-edit-field">Team Name
+        <input id="input-team-name" type="text" value="${escapeHtml(defaultName)}" placeholder="e.g. Team 1, Alpha Pod, Tower Unit" required />
+      </label>
+
+      <div class="shift-edit-field">
+        <label style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600;color:var(--text-main);margin-bottom:6px;">
+          <span>Team Color</span>
+          <span style="font-size:11px;font-weight:400;color:var(--text-light);">Applies soft dim tint across calendar headers</span>
+        </label>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+          <input type="color" id="input-team-color" value="${defaultColor}" style="width:38px;height:38px;border-radius:8px;border:1px solid #cbd5e1;cursor:pointer;padding:2px;background:#fff;" />
+          <input type="text" id="input-team-color-hex" value="${defaultColor}" maxlength="7" style="width:90px;font-family:var(--font-mono);font-size:12px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;" />
+          <div id="team-color-preview-bar" style="flex:1;height:38px;border-radius:8px;border:1px solid #e2e8f0;display:flex;align-items:center;padding:0 12px;gap:8px;background:linear-gradient(90deg, color-mix(in srgb, ${defaultColor} 14%, #f8fafc), #f8fafc 60%);">
+            <span id="preview-color-dot" style="width:10px;height:10px;border-radius:50%;background:${defaultColor};"></span>
+            <span id="preview-heading-name" style="font-size:12px;font-weight:700;color:var(--text-main);">${escapeHtml(defaultName)}</span>
+            <span style="margin-left:auto;font-size:10.5px;color:var(--text-light);">Calendar style</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
+          ${colorPresets.map(c => `
+            <button type="button" class="preset-color-btn" data-color="${c}" style="width:24px;height:24px;border-radius:6px;border:1px solid rgba(0,0,0,0.1);background:${c};cursor:pointer;padding:0;" title="${c}"></button>
+          `).join('')}
+        </div>
+      </div>
+
+      <label class="shift-edit-field">Rotation Anchor Date
+        <input id="input-team-anchor" type="date" value="${escapeHtml(defaultAnchor)}" required />
+        <span class="field-hint" style="font-size:11.5px;color:var(--text-light);margin-top:4px;display:block;">
+          The anchor date anchors the 8-day rotation cycle (2 Day → 2 Night → 4 Off). The anchor date is day 1 of the Morning shift.
+        </span>
+      </label>
+
+      <div class="shift-edit-actions" style="margin-top:10px;">
+        ${(!isNew && pods.length > 4) ? `
+          <button type="button" class="btn-clean danger" id="btn-delete-team" style="margin-right:auto;">Delete Team</button>
+        ` : ''}
+        <button type="button" class="btn-clean" id="team-edit-cancel">Cancel</button>
+        <button type="submit" class="btn-clean primary">${isNew ? 'Create Team' : 'Save Changes'}</button>
+      </div>
+    </form>
+  `;
+
+  const nameInput = dialog.querySelector('#input-team-name');
+  const colorPicker = dialog.querySelector('#input-team-color');
+  const colorHex = dialog.querySelector('#input-team-color-hex');
+  const previewBar = dialog.querySelector('#team-color-preview-bar');
+  const previewDot = dialog.querySelector('#preview-color-dot');
+  const previewName = dialog.querySelector('#preview-heading-name');
+
+  const updatePreview = () => {
+    const col = colorPicker.value;
+    colorHex.value = col;
+    previewDot.style.background = col;
+    previewBar.style.background = `linear-gradient(90deg, color-mix(in srgb, ${col} 14%, #f8fafc), #f8fafc 60%)`;
+    previewName.textContent = nameInput.value.trim() || 'Team';
+  };
+
+  nameInput.oninput = updatePreview;
+  colorPicker.oninput = updatePreview;
+  colorHex.oninput = () => {
+    if (/^#[0-9a-fA-F]{6}$/.test(colorHex.value)) {
+      colorPicker.value = colorHex.value;
+      updatePreview();
+    }
+  };
+
+  dialog.querySelectorAll('.preset-color-btn').forEach(btn => {
+    btn.onclick = () => {
+      colorPicker.value = btn.dataset.color;
+      updatePreview();
+    };
+  });
+
+  const close = () => dialog.close();
+  dialog.querySelector('#team-edit-close').onclick = close;
+  dialog.querySelector('#team-edit-cancel').onclick = close;
+
+  if (dialog.querySelector('#btn-delete-team')) {
+    dialog.querySelector('#btn-delete-team').onclick = () => {
+      const assigned = activeStaff().filter(s => s.podId === podId);
+      if (assigned.length > 0) {
+        toast(`Cannot delete ${existingPod.name}: ${assigned.length} members are currently assigned to this team.`);
+        return;
+      }
+      undo.push(JSON.stringify(state));
+      redo = [];
+      const idx = pods.findIndex(p => p.id === podId);
+      if (idx !== -1) pods.splice(idx, 1);
+      state.customPods = JSON.parse(JSON.stringify(pods));
+      localStorage.setItem('shift-roster-custom-pods', JSON.stringify(pods));
+      save();
+      dialog.close();
+      render();
+      toast('Team removed.');
+    };
+  }
+
+  dialog.querySelector('#team-edit-form').onsubmit = (e) => {
+    e.preventDefault();
+    const finalName = nameInput.value.trim();
+    const finalColor = colorPicker.value;
+    const finalAnchor = dialog.querySelector('#input-team-anchor').value;
+
+    if (!finalName || !finalAnchor) {
+      toast('Please enter both team name and anchor date.');
+      return;
+    }
+
+    undo.push(JSON.stringify(state));
+    redo = [];
+
+    if (isNew) {
+      const newId = 'team-' + Date.now().toString(36);
+      pods.push({
+        id: newId,
+        name: finalName,
+        color: finalColor,
+        anchor: finalAnchor
+      });
+      toast(`Team created: ${finalName}`);
+    } else {
+      existingPod.name = finalName;
+      existingPod.color = finalColor;
+      existingPod.anchor = finalAnchor;
+      toast(`Team updated: ${finalName}`);
+    }
+
+    state.customPods = JSON.parse(JSON.stringify(pods));
+    localStorage.setItem('shift-roster-custom-pods', JSON.stringify(pods));
+    save();
+    dialog.close();
+    render();
+  };
+
+  dialog.showModal();
+}
+
+let settingsRuleType = 'bulk_shift';
 
 function renderSettingsView() {
   const today = new Date().toISOString().slice(0, 10);
@@ -4511,51 +4637,15 @@ function renderSettingsView() {
   const admin = currentAdmin();
 
   let specificFields = '';
-  if (settingsRuleType === 'holiday') {
-    specificFields = `
-      <div class="settings-fields-grid">
-        <label class="shift-edit-field">Target Personnel
-          <select id="settings-rule-target">
-            <option value="all">All Personnel (Core & Support · 17 members)</option>
-            <option value="support">Day Support Staff Only (5 members)</option>
-            <option value="core">Shift Crew (All 4 Teams · 12 members)</option>
-            <option value="orange">Team 1 Only</option>
-            <option value="green">Team 2 Only</option>
-            <option value="blue">Team 3 Only</option>
-            <option value="red">Team 4 Only</option>
-          </select>
-        </label>
-        <label class="shift-edit-field">Assignment Type
-          <select id="settings-rule-shift-code">
-            <option value="OFF">Rest / Day Off (OFF)</option>
-            <option value="LEAVE">Official Leave (LEAVE)</option>
-          </select>
-        </label>
-      </div>
-      <div class="settings-fields-grid">
-        <label class="shift-edit-field">Start Date
-          <input id="settings-rule-start" type="date" value="${firstDay}" required>
-        </label>
-        <label class="shift-edit-field">End Date
-          <input id="settings-rule-end" type="date" value="${firstDay}" required>
-        </label>
-      </div>
-      <label class="shift-edit-field">Reason / Event Name
-        <input id="settings-rule-note" type="text" placeholder="e.g. Public Holiday, Maintenance" value="Public Holiday">
-      </label>
-    `;
-  } else if (settingsRuleType === 'bulk_shift') {
+  if (settingsRuleType === 'bulk_shift') {
     specificFields = `
       <div class="settings-fields-grid">
         <label class="shift-edit-field">Target Group / Role
           <select id="settings-rule-target">
-            <option value="all">All Personnel</option>
+            <option value="all">All Personnel (Core & Support)</option>
             <option value="leads">All Team Leads</option>
             <option value="nsps">All NSP Personnel (NSP & NSP-Security)</option>
-            <option value="orange">Team 1 Only</option>
-            <option value="green">Team 2 Only</option>
-            <option value="blue">Team 3 Only</option>
-            <option value="red">Team 4 Only</option>
+            ${pods.map(p => `<option value="${p.id}">${escapeHtml(p.name)} Only</option>`).join('')}
             <option value="support">Day Support Staff</option>
           </select>
         </label>
@@ -4576,24 +4666,21 @@ function renderSettingsView() {
           <input id="settings-rule-end" type="date" value="${firstDay}" required>
         </label>
       </div>
+      <p style="font-size:12px;color:var(--text-light);margin:0;">
+        Assigns the selected shift to all staff in this target group across the date range in one action.
+      </p>
     `;
   } else if (settingsRuleType === 'swap_teams') {
     specificFields = `
       <div class="settings-fields-grid">
         <label class="shift-edit-field">Primary Team
           <select id="settings-rule-team-a">
-            <option value="orange" selected>Team 1</option>
-            <option value="green">Team 2</option>
-            <option value="blue">Team 3</option>
-            <option value="red">Team 4</option>
+            ${pods.map((p, i) => `<option value="${p.id}" ${i === 0 ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
           </select>
         </label>
         <label class="shift-edit-field">Trade Schedules With
           <select id="settings-rule-team-b">
-            <option value="green" selected>Team 2</option>
-            <option value="orange">Team 1</option>
-            <option value="blue">Team 3</option>
-            <option value="red">Team 4</option>
+            ${pods.map((p, i) => `<option value="${p.id}" ${i === 1 ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
           </select>
         </label>
       </div>
@@ -4606,7 +4693,7 @@ function renderSettingsView() {
         </label>
       </div>
       <p style="font-size:12px;color:var(--text-light);margin:0;">
-        Both teams will exchange their 8-day rotation cycles across the selected range. Team 1 members will run Team 2's cycle and vice versa.
+        Both teams will exchange their 8-day rotation cycles across the selected range. Team members trade cycles seamlessly.
       </p>
     `;
   } else if (settingsRuleType === 'cycle_offset') {
@@ -4614,10 +4701,7 @@ function renderSettingsView() {
       <div class="settings-fields-grid">
         <label class="shift-edit-field">Select Team
           <select id="settings-rule-team-target">
-            <option value="orange">Team 1</option>
-            <option value="green">Team 2</option>
-            <option value="blue">Team 3</option>
-            <option value="red">Team 4</option>
+            ${pods.map((p, i) => `<option value="${p.id}" ${i === 0 ? 'selected' : ''}>${escapeHtml(p.name)}</option>`).join('')}
           </select>
         </label>
         <label class="shift-edit-field">Rotation Adjustment
@@ -4638,6 +4722,9 @@ function renderSettingsView() {
           <input id="settings-rule-end" type="date" value="${lastDay}" required>
         </label>
       </div>
+      <p style="font-size:12px;color:var(--text-light);margin:0;">
+        Advances or delays the team's 8-day cycle anchor date to realign operational handovers.
+      </p>
     `;
   }
 
@@ -4662,15 +4749,12 @@ function renderSettingsView() {
           <div class="clean-card-header">
             <div>
               <h3 class="clean-card-title">Define Collective Shift Rule</h3>
-              <p class="clean-card-subtitle">Set holidays, batch overrides, team trades, or cycle adjustments for multiple staff in one step.</p>
+              <p class="clean-card-subtitle">Set batch overrides, team trades, or cycle adjustments for multiple staff in one step.</p>
             </div>
           </div>
 
           <!-- Rule Type Tabs -->
           <div class="settings-rule-tabs">
-            <button type="button" class="settings-tab-btn ${settingsRuleType === 'holiday' ? 'active' : ''}" data-settings-tab="holiday">
-              Company Holiday
-            </button>
             <button type="button" class="settings-tab-btn ${settingsRuleType === 'bulk_shift' ? 'active' : ''}" data-settings-tab="bulk_shift">
               Batch Shift
             </button>
@@ -4711,11 +4795,15 @@ function renderSettingsView() {
         <div style="display:flex;flex-direction:column;gap:18px;">
           <!-- Card: Active Shift Teams -->
           <div class="clean-card settings-card">
-            <div class="clean-card-header">
+            <div class="clean-card-header" style="display:flex;align-items:center;justify-content:space-between;">
               <div>
                 <h3 class="clean-card-title">Shift Teams &amp; Anchors</h3>
-                <p class="clean-card-subtitle">Active 4-team rotation roster.</p>
+                <p class="clean-card-subtitle">Active ${pods.length}-team rotation roster.</p>
               </div>
+              <button type="button" class="btn-clean small" id="btn-add-team-header" style="font-size:11.5px;color:var(--text-light);display:flex;align-items:center;gap:4px;" title="Add a new shift team">
+                ${ICONS.plus}
+                <span>Add Team</span>
+              </button>
             </div>
 
             <div style="display:flex;flex-direction:column;gap:8px;">
@@ -4723,18 +4811,27 @@ function renderSettingsView() {
                 const members = activeStaff().filter(s => s.podId === p.id);
                 const lead = members.find(s => s.role === 'Team Lead');
                 return `
-                  <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border-radius:10px;border:1px solid #edf2f7;">
+                  <div class="team-anchor-row" data-pod-edit="${p.id}" title="Click to edit team name, color, or anchor">
                     <div style="display:flex;align-items:center;gap:10px;">
-                      <span style="width:10px;height:10px;border-radius:50%;background:${p.color};"></span>
+                      <span class="team-dot-indicator" style="background:${p.color};"></span>
                       <div>
-                        <strong style="font-size:13px;color:var(--text-main);">${escapeHtml(p.name)}</strong>
-                        <div style="font-size:11px;color:var(--text-light);">${lead ? `Lead: ${escapeHtml(lead.displayName || lead.name)}` : 'No lead'} · ${members.length} members</div>
+                        <strong class="team-name-text">${escapeHtml(p.name)}</strong>
+                        <div class="team-meta-sub">${lead ? `Lead: ${escapeHtml(lead.displayName || lead.name)}` : 'No lead'} · ${members.length} members</div>
                       </div>
                     </div>
-                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">${p.anchor}</span>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      <span class="team-anchor-chip">${p.anchor}</span>
+                      <button type="button" class="btn-clean small btn-team-edit-icon" data-pod-edit="${p.id}" title="Edit team">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                      </button>
+                    </div>
                   </div>
                 `;
               }).join('')}
+              <button type="button" class="btn-clean small" id="btn-add-team" style="font-size:11.5px;color:var(--text-light);background:transparent;border:1px dashed #cbd5e1;border-radius:9px;padding:8px;width:100%;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:5px;cursor:pointer;">
+                ${ICONS.plus}
+                <span>Add Team</span>
+              </button>
             </div>
           </div>
         </div>
@@ -4929,26 +5026,7 @@ function bindEvents() {
       let count = 0;
       let membersAffected = 0;
 
-      if (currentType === 'holiday') {
-        const target = document.querySelector('#settings-rule-target').value;
-        const shiftCode = document.querySelector('#settings-rule-shift-code').value || 'OFF';
-        const members = activeStaff().filter(s => {
-          if (target === 'all') return true;
-          if (target === 'support') return !s.podId;
-          if (target === 'core') return Boolean(s.podId);
-          return s.podId === target;
-        });
-
-        for (let day = new Date(`${start}T00:00:00Z`); day <= new Date(`${end}T00:00:00Z`); day.setUTCDate(day.getUTCDate() + 1)) {
-          const dKey = day.toISOString().slice(0, 10);
-          for (const m of members) {
-            setCell(state, m.id, dKey, shiftCode);
-            count++;
-          }
-        }
-        membersAffected = members.length;
-        toast(`Holiday rule applied: ${count} shift updates across ${membersAffected} staff.`);
-      } else if (currentType === 'bulk_shift') {
+      if (currentType === 'bulk_shift') {
         const target = document.querySelector('#settings-rule-target').value;
         const shiftCode = document.querySelector('#settings-rule-shift-code').value;
         const members = activeStaff().filter(s => {
@@ -5035,6 +5113,18 @@ function bindEvents() {
       toast('Reverted last change.');
     };
   }
+
+  // Shift Teams & Anchors row clicks & add team buttons
+  document.querySelectorAll('[data-pod-edit]').forEach(el => {
+    el.onclick = (e) => {
+      e.stopPropagation();
+      openEditTeamDialog(el.dataset.podEdit);
+    };
+  });
+  const addTeamBtn = document.querySelector('#btn-add-team');
+  if (addTeamBtn) addTeamBtn.onclick = () => openEditTeamDialog(null);
+  const addTeamHeaderBtn = document.querySelector('#btn-add-team-header');
+  if (addTeamHeaderBtn) addTeamHeaderBtn.onclick = () => openEditTeamDialog(null);
 
   // Drag a whole roster row onto another member to exchange pod placement, or onto a pod to move it there.
   let draggedStaffId = '';

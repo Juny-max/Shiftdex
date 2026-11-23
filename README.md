@@ -99,6 +99,32 @@ pnpm dist
 
 The installer is named `ShiftDex-Setup-<version>.exe`. Windows installs `ShiftDex.exe` and creates Start menu and desktop shortcuts. Uninstall from Windows Settings or the Start menu; the NSIS configuration removes ShiftDex app data during uninstall.
 
+## Operations and telecommunications model
+
+ShiftDex is purpose-built for mission-critical 24/7/365 telecommunications and cell tower infrastructure management. Shared cell sites hosting multiple carriers (e.g. MTN, Telecel, AT/AirtelTigo) require continuous, real-time power and facility oversight:
+
+- **Grid and generator monitoring**: Monitoring ECG grid power continuity, automated and manual generator start triggers, battery bank backups, and rectifier stability. If a plant generator fails to start during a power outage, on-duty field teams must be alerted immediately to prevent site drops and subscriber outage.
+- **Continuous 24/7/365 mission**: Because cell tower communications must remain operational without interruption, the operations hub operates continuous 12-hour shifts every day of the year without company-wide holidays.
+- **Continuous rotation model**: Core shift teams operate on an 8-day rotation: 4 days on (2 Day shifts 06:00–18:00, 2 Night shifts 18:00–06:00), followed by 4 days off (2M → 2N → 4 OFF), providing 100% continuous desk coverage.
+
+## Collective shift rules
+
+Administrators can apply scheduling policies across multiple staff simultaneously via **Settings & Shift Rules**:
+
+- **Batch Shift**: Assigns a specific shift code (`M`, `N`, `OFF`, `LEAVE`) across an entire target group (All Personnel, Team Leads, NSP Personnel, a specific Team, or Day Support) for any date range in one action. This eliminates repetitive cell-by-cell editing during group training, maintenance drills, or temporary reassignment.
+- **Swap Teams**: Exchanges the 8-day rotation cycles between two teams across a chosen date range. Useful when two teams trade schedules due to field logistics, emergency maintenance, or operational swaps.
+- **Adjust Rotation**: Advances or delays an entire team's 8-day rotation anchor by +1, +2, +4, -1, or -2 days, realigning their rotational phase without disrupting individual shift history.
+- **Instant reversibility**: All collective shift rules push state to the undo stack, allowing full rollback via the **Undo** button.
+
+## Shift teams and anchors customization
+
+Administrators can customize teams directly in **Settings & Shift Rules**:
+
+- **Team names**: Customize team labels (e.g., *Team 1*, *Alpha Pod*, *Power & Tower Ops*).
+- **Dynamic color palette**: Select from curated telecom presets or choose any custom hex color. Custom team colors automatically apply soft light-wash background gradients to calendar headers (`color-mix(in srgb, var(--pod-color) 12%, #f8fafc)`) and avatar chips while preserving clean UI contrast.
+- **Rotation anchors**: Adjust the baseline anchor date to control which phase of the 8-day rotation each team begins on.
+- **Dynamic team expansion**: Add new shift teams or remove unassigned teams as operations scale.
+
 ## Workbook and roster model
 
 The supplied workbook uses orange `#FFC000`, green `#92D050`, blue `#00B0F0`, and red `#FF0000` pod colors. The continuous pod anchors are Orange `2026-11-03`, Green `2026-11-01`, Blue `2026-11-05`, and Red `2026-10-30`. Import reads the sheet’s staff names, role tags, pod colors, and shift cells; blank shift cells become rest days. These values are not included as staff seed data in the public source.

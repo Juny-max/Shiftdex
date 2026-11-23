@@ -1194,15 +1194,23 @@ export default {
           (body.inactiveStaffIds !== undefined && !Array.isArray(body.inactiveStaffIds)) ||
           (body.podAssignments !== undefined && !Array.isArray(body.podAssignments))) return json({ error: 'Invalid publish payload' }, 400);
         const batch = [];
+        if (Array.isArray(body.pods)) {
+          for (const pod of body.pods) {
+            if (pod && /^[a-z0-9_-]{1,32}$/.test(pod.id || '') && pod.name && pod.color_hex && /^\d{4}-\d{2}-\d{2}$/.test(pod.anchor_date || '')) {
+              batch.push(db.prepare("INSERT INTO pods(id,name,color_hex,anchor_date,cycle_offset) VALUES(?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,color_hex=excluded.color_hex,anchor_date=excluded.anchor_date,cycle_offset=excluded.cycle_offset")
+                .bind(pod.id, String(pod.name).slice(0, 50), String(pod.color_hex).slice(0, 20), pod.anchor_date, Number(pod.cycle_offset) || 0));
+            }
+          }
+        }
         for (const person of body.staffRecords || []) {
-          if (!/^[a-z0-9-]{1,100}$/.test(person.id || '') || !person.fullName || !person.roleTag || !/^\d{4}-\d{2}-\d{2}$/.test(person.effectiveFrom || '') || (person.podId && !/^(orange|green|blue|red)$/.test(person.podId))) return json({ error: 'Invalid staff record' }, 400);
+          if (!/^[a-z0-9-]{1,100}$/.test(person.id || '') || !person.fullName || !person.roleTag || !/^\d{4}-\d{2}-\d{2}$/.test(person.effectiveFrom || '') || (person.podId && !/^[a-z0-9_-]{1,32}$/.test(person.podId))) return json({ error: 'Invalid staff record' }, 400);
           batch.push(db.prepare("INSERT INTO staff(id,full_name,role_tag,pod_id,phone,status,effective_from,is_admin) VALUES(?,?,?,?,?,'active',?,0) ON CONFLICT(id) DO UPDATE SET full_name=excluded.full_name,role_tag=excluded.role_tag,pod_id=excluded.pod_id,phone=excluded.phone,effective_from=excluded.effective_from")
             .bind(person.id, person.fullName, person.roleTag, person.podId || null, person.phone || null, person.effectiveFrom));
         }
         if (body.podAssignments) {
           batch.push(db.prepare('DELETE FROM staff_pod_assignments WHERE month=?').bind(body.month));
           for (const item of body.podAssignments) {
-            if (!/^[a-z0-9-]{1,100}$/.test(item.staffId || '') || !['orange', 'green', 'blue', 'red'].includes(item.podId) || !Number.isInteger(item.rowOrder)) return json({ error: 'Invalid monthly pod assignment' }, 400);
+            if (!/^[a-z0-9-]{1,100}$/.test(item.staffId || '') || !/^[a-z0-9_-]{1,32}$/.test(item.podId) || !Number.isInteger(item.rowOrder)) return json({ error: 'Invalid monthly pod assignment' }, 400);
             batch.push(db.prepare('INSERT INTO staff_pod_assignments(month,staff_id,pod_id,row_order) VALUES(?,?,?,?)').bind(body.month, item.staffId, item.podId, item.rowOrder));
           }
         }
@@ -1308,7 +1316,7 @@ export default {
         const fullName = String(body.fullName || '').trim();
         const email = String(body.email || '').trim().toLowerCase();
         const roleTag = String(body.roleTag || 'Support').trim();
-        const podId = body.podId && ['orange', 'green', 'blue', 'red'].includes(body.podId) ? body.podId : null;
+        const podId = body.podId && /^[a-z0-9_-]{1,32}$/.test(body.podId) ? body.podId : null;
         const phone = body.phone ? String(body.phone).trim().slice(0, 40) : null;
         const effectiveFrom = body.effectiveFrom && /^\d{4}-\d{2}-\d{2}$/.test(body.effectiveFrom) ? body.effectiveFrom : new Date().toISOString().slice(0, 10);
 
@@ -1532,7 +1540,7 @@ export default {
         if (!actor) return json({ error: 'Admin token required' }, 401);
         const body = await req.json();
         const staffId = body.staffId;
-        const podId = body.podId && ['orange', 'green', 'blue', 'red'].includes(body.podId) ? body.podId : null;
+        const podId = body.podId && /^[a-z0-9_-]{1,32}$/.test(body.podId) ? body.podId : null;
         const roleTag = body.roleTag ? String(body.roleTag).trim() : null;
         if (!staffId) return json({ error: 'staffId required' }, 400);
 
@@ -1662,7 +1670,7 @@ export default {
           let staffMember = await db.prepare("SELECT id, full_name, role_tag, pod_id, phone, status, effective_from FROM staff WHERE id=?").bind(staffId).first();
           const fullName = String(body.fullName || (staffMember ? staffMember.full_name : staffId.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))).trim();
           const roleTag = String(body.roleTag || (staffMember ? staffMember.role_tag : 'NSP')).trim();
-          const podId = (body.podId && ['orange', 'green', 'blue', 'red'].includes(body.podId)) ? body.podId : (staffMember?.pod_id || null);
+          const podId = (body.podId && /^[a-z0-9_-]{1,32}$/.test(body.podId)) ? body.podId : (staffMember?.pod_id || null);
           const phone = body.phone ? String(body.phone).trim().slice(0, 40) : (staffMember?.phone || null);
           const effectiveFrom = (body.effectiveFrom && /^\d{4}-\d{2}-\d{2}$/.test(body.effectiveFrom)) ? body.effectiveFrom : (staffMember?.effective_from || new Date().toISOString().slice(0, 10));
 
