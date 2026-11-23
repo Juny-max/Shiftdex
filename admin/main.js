@@ -1583,35 +1583,116 @@ function copyHandoverBrief() {
   const morningPod = todayInfo.morningPod?.name || 'Morning Team';
   const nightPod = todayInfo.nightPod?.name || 'Night Team';
   const support = activeStaff().filter(person => !person.podId);
-  const supportLine = (label, predicate) => {
-    const names = support.filter(predicate).map(person => person.displayName || person.name);
-    return names.length ? `• ${label}: ${names.join(', ')}` : '';
-  };
 
-  const brief = `SHIFT HANDOVER · ${dKey}
+  const morningLines = morning.length
+    ? morning.map(s => `• ${s.displayName || s.name} (${s.role || 'Staff'})`).join('\n')
+    : '• No staff assigned';
+
+  const nightLines = night.length
+    ? night.map(s => `• ${s.displayName || s.name} (${s.role || 'Staff'})`).join('\n')
+    : '• No staff assigned';
+
+  const supportLines = support.length
+    ? support.map(s => `• ${s.displayName || s.name} (${s.role || 'Support'})`).join('\n')
+    : '• Day Support operations (08:00 – 17:00)';
+
+  const brief = `SHIFT HANDOVER DISPATCH · ${dKey}
 Cycle: 2M → 2N → 4 OFF
 
-06:00 – 18:00 MORNING SHIFT (${morningPod}):
-${morning.map(s => `• ${s.name} (${s.role})`).join('\n')}
+06:00 – 18:00 DAY SHIFT (${morningPod}):
+${morningLines}
 
 18:00 – 06:00 NIGHT SHIFT (${nightPod}):
-${night.map(s => `• ${s.name} (${s.role})`).join('\n')}
+${nightLines}
 
-DAY & SUPPORT CREW:
-${[
-    supportLine('Fueling', person => /energy|fuel/i.test(person.role || '')),
-    supportLine('Power NOC', person => /power|noc/i.test(person.role || '')),
-    supportLine('Management', person => /manager|admin/i.test(person.role || '')),
-    supportLine('Support', person => /support|leave/i.test(person.role || '')),
-  ].filter(Boolean).join('\n')}
+08:00 – 17:00 SUPPORT TEAM:
+${supportLines}
 
-Status: All 6 shift roles covered.`;
+Status: 24/7 Tower & Generator operations active.`;
 
-  navigator.clipboard.writeText(brief).then(() => {
+  openHandoverModal(brief, dKey);
+}
+
+function openHandoverModal(brief, dKey) {
+  let dialog = document.getElementById('handover-brief-dialog');
+  if (!dialog) {
+    dialog = document.createElement('dialog');
+    dialog.id = 'handover-brief-dialog';
+    dialog.className = 'shift-edit-dialog';
+    document.body.appendChild(dialog);
+  }
+
+  dialog.innerHTML = `
+    <div class="custom-confirm-card" style="max-width:520px;padding:24px;display:flex;flex-direction:column;gap:16px;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+        <div>
+          <span style="font-size:11px;font-weight:700;letter-spacing:0.8px;color:#2563eb;text-transform:uppercase;">OPERATIONS DISPATCH</span>
+          <h2 style="font-size:18px;font-weight:700;color:var(--text-main);margin:4px 0 2px;">Shift Handover Brief</h2>
+          <p style="font-size:12.5px;color:var(--text-muted);margin:0;">Daily shift briefing formatted for WhatsApp, Slack, or SMS logs.</p>
+        </div>
+        <button type="button" id="btn-close-handover-modal" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;padding:2px 6px;line-height:1;" aria-label="Close">&times;</button>
+      </div>
+
+      <div style="background:#09101f;border-radius:10px;padding:16px 18px;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:12.5px;line-height:1.65;white-space:pre-wrap;max-height:280px;overflow-y:auto;border:1px solid rgba(255,255,255,0.1);box-shadow:inset 0 2px 6px rgba(0,0,0,0.4);">${escapeHtml(brief)}</div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:4px;">
+        <span style="font-size:12px;color:var(--text-muted);">${dKey} · 24/7 Operations</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button type="button" class="btn-clean" id="btn-handover-dismiss" style="padding:7px 14px;font-size:12.5px;">Close</button>
+          <button type="button" class="btn-clean primary" id="btn-handover-copy-now" style="padding:7px 16px;font-size:12.5px;display:inline-flex;align-items:center;gap:7px;font-weight:600;">
+            ${ICONS.copy}
+            <span id="btn-handover-label">Copy for WhatsApp</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const closeDialog = () => dialog.close();
+  dialog.querySelector('#btn-close-handover-modal').onclick = closeDialog;
+  dialog.querySelector('#btn-handover-dismiss').onclick = closeDialog;
+
+  const copyBtn = dialog.querySelector('#btn-handover-copy-now');
+  const copyLabel = dialog.querySelector('#btn-handover-label');
+
+  const copyBriefText = async () => {
+    let copied = false;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(brief);
+        copied = true;
+      } catch {}
+    }
+    if (!copied) {
+      const textarea = document.createElement('textarea');
+      textarea.value = brief;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        copied = true;
+      } catch {}
+      document.body.removeChild(textarea);
+    }
+    copyLabel.textContent = 'Copied to Clipboard!';
+    copyBtn.style.background = '#15803d';
     toast(`Copied handover brief for ${dKey}`);
-  }).catch(() => {
-    toast(`Handover brief generated`);
-  });
+    setTimeout(() => {
+      if (copyLabel) copyLabel.textContent = 'Copy for WhatsApp';
+      if (copyBtn) copyBtn.style.background = '';
+    }, 2500);
+  };
+
+  copyBtn.onclick = copyBriefText;
+
+  dialog.onclick = (e) => {
+    if (e.target === dialog) closeDialog();
+  };
+
+  dialog.showModal();
 }
 
 function exportExcel() {
@@ -2855,11 +2936,11 @@ function renderPeopleView() {
                 <th style="width:38px;padding-right:0;padding-left:16px;">
                   <input type="checkbox" id="archive-select-all" title="Select all" style="cursor:pointer;width:15px;height:15px;accent-color:var(--blue-primary);vertical-align:middle;" ${filteredArchived.length > 0 && filteredArchived.every(s => selectedArchivedIds.has(s.id)) ? 'checked' : ''}>
                 </th>
-                <th>Member</th>
-                <th>Role</th>
-                <th>Previous Team</th>
-                <th>Status</th>
-                <th style="text-align:right;">Actions</th>
+                <th class="th-member">Member</th>
+                <th class="th-role">Role</th>
+                <th class="th-team">Previous Team</th>
+                <th class="th-status">Status</th>
+                <th class="th-actions" style="text-align:right;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2894,10 +2975,10 @@ function renderPeopleView() {
                       </span>
                     </td>
                     <td style="text-align:right;" onclick="event.stopPropagation();">
-                      <div style="display:inline-flex;align-items:center;gap:6px;">
+                      <div class="table-actions-cell">
                         <button type="button" class="btn-clean primary" style="font-size:12px;padding:5px 12px;" data-restore-staff="${s.id}">Bring back</button>
                         <button type="button" class="btn-clean" style="font-size:12px;padding:5px 10px;color:#dc2626;border-color:#fecaca;" data-delete-permanent="${s.id}">Delete</button>
-                        <button type="button" class="table-view-btn" data-view-staff="${s.id}">Info &rarr;</button>
+                        <button type="button" class="btn-table-view" data-view-staff="${s.id}">Info &rarr;</button>
                       </div>
                     </td>
                   </tr>
@@ -2921,12 +3002,12 @@ function renderPeopleView() {
           <table class="people-table">
             <thead>
               <tr>
-                <th>Member</th>
-                <th>Role</th>
-                <th>Team</th>
-                <th>Current Status</th>
-                <th>Monthly Load</th>
-                <th style="text-align:right;">Details</th>
+                <th class="th-member">Member</th>
+                <th class="th-role">Role</th>
+                <th class="th-team">Team</th>
+                <th class="th-status">Current Status</th>
+                <th class="th-load">Monthly Load</th>
+                <th class="th-actions" style="text-align:right;">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -2942,8 +3023,29 @@ function renderPeopleView() {
                 const pObj = pods.find(p => p.id === s.podId);
                 const podName = pObj?.name || (s.podId ? s.podId : s.group || 'Day Support');
                 const podCol = pObj?.color || '#64748b';
-                const shiftStatusClass = todayVal === 'M' ? 'morning' : todayVal === 'N' ? 'night' : 'off';
-                const shiftStatusText = todayVal === 'M' ? 'Morning (06:00 – 18:00)' : todayVal === 'N' ? 'Night (18:00 – 06:00)' : 'Off Duty';
+                let shiftStatusClass = 'off';
+                let shiftStatusText = 'Off Duty';
+
+                if (s.podId) {
+                  if (todayVal === 'M') {
+                    shiftStatusClass = 'morning';
+                    shiftStatusText = 'Morning · 06:00–18:00';
+                  } else if (todayVal === 'N') {
+                    shiftStatusClass = 'night';
+                    shiftStatusText = 'Night · 18:00–06:00';
+                  } else if (todayVal === 'LEAVE') {
+                    shiftStatusClass = 'leave';
+                    shiftStatusText = 'On Leave';
+                  } else {
+                    shiftStatusClass = 'off';
+                    shiftStatusText = 'Off Duty';
+                  }
+                } else {
+                  const hour = new Date().getHours();
+                  const isSupportActive = (hour >= 8 && hour < 17);
+                  shiftStatusClass = isSupportActive ? 'morning' : 'off';
+                  shiftStatusText = isSupportActive ? 'Active · 08:00–17:00' : 'Closed · 08:00–17:00';
+                }
 
                 return `
                   <tr class="people-table-row" data-view-staff="${s.id}">
@@ -2967,7 +3069,8 @@ function renderPeopleView() {
                     </td>
                     <td>
                       <span class="table-status-pill ${shiftStatusClass}">
-                        ${shiftStatusText}
+                        <span class="table-status-dot ${shiftStatusClass}"></span>
+                        <span>${shiftStatusText}</span>
                       </span>
                     </td>
                     <td>
@@ -2975,9 +3078,9 @@ function renderPeopleView() {
                       <span class="table-load-sub">${(mCount + nCount) * 12}h · ${mCount}M / ${nCount}N</span>
                     </td>
                     <td style="text-align:right;" onclick="event.stopPropagation();">
-                      <div style="display:inline-flex;align-items:center;gap:6px;">
-                        <button type="button" class="btn-clean" style="font-size:11.5px;padding:4px 9px;" data-change-pw="${s.id}">Change Password</button>
-                        <button type="button" class="table-view-btn" data-view-staff="${s.id}">View info &rarr;</button>
+                      <div class="table-actions-cell">
+                        <button type="button" class="btn-table-action" data-change-pw="${s.id}">Change Password</button>
+                        <button type="button" class="btn-table-view" data-view-staff="${s.id}">View info &rarr;</button>
                       </div>
                     </td>
                   </tr>
