@@ -533,10 +533,9 @@ button, input, select {
   background: linear-gradient(180deg, #0A0909 0%, #09101F 100%);
   color: #ffffff;
   border-radius: var(--radius-lg);
-  padding: 26px 28px;
+  padding: 26px 28px 24px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-start;
   position: relative;
   min-height: 220px;
   overflow: hidden;
@@ -564,8 +563,9 @@ button, input, select {
 .blue-card-inner {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  justify-content: space-between;
   height: 100%;
+  flex: 1;
 }
 
 .blue-card-top-row {
@@ -621,6 +621,7 @@ button, input, select {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  margin: auto 0;
 }
 
 .blue-huge-title {
@@ -633,10 +634,10 @@ button, input, select {
 }
 
 .blue-pod-lead {
-  font-size: 13px;
-  font-weight: 500;
-  color: #94a3b8;
-  letter-spacing: 0.1px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #60a5fa;
+  letter-spacing: 0.2px;
 }
 
 /* On-Desk Avatar Strip directly on card */
@@ -645,7 +646,7 @@ button, input, select {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-  margin-top: 2px;
+  padding-bottom: 4px;
 }
 
 .deck-avatar-chip {

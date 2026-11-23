@@ -2323,7 +2323,7 @@ function renderOverviewView() {
 
           <div class="blue-hero-center">
             <div class="blue-huge-title">${escapeHtml(activeShiftLabel)}</div>
-            <div class="blue-pod-lead">${escapeHtml(activePodName)} · ${todayInfo.activeStaff?.length || activeStaffList.length} on desk</div>
+            <div class="blue-pod-lead">${escapeHtml(activePodName)}</div>
           </div>
 
           <!-- Live On-Desk Avatar Strip -->
