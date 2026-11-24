@@ -1,12 +1,18 @@
 {
-  "name": "ShiftDex Worker Portal",
+  "id": "/",
+  "name": "ShiftDex · Worker Portal",
   "short_name": "ShiftDex",
+  "description": "24/7 shift schedule, team duty roster, and availability portal.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#f3f6f8",
-  "theme_color": "#17232e",
+  "orientation": "any",
+  "background_color": "#fbfaf7",
+  "theme_color": "#2563eb",
   "icons": [
+    { "src": "/pwa-icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
     { "src": "/shift-desk-app-icon.png", "type": "image/png", "sizes": "256x256", "purpose": "any" },
-    { "src": "/shift-desk-mark.png", "type": "image/png", "sizes": "512x512", "purpose": "any" }
+    { "src": "/shift-desk-mark.png", "type": "image/png", "sizes": "512x512", "purpose": "any" },
+    { "src": "/shift-desk-mark.png", "type": "image/png", "sizes": "512x512", "purpose": "maskable" }
   ]
 }

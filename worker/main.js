@@ -24,7 +24,134 @@ let activeWorkerTab = 'overview'; // 'overview' | 'calendar' | 'requests'
 let currentMonth = new Date().toISOString().slice(0, 7);
 let selectedDayDetail = null;
 let isMobileNavOpen = false;
+let isProfileMenuOpen = false;
 let workerRequests = [];
+let deferredInstallPrompt = null;
+let isAppInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  if (token && profile) renderDashboard();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  isAppInstalled = true;
+  showWorkerToast('ShiftDex app installed on your device');
+  if (token && profile) renderDashboard();
+});
+
+document.addEventListener('click', (event) => {
+  if (!isProfileMenuOpen) return;
+  if (!event.target.closest('#desktop-profile-popover, #btn-desktop-profile-menu')) {
+    isProfileMenuOpen = false;
+    renderDashboard();
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && isProfileMenuOpen) {
+    isProfileMenuOpen = false;
+    renderDashboard();
+  }
+});
+
+function openInstallGuideModal() {
+  let modalWrap = document.querySelector('#worker-pw-modal-wrap');
+  if (!modalWrap) {
+    modalWrap = document.createElement('div');
+    modalWrap.id = 'worker-pw-modal-wrap';
+    document.body.appendChild(modalWrap);
+  }
+
+  const ua = navigator.userAgent || '';
+  const isIOS = /iphone|ipad|ipod/i.test(ua);
+  const isMacSafari = /macintosh/i.test(ua) && /safari/i.test(ua) && !/chrome|chromium|edg/i.test(ua);
+
+  let steps = [
+    'Click the Install icon on the right side of your browser address bar.',
+    'Or open your browser menu (⋮) and choose "Install ShiftDex" or "Cast, save, and share -> Install page as app".'
+  ];
+  let platformHint = 'Desktop & Android Browsers';
+
+  if (isIOS) {
+    platformHint = 'iPhone & iPad (Safari)';
+    steps = [
+      'Tap the Share icon (square with upward arrow) at the bottom or top bar of Safari.',
+      'Scroll down and tap "Add to Home Screen", then tap "Add".'
+    ];
+  } else if (isMacSafari) {
+    platformHint = 'Mac (Safari)';
+    steps = [
+      'Click "File" in the top menu bar.',
+      'Select "Add to Dock…" to keep ShiftDex on your Mac dock as an app.'
+    ];
+  }
+
+  modalWrap.innerHTML = `
+    <div class="day-modal-backdrop" id="install-guide-backdrop">
+      <div class="day-modal-card" style="max-width:420px;animation:modalPop 0.18s cubic-bezier(0.16,1,0.3,1);overflow:hidden;">
+        <div class="day-modal-header">
+          <div>
+            <div style="font-size:11px;font-weight:800;letter-spacing:0.8px;text-transform:uppercase;color:#16a34a;margin-bottom:2px;">INSTALL APP</div>
+            <h3 style="margin:0;">Install ShiftDex on Your Device</h3>
+          </div>
+          <button type="button" class="day-modal-close-btn" id="btn-close-install-guide">&times;</button>
+        </div>
+        <div class="day-modal-body" style="padding:18px 20px;">
+          <div style="padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;font-size:12.5px;color:#166534;line-height:1.5;margin-bottom:14px;">
+            Install ShiftDex for one-tap launch from your desktop, dock, or home screen with full-screen app experience.
+          </div>
+          <div style="font-size:11.5px;font-weight:700;color:var(--text-light);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">${escapeHtml(platformHint)}</div>
+          <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--text-main);line-height:1.5;">
+            ${steps.map(s => `<li>${escapeHtml(s)}</li>`).join('')}
+          </ol>
+          <button type="button" class="btn-submit-action" id="btn-ok-install-guide" style="width:100%;justify-content:center;margin-top:18px;">Got it</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const close = () => { modalWrap.innerHTML = ''; };
+  modalWrap.querySelector('#btn-close-install-guide').onclick = close;
+  modalWrap.querySelector('#btn-ok-install-guide').onclick = close;
+  modalWrap.querySelector('#install-guide-backdrop').onclick = (e) => {
+    if (e.target.id === 'install-guide-backdrop') close();
+  };
+}
+
+async function triggerInstallApp() {
+  isProfileMenuOpen = false;
+  isMobileNavOpen = false;
+  if (isAppInstalled) {
+    renderDashboard();
+    showWorkerToast('ShiftDex is already installed on your device');
+    return;
+  }
+  if (deferredInstallPrompt) {
+    try {
+      await deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+      if (outcome === 'accepted') {
+        showWorkerToast('Installing ShiftDex app…');
+      }
+    } catch {
+      openInstallGuideModal();
+    }
+    renderDashboard();
+    return;
+  }
+  renderDashboard();
+  openInstallGuideModal();
+}
 
 const ICONS = {
   home: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`,
@@ -342,15 +469,79 @@ function renderDashboard() {
         <b>shiftdex<span style="color:var(--blue-primary);">.</span></b>
       </div>
 
-      <!-- Desktop User Profile Controls -->
+      <!-- Desktop User Profile Pill + Top-Right Modal Menu -->
       <div class="header-user-side">
-        <div class="user-profile-badge">
+        <button type="button" class="user-profile-trigger ${isProfileMenuOpen ? 'open' : ''}" id="btn-desktop-profile-menu" aria-haspopup="true" aria-expanded="${isProfileMenuOpen ? 'true' : 'false'}">
           <div class="user-avatar-circle" style="background:${teamColor};">${initial}</div>
           <span class="user-badge-name">${escapeHtml(me.name)}</span>
-          <span class="user-team-chip" style="border-color:${teamColor};">${escapeHtml(teamName)}</span>
-        </div>
-        <button class="btn-signout" id="btn-worker-change-pw" type="button" style="border-color:var(--border-card);color:var(--text-main);background:#ffffff;">Security &amp; Passkeys</button>
-        <button class="btn-signout" id="logout" type="button">Sign out</button>
+          <svg class="profile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+
+        ${isProfileMenuOpen ? `
+          <div class="profile-popover-card" id="desktop-profile-popover" role="menu">
+            <div class="profile-popover-head">
+              <div class="user-avatar-circle" style="background:${teamColor};width:40px;height:40px;font-size:15px;flex-shrink:0;">${initial}</div>
+              <div style="min-width:0;flex:1;">
+                <div style="font-weight:750;font-size:14px;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(me.name)}</div>
+                <div style="font-size:11.5px;color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(profile?.email || '')}</div>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+                  <span class="user-team-chip" style="border-color:${teamColor};"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${teamColor};margin-right:4px;"></span>${escapeHtml(teamName)}</span>
+                  ${me.role ? `<span style="font-size:11px;font-weight:600;color:#64748b;">${escapeHtml(me.role)}</span>` : ''}
+                </div>
+              </div>
+            </div>
+
+            <div class="profile-popover-divider"></div>
+
+            <div class="profile-popover-menu">
+              <button type="button" class="profile-menu-item" id="btn-worker-change-pw" role="menuitem">
+                <span class="profile-menu-icon" style="background:#eff6ff;color:#2563eb;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </span>
+                <div class="profile-menu-text">
+                  <strong>Security &amp; Passkeys</strong>
+                  <span>Face ID, Touch ID &amp; password</span>
+                </div>
+              </button>
+
+              ${!isAppInstalled ? `
+                <button type="button" class="profile-menu-item" id="btn-desktop-install-app" role="menuitem">
+                  <span class="profile-menu-icon" style="background:#f0fdf4;color:#16a34a;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  </span>
+                  <div class="profile-menu-text">
+                    <strong>Install ShiftDex App</strong>
+                    <span>${deferredInstallPrompt ? 'One-click install to device' : 'Add ShiftDex as desktop app'}</span>
+                  </div>
+                </button>
+              ` : `
+                <div class="profile-menu-item" style="cursor:default;opacity:0.78;">
+                  <span class="profile-menu-icon" style="background:#f0fdf4;color:#16a34a;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <div class="profile-menu-text">
+                    <strong>App Installed</strong>
+                    <span>Running as standalone app</span>
+                  </div>
+                </div>
+              `}
+            </div>
+
+            <div class="profile-popover-divider"></div>
+
+            <div class="profile-popover-menu">
+              <button type="button" class="profile-menu-item is-danger" id="logout" role="menuitem">
+                <span class="profile-menu-icon" style="background:#fef2f2;color:#dc2626;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                </span>
+                <div class="profile-menu-text">
+                  <strong style="color:#dc2626;">Sign out</strong>
+                  <span>End current session</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        ` : ''}
       </div>
 
       <!-- Mobile Hamburger Button (Image 2 circular outline button) -->
@@ -387,6 +578,15 @@ function renderDashboard() {
           </div>
           <button type="button" id="drawer-manage-passkeys" style="border:none;background:#2563eb;color:#fff;border-radius:9999px;padding:5px 12px;font-size:11px;font-weight:750;cursor:pointer;">Set Up</button>
         </div>
+        ${!isAppInstalled ? `
+          <div style="margin:10px 0 4px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span style="font-size:12px;font-weight:700;color:#166534;">Install ShiftDex App</span>
+            </div>
+            <button type="button" id="drawer-install-app" style="border:none;background:#16a34a;color:#fff;border-radius:9999px;padding:5px 12px;font-size:11px;font-weight:750;cursor:pointer;">Install</button>
+          </div>
+        ` : ''}
       </div>
       <div style="display:flex;flex-direction:column;gap:10px;">
         <button class="btn-signout" id="drawer-worker-change-pw" type="button" style="width:100%;height:46px;border-radius:14px;border-color:var(--border-card);color:var(--text-main);background:#ffffff;font-weight:600;">Security &amp; Passkeys</button>
@@ -904,8 +1104,20 @@ function renderDashboard() {
     };
   }
 
+  // Desktop Profile Popover Toggle
+  const desktopProfileBtn = document.querySelector('#btn-desktop-profile-menu');
+  if (desktopProfileBtn) {
+    desktopProfileBtn.onclick = (e) => {
+      e.stopPropagation();
+      isProfileMenuOpen = !isProfileMenuOpen;
+      renderDashboard();
+    };
+  }
+
   // Sign out handlers
   const handleLogout = async () => {
+    isProfileMenuOpen = false;
+    isMobileNavOpen = false;
     try { await apiRequest('/api/auth/logout', { method: 'POST' }); } catch {}
     sessionStorage.removeItem('worker-token');
     sessionStorage.removeItem('worker-id');
@@ -923,7 +1135,20 @@ function renderDashboard() {
   if (drawerLogoutBtn) drawerLogoutBtn.onclick = handleLogout;
 
   const workerChangePwBtn = document.querySelector('#btn-worker-change-pw');
-  if (workerChangePwBtn) workerChangePwBtn.onclick = () => openWorkerSecurityModal('passkeys');
+  if (workerChangePwBtn) {
+    workerChangePwBtn.onclick = () => {
+      isProfileMenuOpen = false;
+      renderDashboard();
+      openWorkerSecurityModal('passkeys');
+    };
+  }
+
+  const desktopInstallBtn = document.querySelector('#btn-desktop-install-app');
+  if (desktopInstallBtn) desktopInstallBtn.onclick = triggerInstallApp;
+
+  const drawerInstallBtn = document.querySelector('#drawer-install-app');
+  if (drawerInstallBtn) drawerInstallBtn.onclick = triggerInstallApp;
+
   const drawerWorkerChangePwBtn = document.querySelector('#drawer-worker-change-pw');
   if (drawerWorkerChangePwBtn) {
     drawerWorkerChangePwBtn.onclick = () => {
