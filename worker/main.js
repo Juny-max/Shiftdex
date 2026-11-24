@@ -26,8 +26,28 @@ let selectedDayDetail = null;
 let isMobileNavOpen = false;
 let isProfileMenuOpen = false;
 let workerRequests = [];
+let enrolledPasskeys = [];
 let deferredInstallPrompt = null;
 let isAppInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+function detectDevicePasskeyName() {
+  const ua = navigator.userAgent || '';
+  if (/iPhone/i.test(ua)) return 'iPhone (Face ID)';
+  if (/iPad/i.test(ua)) return 'iPad (Touch ID)';
+  if (/Macintosh/i.test(ua)) return 'Mac (Touch ID)';
+  if (/Android/i.test(ua)) return 'Android (Biometrics)';
+  if (/Windows/i.test(ua)) return 'Windows PC (Hello)';
+  return 'Device Passkey';
+}
+
+function findEnrolledPasskeyOnThisDevice(list = enrolledPasskeys) {
+  if (!Array.isArray(list) || list.length === 0) return null;
+  const savedDevicePkId = localStorage.getItem('shiftdex-device-passkey-id') || '';
+  const currentDeviceName = detectDevicePasskeyName();
+  return list.find(pk => pk.id === savedDevicePkId)
+    || list.find(pk => pk.device_name === currentDeviceName)
+    || null;
+}
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -571,13 +591,23 @@ function renderDashboard() {
             </div>
           </div>
         </div>
-        <div style="margin:14px 0 4px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color:#2563eb;"><circle cx="9.2" cy="7.5" r="3.4" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M3 19.2c0-3.1 2.75-5.2 6.2-5.2 1.25 0 2.4.3 3.35.85" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.2" cy="14" r="2.6" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M17.2 16.6V21m0-2.1h2.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <span style="font-size:12px;font-weight:700;color:#1e40af;">Biometric Passkeys</span>
+        ${findEnrolledPasskeyOnThisDevice() ? `
+          <div style="margin:14px 0 4px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color:#16a34a;"><path d="M12 2.5L4.5 5.8v5.5c0 5.1 3.2 9.7 7.5 11.2 4.3-1.5 7.5-6.1 7.5-11.2V5.8L12 2.5z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M8.8 12.4l2.2 2.2 4.4-4.6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span style="font-size:12px;font-weight:700;color:#166534;">Passkey Active</span>
+            </div>
+            <button type="button" id="drawer-manage-passkeys" style="border:none;background:#16a34a;color:#fff;border-radius:9999px;padding:5px 12px;font-size:11px;font-weight:750;cursor:pointer;">Manage</button>
           </div>
-          <button type="button" id="drawer-manage-passkeys" style="border:none;background:#2563eb;color:#fff;border-radius:9999px;padding:5px 12px;font-size:11px;font-weight:750;cursor:pointer;">Set Up</button>
-        </div>
+        ` : `
+          <div style="margin:14px 0 4px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color:#2563eb;"><circle cx="9.2" cy="7.5" r="3.4" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M3 19.2c0-3.1 2.75-5.2 6.2-5.2 1.25 0 2.4.3 3.35.85" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.2" cy="14" r="2.6" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M17.2 16.6V21m0-2.1h2.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span style="font-size:12px;font-weight:700;color:#1e40af;">Biometric Passkeys</span>
+            </div>
+            <button type="button" id="drawer-manage-passkeys" style="border:none;background:#2563eb;color:#fff;border-radius:9999px;padding:5px 12px;font-size:11px;font-weight:750;cursor:pointer;">Set Up</button>
+          </div>
+        `}
         ${!isAppInstalled ? `
           <div style="margin:10px 0 4px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
             <div style="display:flex;align-items:center;gap:8px;">
@@ -1118,6 +1148,7 @@ function renderDashboard() {
   const handleLogout = async () => {
     isProfileMenuOpen = false;
     isMobileNavOpen = false;
+    enrolledPasskeys = [];
     try { await apiRequest('/api/auth/logout', { method: 'POST' }); } catch {}
     sessionStorage.removeItem('worker-token');
     sessionStorage.removeItem('worker-id');
@@ -1176,32 +1207,23 @@ async function openWorkerSecurityModal(initialTab = 'passkeys') {
   }
 
   let currentTab = initialTab; // 'passkeys' | 'password'
-  let passkeys = [];
-  let isLoadingPasskeys = true;
+  let passkeys = [...enrolledPasskeys];
+  let isLoadingPasskeys = enrolledPasskeys.length === 0;
   let passkeyNotice = '';
   let passkeyError = '';
 
   const loadPasskeys = async () => {
-    isLoadingPasskeys = true;
     try {
       const res = await apiRequest('/api/auth/passkey/list');
       passkeys = res.passkeys || [];
+      enrolledPasskeys = [...passkeys];
     } catch (e) {
       passkeys = [];
     } finally {
       isLoadingPasskeys = false;
       render();
+      renderDashboard();
     }
-  };
-
-  const detectDevicePasskeyName = () => {
-    const ua = navigator.userAgent || '';
-    if (/iPhone/i.test(ua)) return 'iPhone (Face ID)';
-    if (/iPad/i.test(ua)) return 'iPad (Touch ID)';
-    if (/Macintosh/i.test(ua)) return 'Mac (Touch ID)';
-    if (/Android/i.test(ua)) return 'Android (Biometrics)';
-    if (/Windows/i.test(ua)) return 'Windows PC (Hello)';
-    return 'Device Passkey';
   };
 
   const close = () => { modalWrap.innerHTML = ''; };
@@ -1209,10 +1231,7 @@ async function openWorkerSecurityModal(initialTab = 'passkeys') {
   const render = () => {
     const isWebAuthnAvailable = browserSupportsWebAuthn();
     const currentDeviceName = detectDevicePasskeyName();
-    const savedDevicePkId = localStorage.getItem('shiftdex-device-passkey-id') || '';
-    const enrolledOnThisDevice = passkeys.find(pk => pk.id === savedDevicePkId)
-      || passkeys.find(pk => pk.device_name === currentDeviceName)
-      || null;
+    const enrolledOnThisDevice = findEnrolledPasskeyOnThisDevice(passkeys);
 
     const passkeySvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9.2" cy="7.5" r="3.4" fill="currentColor" fill-opacity="0.28" stroke="currentColor" stroke-width="1.9"/><path d="M3 19.2c0-3.1 2.75-5.2 6.2-5.2 1.25 0 2.4.3 3.35.85" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.2" cy="14" r="2.6" fill="currentColor" fill-opacity="0.28" stroke="currentColor" stroke-width="1.9"/><path d="M17.2 16.6V21m0-2.1h2.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
@@ -1493,16 +1512,18 @@ async function boot() {
     const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const selectedMonth = d => d.toISOString().slice(0, 7);
 
-    const [me, currentRoster, nextRoster, unavailData] = await Promise.all([
+    const [me, currentRoster, nextRoster, unavailData, passkeyData] = await Promise.all([
       apiRequest('/api/me'),
       apiRequest(`/api/roster?month=${selectedMonth(now)}`),
       apiRequest(`/api/roster?month=${selectedMonth(nextMonthDate)}`),
       apiRequest('/api/unavailability').catch(() => ({ flags: [] })),
+      apiRequest('/api/auth/passkey/list').catch(() => ({ passkeys: [] })),
     ]);
 
     staffId = me.id;
     profile = { fullName: me.staff.full_name, email: me.email };
     workerRequests = unavailData.flags || [];
+    enrolledPasskeys = passkeyData.passkeys || [];
 
     staff = (currentRoster.staff || []).map(person => ({
       id: person.id, name: person.full_name, role: person.role_tag,
