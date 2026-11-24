@@ -2247,6 +2247,10 @@ function renderAdminLogin() {
   `;
 
   const form = document.querySelector('#admin-login-screen-form');
+  const emailField = document.querySelector('#admin-screen-email');
+  if (emailField) {
+    emailField.oninput = () => { adminLoginEmail = emailField.value; };
+  }
   if (form) {
     form.onsubmit = async event => {
       event.preventDefault();
@@ -2286,6 +2290,10 @@ function renderAdminLogin() {
 function render() {
   const admin = currentAdmin();
   if (!admin.loggedIn) {
+    // Keep the active login screen intact if already mounted so background timers/events never wipe typed fields
+    if (document.querySelector('#admin-login-screen-form')) {
+      return;
+    }
     renderAdminLogin();
     return;
   }
@@ -6490,27 +6498,25 @@ window.addEventListener('keydown', (e) => {
 });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
+    const admin = currentAdmin();
+    if (!admin.loggedIn) return;
     const realMonth = new Date().toISOString().slice(0, 7);
     if (activePage === 'overview' && month !== realMonth) {
       month = realMonth < '2026-11' ? '2026-11' : realMonth;
       render();
     }
-    const admin = currentAdmin();
-    if (admin.loggedIn) {
-      fetchAdminRequests({ silent: true });
-    }
+    fetchAdminRequests({ silent: true });
   }
 });
 window.addEventListener('focus', () => {
+  const admin = currentAdmin();
+  if (!admin.loggedIn) return;
   const realMonth = new Date().toISOString().slice(0, 7);
   if (activePage === 'overview' && month !== realMonth) {
     month = realMonth < '2026-11' ? '2026-11' : realMonth;
     render();
   }
-  const admin = currentAdmin();
-  if (admin.loggedIn) {
-    fetchAdminRequests({ silent: true });
-  }
+  fetchAdminRequests({ silent: true });
 });
 if (window.shiftDexDesktop?.updates) {
   let pendingStateTimer = null;
@@ -6523,17 +6529,17 @@ if (window.shiftDexDesktop?.updates) {
         desktopUpdateState = state;
         const hasUpdate = ['available', 'downloaded'].includes(state.status);
         if (hasUpdate && !hadUpdate) toast(state.message || `ShiftDex ${state.version || ''} is available.`);
-        render();
+        if (currentAdmin().loggedIn) render();
       }, remaining);
       return;
     }
     desktopUpdateState = state;
     const hasUpdate = ['available', 'downloaded'].includes(state.status);
     if (hasUpdate && !hadUpdate) toast(state.message || `ShiftDex ${state.version || ''} is available.`);
-    render();
+    if (currentAdmin().loggedIn) render();
   });
   window.shiftDexDesktop.updates.getState().then(state => {
     desktopUpdateState = state;
-    render();
+    if (currentAdmin().loggedIn) render();
   }).catch(() => {});
 }
