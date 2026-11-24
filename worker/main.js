@@ -496,7 +496,7 @@ function renderDashboard() {
             <div class="profile-popover-menu">
               <button type="button" class="profile-menu-item" id="btn-worker-change-pw" role="menuitem">
                 <span class="profile-menu-icon" style="background:#eff6ff;color:#2563eb;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2.5L4.5 5.8v5.5c0 5.1 3.2 9.7 7.5 11.2 4.3-1.5 7.5-6.1 7.5-11.2V5.8L12 2.5z" fill="currentColor" fill-opacity="0.16" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><rect x="9.25" y="10.8" width="5.5" height="4.7" rx="1.3" fill="currentColor"/><path d="M10.2 10.8V9.4a1.8 1.8 0 0 1 3.6 0v1.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
                 </span>
                 <div class="profile-menu-text">
                   <strong>Security &amp; Passkeys</strong>
@@ -507,7 +507,7 @@ function renderDashboard() {
               ${!isAppInstalled ? `
                 <button type="button" class="profile-menu-item" id="btn-desktop-install-app" role="menuitem">
                   <span class="profile-menu-icon" style="background:#f0fdf4;color:#16a34a;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="currentColor" fill-opacity="0.16" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v7m0 0l-3-3m3 3l3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 16.8h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
                   </span>
                   <div class="profile-menu-text">
                     <strong>Install ShiftDex App</strong>
@@ -517,7 +517,7 @@ function renderDashboard() {
               ` : `
                 <div class="profile-menu-item" style="cursor:default;opacity:0.78;">
                   <span class="profile-menu-icon" style="background:#f0fdf4;color:#16a34a;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="currentColor" fill-opacity="0.16" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 12.5l2.5 2.5 4.5-5" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
                   </span>
                   <div class="profile-menu-text">
                     <strong>App Installed</strong>
@@ -532,7 +532,7 @@ function renderDashboard() {
             <div class="profile-popover-menu">
               <button type="button" class="profile-menu-item is-danger" id="logout" role="menuitem">
                 <span class="profile-menu-icon" style="background:#fef2f2;color:#dc2626;">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M10 4H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10" fill="currentColor" fill-opacity="0.14"/><path d="M10 4H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M15.5 8.5L19.5 12l-4 3.5M19 12H9.5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </span>
                 <div class="profile-menu-text">
                   <strong style="color:#dc2626;">Sign out</strong>
@@ -573,7 +573,7 @@ function renderDashboard() {
         </div>
         <div style="margin:14px 0 4px;padding:12px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
           <div style="display:flex;align-items:center;gap:8px;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a4 4 0 1 0 4 4"/><circle cx="12" cy="12" r="9"/><path d="m14 10 5-5"/><path d="m17 7 2 2"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color:#2563eb;"><circle cx="9.2" cy="7.5" r="3.4" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M3 19.2c0-3.1 2.75-5.2 6.2-5.2 1.25 0 2.4.3 3.35.85" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.2" cy="14" r="2.6" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M17.2 16.6V21m0-2.1h2.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span style="font-size:12px;font-weight:700;color:#1e40af;">Biometric Passkeys</span>
           </div>
           <button type="button" id="drawer-manage-passkeys" style="border:none;background:#2563eb;color:#fff;border-radius:9999px;padding:5px 12px;font-size:11px;font-weight:750;cursor:pointer;">Set Up</button>
@@ -581,7 +581,7 @@ function renderDashboard() {
         ${!isAppInstalled ? `
           <div style="margin:10px 0 4px;padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
             <div style="display:flex;align-items:center;gap:8px;">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style="color:#16a34a;"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5" fill="currentColor" fill-opacity="0.16" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5v7m0 0l-3-3m3 3l3-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 16.8h7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
               <span style="font-size:12px;font-weight:700;color:#166534;">Install ShiftDex App</span>
             </div>
             <button type="button" id="drawer-install-app" style="border:none;background:#16a34a;color:#fff;border-radius:9999px;padding:5px 12px;font-size:11px;font-weight:750;cursor:pointer;">Install</button>
@@ -1194,10 +1194,27 @@ async function openWorkerSecurityModal(initialTab = 'passkeys') {
     }
   };
 
+  const detectDevicePasskeyName = () => {
+    const ua = navigator.userAgent || '';
+    if (/iPhone/i.test(ua)) return 'iPhone (Face ID)';
+    if (/iPad/i.test(ua)) return 'iPad (Touch ID)';
+    if (/Macintosh/i.test(ua)) return 'Mac (Touch ID)';
+    if (/Android/i.test(ua)) return 'Android (Biometrics)';
+    if (/Windows/i.test(ua)) return 'Windows PC (Hello)';
+    return 'Device Passkey';
+  };
+
   const close = () => { modalWrap.innerHTML = ''; };
 
   const render = () => {
     const isWebAuthnAvailable = browserSupportsWebAuthn();
+    const currentDeviceName = detectDevicePasskeyName();
+    const savedDevicePkId = localStorage.getItem('shiftdex-device-passkey-id') || '';
+    const enrolledOnThisDevice = passkeys.find(pk => pk.id === savedDevicePkId)
+      || passkeys.find(pk => pk.device_name === currentDeviceName)
+      || null;
+
+    const passkeySvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9.2" cy="7.5" r="3.4" fill="currentColor" fill-opacity="0.28" stroke="currentColor" stroke-width="1.9"/><path d="M3 19.2c0-3.1 2.75-5.2 6.2-5.2 1.25 0 2.4.3 3.35.85" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.2" cy="14" r="2.6" fill="currentColor" fill-opacity="0.28" stroke="currentColor" stroke-width="1.9"/><path d="M17.2 16.6V21m0-2.1h2.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
     modalWrap.innerHTML = `
       <div class="day-modal-backdrop" id="worker-pw-modal-backdrop">
@@ -1230,15 +1247,36 @@ async function openWorkerSecurityModal(initialTab = 'passkeys') {
                 Passkeys let you sign in with one tap using <strong>Face ID</strong>, <strong>fingerprint</strong>, or device screen lock. They are stored securely in your device hardware and are 100% phishing-resistant.
               </div>
 
-              ${isWebAuthnAvailable ? `
-                <button type="button" class="btn-primary-action" id="btn-add-passkey" style="width:100%;height:44px;justify-content:center;gap:8px;font-size:13px;border-radius:12px;margin-bottom:18px;">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a4 4 0 1 0 4 4"/><circle cx="12" cy="12" r="9"/><path d="m14 10 5-5"/><path d="m17 7 2 2"/></svg>
-                  <span>Register this Device (Face ID / Passkey)</span>
-                </button>
-              ` : `
+              ${!isWebAuthnAvailable ? `
                 <div style="padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;font-size:12px;color:#64748b;margin-bottom:16px;">
                   Your current browser does not support WebAuthn passkeys. Please use Safari (iOS/macOS), Chrome, or Edge to register a passkey.
                 </div>
+              ` : isLoadingPasskeys ? `
+                <div style="padding:14px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;text-align:center;font-size:12px;color:#64748b;margin-bottom:18px;">
+                  Checking device passkey status…
+                </div>
+              ` : enrolledOnThisDevice ? `
+                <div style="padding:12px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;margin-bottom:16px;">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="width:36px;height:36px;border-radius:10px;background:#dcfce7;color:#16a34a;display:grid;place-items:center;flex-shrink:0;">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 2.5L4.5 5.8v5.5c0 5.1 3.2 9.7 7.5 11.2 4.3-1.5 7.5-6.1 7.5-11.2V5.8L12 2.5z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M8.8 12.4l2.2 2.2 4.4-4.6" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
+                    <div style="flex:1;min-width:0;">
+                      <div style="font-size:13px;font-weight:750;color:#166534;">Passkey Active on This Device</div>
+                      <div style="font-size:11.5px;color:#15803d;margin-top:1px;">${escapeHtml(enrolledOnThisDevice.device_name || currentDeviceName)} is ready for 1-tap sign in.</div>
+                    </div>
+                  </div>
+                  <div style="margin-top:10px;padding-top:10px;border-top:1px solid #bbf7d0;display:flex;justify-content:flex-end;">
+                    <button type="button" id="btn-add-passkey" style="border:none;background:none;color:#15803d;font-size:11.5px;font-weight:750;cursor:pointer;padding:2px 4px;display:inline-flex;align-items:center;gap:5px;">
+                      <span>+ Add another device or security key</span>
+                    </button>
+                  </div>
+                </div>
+              ` : `
+                <button type="button" class="btn-primary-action" id="btn-add-passkey" style="width:100%;height:44px;justify-content:center;gap:9px;font-size:13px;border-radius:12px;margin-bottom:18px;">
+                  ${passkeySvg}
+                  <span>Register This Device (${escapeHtml(currentDeviceName)})</span>
+                </button>
               `}
 
               <div style="font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">
@@ -1253,17 +1291,23 @@ async function openWorkerSecurityModal(initialTab = 'passkeys') {
                 </div>
               ` : `
                 <div style="display:flex;flex-direction:column;gap:8px;">
-                  ${passkeys.map(pk => `
-                    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;">
-                      <div>
-                        <div style="font-weight:750;font-size:13px;color:#0f172a;">${escapeHtml(pk.device_name || 'Passkey Device')}</div>
-                        <div style="font-size:10.5px;color:#64748b;margin-top:2px;">Added ${new Date(pk.created_at).toLocaleDateString()}</div>
+                  ${passkeys.map(pk => {
+                    const isThisDevice = enrolledOnThisDevice && pk.id === enrolledOnThisDevice.id;
+                    return `
+                      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:#f8fafc;border:1px solid ${isThisDevice ? '#bbf7d0' : '#e2e8f0'};border-radius:12px;">
+                        <div>
+                          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            <span style="font-weight:750;font-size:13px;color:#0f172a;">${escapeHtml(pk.device_name || 'Passkey Device')}</span>
+                            ${isThisDevice ? `<span style="font-size:10px;font-weight:750;padding:2px 7px;border-radius:999px;background:#dcfce7;color:#15803d;">This Device</span>` : ''}
+                          </div>
+                          <div style="font-size:10.5px;color:#64748b;margin-top:2px;">Added ${new Date(pk.created_at).toLocaleDateString()}</div>
+                        </div>
+                        <button type="button" class="btn-delete-passkey" data-pk-id="${pk.id}" style="border:none;background:#fee2e2;color:#dc2626;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;">
+                          Remove
+                        </button>
                       </div>
-                      <button type="button" class="btn-delete-passkey" data-pk-id="${pk.id}" style="border:none;background:#fee2e2;color:#dc2626;border-radius:8px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;">
-                        Remove
-                      </button>
-                    </div>
-                  `).join('')}
+                    `;
+                  }).join('')}
                 </div>
               `}
             ` : `
@@ -1328,14 +1372,7 @@ async function openWorkerSecurityModal(initialTab = 'passkeys') {
 
           const regResponse = await startRegistration({ optionsJSON: chalRes.options });
 
-          let deviceName = 'My Device';
-          const ua = navigator.userAgent;
-          if (/iPhone/i.test(ua)) deviceName = 'iPhone (Face ID)';
-          else if (/iPad/i.test(ua)) deviceName = 'iPad (Touch ID)';
-          else if (/Macintosh/i.test(ua)) deviceName = 'Mac (Touch ID)';
-          else if (/Android/i.test(ua)) deviceName = 'Android (Biometrics)';
-          else if (/Windows/i.test(ua)) deviceName = 'Windows PC (Hello)';
-          else deviceName = 'Device Passkey';
+          const deviceName = detectDevicePasskeyName();
 
           const verifyRes = await apiRequest('/api/auth/passkey/register-verify', {
             method: 'POST',
@@ -1348,12 +1385,18 @@ async function openWorkerSecurityModal(initialTab = 'passkeys') {
 
           if (!verifyRes.ok) throw new Error(verifyRes.error || 'Verification failed.');
 
+          if (verifyRes.passkeyId) {
+            localStorage.setItem('shiftdex-device-passkey-id', verifyRes.passkeyId);
+          }
+
           passkeyNotice = `Passkey registered for ${verifyRes.deviceName}! You can now sign in with one tap.`;
           showWorkerToast('Passkey registered successfully!');
           await loadPasskeys();
         } catch (err) {
           if (err.name === 'NotAllowedError') {
             passkeyError = 'Registration was cancelled or timed out.';
+          } else if (err.name === 'InvalidStateError') {
+            passkeyNotice = 'This device already has an active passkey registered on this account.';
           } else {
             passkeyError = err.message || 'Passkey registration failed.';
           }
@@ -1374,6 +1417,9 @@ async function openWorkerSecurityModal(initialTab = 'passkeys') {
             method: 'POST',
             body: JSON.stringify({ passkeyId: pkId })
           });
+          if (localStorage.getItem('shiftdex-device-passkey-id') === pkId) {
+            localStorage.removeItem('shiftdex-device-passkey-id');
+          }
           showWorkerToast('Passkey removed.');
           await loadPasskeys();
         } catch (e) {

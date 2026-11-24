@@ -1302,6 +1302,7 @@ export default {
           ok: true,
           token: session.token,
           expiresAt: session.expiresAt,
+          passkeyId: passkey.id,
           staffId: account.staff_id,
           fullName: account.full_name,
           email: account.email,

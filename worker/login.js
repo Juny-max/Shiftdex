@@ -129,7 +129,7 @@ export function mountLogin(app, api, onLogin) {
           ${canUsePasskeys ? `
             <div style="margin-bottom:16px;">
               <button type="button" class="btn-passkey-hero" id="btn-passkey-login" style="width:100%;height:46px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:14px;border:1.5px solid var(--blue-primary, #2563eb);background:#eff6ff;color:#1d4ed8;font-weight:750;font-size:13.5px;cursor:pointer;transition:all 0.18s ease;box-shadow:0 2px 6px rgba(37,99,235,0.08);">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a4 4 0 1 0 4 4"/><circle cx="12" cy="12" r="9"/><path d="m14 10 5-5"/><path d="m17 7 2 2"/></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9.2" cy="7.5" r="3.4" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M3 19.2c0-3.1 2.75-5.2 6.2-5.2 1.25 0 2.4.3 3.35.85" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.2" cy="14" r="2.6" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M17.2 16.6V21m0-2.1h2.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 <span>Sign in with Passkey (Face ID / Fingerprint)</span>
               </button>
               <div style="display:flex;align-items:center;margin:16px 0 4px;gap:10px;">
@@ -195,11 +195,14 @@ export function mountLogin(app, api, onLogin) {
             throw new Error(verifyData.error || 'Passkey verification failed.');
           }
 
+          if (verifyData.passkeyId) {
+            localStorage.setItem('shiftdex-device-passkey-id', verifyData.passkeyId);
+          }
           onLogin(verifyData);
         } catch (err) {
           passkeyBtn.disabled = false;
           passkeyBtn.innerHTML = `
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 10a4 4 0 1 0 4 4"/><circle cx="12" cy="12" r="9"/><path d="m14 10 5-5"/><path d="m17 7 2 2"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="9.2" cy="7.5" r="3.4" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M3 19.2c0-3.1 2.75-5.2 6.2-5.2 1.25 0 2.4.3 3.35.85" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/><circle cx="17.2" cy="14" r="2.6" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.9"/><path d="M17.2 16.6V21m0-2.1h2.1" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span>Sign in with Passkey (Face ID / Fingerprint)</span>
           `;
           if (err.name === 'NotAllowedError') {
@@ -237,6 +240,9 @@ export function mountLogin(app, api, onLogin) {
                 });
                 const verifyData = await verifyRes.json();
                 if (verifyData.ok) {
+                  if (verifyData.passkeyId) {
+                    localStorage.setItem('shiftdex-device-passkey-id', verifyData.passkeyId);
+                  }
                   onLogin(verifyData);
                 }
               }
